@@ -53,3 +53,9 @@ SystemUIやWallpaper and styleの再読み込みは一時的に画面を閉じ�
 起動保護ファイルは各対象のprivate files内の`net.ryuya_dev.oneuilivecolors.guard`。クラッシュ保護で停止した場合は原因を直し、アプリの「クラッシュ保護を解除」でこのファイルだけを削除して、対象を再読み込みする。自動解除はしない。正常な手動再起動はApplicationExitInfoで区別し、90秒安定稼働した起動や10分以上離れた起動、端末起動し直し後は連続回数をリセットする。履歴が利用できない場合は未完了の起動を保守的に数える。
 
 Launcherデータや壁紙画像の削除、既存root／Vectorの再設定は行わない。
+
+## 0.4.1 release配布の確認
+
+専用RSA 4096鍵で署名したreleaseビルドを作成し、`apksigner verify`が成功。APKと実機の`pkgFlags`にDEBUGGABLEがないことを確認した。実機のdebug版を削除してrelease版を導入し、アプリ自身の保存モードとVectorの3スコープを復元。release版の設定画面の起動と状態応答を確認した。フック実装は外観を検証した0.4.0と同じであり、署名変更によるSystemUIの再読み込みはこの移行では行っていない。
+
+既にdebug版を導入している一般利用者は、アプリの設定を控えてからアンインストールし、release版をインストールしてVectorを再設定する。以後は同じ配布鍵で上書き更新する。

@@ -7,12 +7,36 @@
 JDK 21とAndroid SDK 36を用意し、Android Studioでプロジェクトを開きます。開発用チェックアウトは `~/Documents/OneUiLiveColors` に置いています。
 
 ```sh
-./gradlew :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+./gradlew :app:assembleRelease :app:testDebugUnitTest :app:lintRelease
 ```
 
-APKの出力先は `app/build/outputs/apk/debug/app-debug.apk` です。Gradle Wrapperを同梱しています。独自コードのパッケージ名はドメイン `ryuya-dev.net` をJavaの識別子に合わせた `net.ryuya_dev.oneuilivecolors` です。
+Gradle Wrapperを同梱しています。独自コードのパッケージ名はドメイン `ryuya-dev.net` をJavaの識別子に合わせた `net.ryuya_dev.oneuilivecolors` です。
 
-配布APKは現在、開発用署名です。GitHub Actionsの一時環境のdebug鍵とは異なります。配布元の異なるAPKを上書き更新することはできません。本格的な継続配布には、保管・管理した署名鍵を継続して使用する必要があります。
+## 配布APKの署名
+
+配布にはdebug鍵を使わず、専用のrelease鍵を継続して使います。鍵がない通常のビルド・CIは `app/build/outputs/apk/release/app-release-unsigned.apk` を生成します。これは未署名の検証成果物で、そのままインストールする配布APKではありません。
+
+署名してビルドする場合は、リポジトリの外に次の内容のpropertiesファイルを用意します。
+
+```properties
+storeFile=/absolute/path/to/release.jks
+storePassword=YOUR_PRIVATE_STORE_PASSWORD
+keyAlias=YOUR_KEY_ALIAS
+keyPassword=YOUR_PRIVATE_KEY_PASSWORD
+```
+
+```sh
+export ONEUI_SIGNING_PROPERTIES=/absolute/path/to/private-signing.properties
+./gradlew :app:assembleRelease :app:testDebugUnitTest :app:lintRelease
+```
+
+署名済みAPKは `app/build/outputs/apk/release/app-release.apk` です。`debuggable=false`、コードの難読化は無効です。外部フック・reflectionで使う名前を保持する必要があるため、releaseビルドでも無条件に難読化しません。
+
+署名鍵とパスワードはGitに追加しないでください。現在のローカル配布鍵は `~/.android/keystores/oneui-live-colors-release.jks`、設定は同ディレクトリの `oneui-live-colors-signing.properties` で、それぞれ読み書きを本人だけに制限しています。更新に必要なため、この2ファイルは別途安全にバックアップしてください。GitHubへ鍵をアップロードする自動設定は行っていません。
+
+配布鍵の証明書SHA-256：`7938e1850451b95c45c8f138a768c9da7c5d9db7fb61a883ac8dc724077ddb03`。
+
+初期debug版とrelease版は署名が異なるため、debug版を削除してから移行する必要があります。以後は同じrelease鍵なら通常の上書き更新が可能です。
 
 ## 実装の方針
 

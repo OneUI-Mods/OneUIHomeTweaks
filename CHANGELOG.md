@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.1
+
+- Distribute the non-debuggable release build with a dedicated persistent signing key.
+- CI verifies the unsigned release variant; it no longer offers a debug APK as the distribution artifact.
+- Debug-to-release migration requires reinstalling because the certificates differ. Hook behavior is unchanged from the verified 0.4.0 source.
+
 ## 0.4.0
 
 First public development release for the documented SM-S948Q / Android 16 baseline.

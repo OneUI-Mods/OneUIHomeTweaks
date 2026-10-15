@@ -1,4 +1,14 @@
+import java.util.Properties
+
 plugins { id("com.android.application") }
+val distributionProperties = Properties().apply {
+    providers.environmentVariable("ONEUI_SIGNING_PROPERTIES").orNull?.let { path ->
+        file(path).inputStream().use { load(it) }
+        for (key in listOf("storeFile", "storePassword", "keyAlias", "keyPassword")) {
+            check(!getProperty(key).isNullOrBlank()) { "Missing release signing property: $key" }
+        }
+    }
+}
 android {
     namespace = "net.ryuya_dev.oneuilivecolors"
     compileSdk = 36
@@ -6,10 +16,25 @@ android {
         applicationId = "net.ryuya_dev.oneuilivecolors"
         minSdk = 31
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.4.0"
+        versionCode = 5
+        versionName = "0.4.1"
     }
-    buildTypes { release { isMinifyEnabled = false } }
+    signingConfigs {
+        if (!distributionProperties.isEmpty) create("distribution") {
+            storeFile = file(distributionProperties.getProperty("storeFile"))
+            storePassword = distributionProperties.getProperty("storePassword")
+            keyAlias = distributionProperties.getProperty("keyAlias")
+            keyPassword = distributionProperties.getProperty("keyPassword")
+        }
+    }
+    buildTypes {
+        release {
+            isDebuggable = false
+            // Reflection and external hook contracts must retain their names.
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.findByName("distribution")
+        }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

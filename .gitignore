@@ -13,3 +13,6 @@ research/
 .DS_Store
 *.jks
 *.keystore
+signing.properties
+*.p12
+*.pfx
