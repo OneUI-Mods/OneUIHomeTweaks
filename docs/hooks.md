@@ -26,6 +26,8 @@ SamsungのSemキャッシュを書き換えると他の画面へ影響するた�
 
 実機の`VolumeDependency.get(Class)`、`VolumePanelImpl.recreateVolumePanelForNewConfig()`、`view.standard.VolumePanelWindow`のDialog型を確認。標準音量ダイアログ構築中のContext取得だけを対象に、局所的なnight mode構成を渡す。設定が変わったときはSamsung自身の再構築メソッドを使う。
 
+Contextだけの初期試作では実機の明暗が変わらなかったため、実際のDEX呼び出し元を確認した`BlurEffect.setRealTimeBlur(View,int,float,int)`／`setCapturedBlur(ImageView,int,Supplier)`のプリセットと、`ColorUtils.getSingleColorStateList(int,Context)`の音量用前景色を補完する。frameworkで存在を確認した`SemBlurInfo.BLUR_UI_MEDIUM_ULTRA_THIN_LIGHT`（106）／DARK（121）を使い、画面0の標準／展開音量View配下だけに限定する。前景のalpha、警告色などは保持する。呼び出し側はDEX参照から限定してdeoptimize（この実機で11メソッド／コンストラクタ）。
+
 SystemUI全体のResources、通知、クイック設定、他アプリのテーマは変更しない。Samsungの特殊ぼかし・テーマ・折りたたみ画面等すべての組み合わせを検証したものではない。
 
 ## Wallpaper and style

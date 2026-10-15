@@ -13,6 +13,43 @@ import org.jf.dexlib2.iface.reference.MethodReference;
 
 /** Finds the real callers by DEX type relationships; no obfuscated name assumptions. */
 final class DexEvidence {
+  static void deoptimizeVolumeCalls(String apk, ClassLoader loader) throws Exception {
+    Set<Member> members = new HashSet<>();
+    var dex = DexFileFactory.loadDexContainer(new File(apk), Opcodes.getDefault());
+    for (String entry : dex.getDexEntryNames())
+      for (ClassDef c : dex.getEntry(entry).getDexFile().getClasses()) {
+        if (!c.getType().startsWith("Lcom/android/systemui/volume/view/")
+            || c.getType().contains("/subscreen/")) continue;
+        Set<String> methods = new HashSet<>();
+        for (var m : c.getMethods())
+          if (m.getImplementation() != null)
+            for (var i : m.getImplementation().getInstructions())
+              if (i instanceof ReferenceInstruction r
+                  && r.getReference() instanceof MethodReference ref
+                  && (ref.getDefiningClass().equals("Lcom/android/systemui/volume/util/BlurEffect;")
+                      || ref.getDefiningClass()
+                          .equals("Lcom/android/systemui/volume/util/ColorUtils;")))
+                methods.add(m.getName());
+        if (methods.isEmpty()) continue;
+        Class<?> actual =
+            Class.forName(
+                c.getType().substring(1, c.getType().length() - 1).replace('/', '.'),
+                false,
+                loader);
+        if (methods.contains("<init>"))
+          members.addAll(Arrays.asList(actual.getDeclaredConstructors()));
+        for (var m : actual.getDeclaredMethods())
+          if (methods.contains(m.getName())
+              && !Modifier.isAbstract(m.getModifiers())
+              && !Modifier.isNative(m.getModifiers())) members.add(m);
+      }
+    if (members.isEmpty() || members.size() > 96)
+      throw new IllegalStateException("Volume callsite deoptimization budget");
+    var deopt = XposedBridge.class.getMethod("deoptimizeMethod", Member.class);
+    for (Member m : members) deopt.invoke(null, m);
+    HookEntry.log("VOLUME_DEX_VERIFIED callers=" + members.size());
+  }
+
   static boolean workspaceVerified;
 
   static void verifyScrollContract(String apk, String type) throws Exception {
