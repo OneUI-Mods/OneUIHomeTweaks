@@ -26,7 +26,13 @@ SamsungのSemキャッシュを書き換えると他の画面へ影響するた�
 
 実機の`VolumeDependency.get(Class)`、`VolumePanelImpl.recreateVolumePanelForNewConfig()`、`view.standard.VolumePanelWindow`のDialog型を確認。標準音量ダイアログ構築中のContext取得だけを対象に、局所的なnight mode構成を渡す。設定が変わったときはSamsung自身の再構築メソッドを使う。
 
-Contextだけの初期試作では実機の明暗が変わらなかったため、実際のDEX呼び出し元を確認した`BlurEffect.setRealTimeBlur(View,int,float,int)`／`setCapturedBlur(ImageView,int,Supplier)`のプリセットと、`ColorUtils.getSingleColorStateList(int,Context)`の音量用前景色を補完する。frameworkで存在を確認した`SemBlurInfo.BLUR_UI_MEDIUM_ULTRA_THIN_LIGHT`（106）／DARK（121）を使い、画面0の標準／展開音量View配下だけに限定する。前景のalpha、警告色などは保持する。呼び出し側はDEX参照から限定してdeoptimize（この実機で11メソッド／コンストラクタ）。
+標準パネルには、実際のDEX呼び出し元を確認した`BlurEffect.setRealTimeBlur(View,int,float,int)`／`setCapturedBlur(ImageView,int,Supplier)`のプリセットと、`ColorUtils.getSingleColorStateList(int,Context)`の音量用前景色を補完する。frameworkで存在を確認した`SemBlurInfo.BLUR_UI_MEDIUM_ULTRA_THIN_LIGHT`（106）／DARK（121）を使い、画面0の標準／展開音量View配下だけに限定する。前景のalpha、警告色などは保持する。呼び出し側はDEX参照から限定してdeoptimize（この実機で11メソッド／コンストラクタ）。
+
+実機で表示されていたのはSound Assistant 8.5.00.2の`VolumeStarStandardWindow`だった。標準パネルのContext差し替えだけでは、この追加パネルへ反映されない。`SPluginInstanceManager.PluginHandler.handleLoadPlugin(ComponentName)`の実DEXにある`PluginContextWrapper(Context,ClassLoader)`の呼び出しを確認し、その呼び出し元をdeoptimizeしてプラグインのローダーを取得する。Sound Assistant自身のプロセスはスコープへ追加しない。
+
+プラグインの`VolumeStarImpl`が所有する配色ラッパーを、DEX内の`ColorThemeWrapper`タグ、戻り値int・引数enum、6つの配色キーとリソースの存在から一意に検証する。この実機の難読化名は`f6.i`だがコードには固定しない。明暗指定時だけプラグイン自身のnight別色リソースを解決し、警告色等を保持する。`BarColorModel(progressColor=`のDEXタグとParcelable／constructor(int,boolean)で追加エフェクトバーのモデルも検証し、SystemUI内で生成されるモデルの明暗指定を補う。保存設定は変更しない。
+
+ぼかしは`SemBlurInfo.Builder.setColorCurvePreset`への実参照を持ち、Viewを引数に取るクラスを探索する。この実機は`f6.f`と`f6.c0`。画面0でその処理を実行している同一スレッドの間だけプリセットを補う。設定変更は実装を確認した`VolumeStarImpl.onConfigurationChanged()`で再構築する。OFF時は元の色情報・モデルを再取得する。関連する49呼び出し元を実DEXから限定してdeoptimizeした。新しい版で探索が曖昧・型が異なる場合は追加パネル対応を停止し、状態にエラーを報告する。
 
 SystemUI全体のResources、通知、クイック設定、他アプリのテーマは変更しない。Samsungの特殊ぼかし・テーマ・折りたたみ画面等すべての組み合わせを検証したものではない。
 

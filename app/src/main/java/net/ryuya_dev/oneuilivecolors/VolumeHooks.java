@@ -27,6 +27,7 @@ final class VolumeHooks {
   private Method recreate;
   private int lightPreset, darkPreset;
   private String lastBlur = "";
+  private final VolumeStarHooks volumeStar = new VolumeStarHooks();
 
   void install(Context app, ClassLoader loader) throws Exception {
     context = app;
@@ -45,6 +46,7 @@ final class VolumeHooks {
     Class<?> sem = Class.forName("android.view.SemBlurInfo");
     lightPreset = sem.getField("BLUR_UI_MEDIUM_ULTRA_THIN_LIGHT").getInt(null);
     darkPreset = sem.getField("BLUR_UI_MEDIUM_ULTRA_THIN_DARK").getInt(null);
+    volumeStar.install(app, loader, lightPreset, darkPreset);
     if (lightPreset == darkPreset)
       throw new IllegalStateException("Ambiguous Samsung blur presets");
     if (!Dialog.class.isAssignableFrom(window) || !Dialog.class.isAssignableFrom(expanded))
@@ -220,14 +222,20 @@ final class VolumeHooks {
           () -> {
             if (mode == selected) {
               HostStatus.report(
-                  context, enabled ? "ACTIVE" : "OFF", "Volume hook ready; mode=" + mode);
+                  context,
+                  enabled ? (volumeStar.hasError() ? "ERROR" : "ACTIVE") : "OFF",
+                  "Volume hook ready; mode=" + mode);
               return;
             }
             mode = selected;
+            volumeStar.setMode(selected);
             try {
               Object current = panel.get();
               if (current != null) recreate.invoke(current);
-              HostStatus.report(context, enabled ? "ACTIVE" : "OFF", "Volume mode=" + mode);
+              HostStatus.report(
+                  context,
+                  enabled ? (volumeStar.hasError() ? "ERROR" : "ACTIVE") : "OFF",
+                  "Volume mode=" + mode);
             } catch (Throwable t) {
               disable(t);
             }
@@ -245,6 +253,7 @@ final class VolumeHooks {
     boolean restore = !failed;
     failed = true;
     mode = 0;
+    volumeStar.setMode(0);
     HostStatus.report(context, "ERROR", "Volume: " + t.getClass().getSimpleName());
     HookEntry.log("VOLUME_DISABLED " + t);
     if (restore && main != null)

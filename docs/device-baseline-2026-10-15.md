@@ -14,6 +14,7 @@ OS更新後にこの環境を再取得できなくなるため、検証対象と
 | One UI Home | `com.sec.android.app.launcher` 17.5.03.27 / code 1750305027 |
 | Home Up | `com.samsung.android.app.homestar` 17.5.00.30 / code 1750005030 |
 | DressRoom | 2.9.50.90 / code 295090000 |
+| Sound Assistant | `com.samsung.android.soundassistant` 8.5.00.2 / code 850000002 |
 | SystemUI | `com.android.systemui` 16 / code 36 |
 | MultiPicture | `jp.kamesan.android.multiple_picture_wallpaper_2` 5.17 / code 75 / targetSdk 36 |
 | Vector | 2.2 / build 3080 / runtime API 102（legacy API使用可を実機確認） |
@@ -31,6 +32,7 @@ root化方法・ブートローダーの状態はユーザー申告。root取得
 | One UI Home APK | `e8f0ac6818d066549720ebbeea6ac6c13e04e4ee93a26f5ea35589b6dc0bb291` |
 | framework.jar | `5953e27bfe048411154e5c2de6893adca8606e8ca7c3e8910b7cee62cebe8308` |
 | services.jar | `c1100fed60fdbb7541004ae8e46a6c4d642d9d605c904762cf854e4809da10ed` |
+| Sound Assistant APK | `b1c36809be7d06aab01ae53b630d8fa05155160cc2e289d93d3fc93de31f88f8` |
 | SystemUI APK | `d111bca9ee41ea93d08d6d8e258988a944a477bd14154deae53f3baf5d97c3c8` |
 
 | Home Up APK | `8f126bd6016e4de03b127aecd9c8ec0dd492267ac033d38efadf0ed45231e232` |
@@ -78,7 +80,7 @@ NAVIBAR   fontColor=0
 7. Launcherの`GlobalSettingsDataSource`実装はこのAPKでは`com.honeyspace.core.repository.V`。`a(SettingsKey.Type,String)`がSystem/Secure/Globalの文字列を読み、関連クラスSがContentObserverを登録、Qが再読み取りする。
 8. `WhiteBgColorUpdater`実装はこのAPKでは`l3.d`。`need_dark_font`を`getDarkFont()`のStateFlowへ流し、`WhiteBgColorChanger`実装`l3.b`がSamsung標準リソースの文字色・影を適用する。
 9. Launcherの`changeStatusBarColor(View,boolean,boolean)`がWindowInsetsのappearance bit8等を変更し、SystemUIの`LightBarControllerImpl.onStatusBarAppearanceChanged(...)`が受ける。ホームだけの指定をLauncherから伝えられるためSystemUIへのフックを必要としない。
-10. SystemUIの音量UIはテーマリソースや`BlurEffect`の実時間／キャプチャぼかしを使う。テーマの代表色と領域別文字色は別経路。音量UIが`need_dark_font`を直接読む証拠は確認できていない。
+10. SystemUIの音量UIはテーマリソースや`BlurEffect`の実時間／キャプチャぼかしを使う。テーマの代表色と領域別文字色は別経路。実際の表示ウィンドウはSound Assistantの`VolumeStarStandardWindow`で、独自エフェクトバーの`barDarkUI`も配色を持つ。音量UIが`need_dark_font`を直接読む証拠は確認できていない。
 
 逆コンパイラは制御フローを誤復元することがある。特に`calcSemWallpaperColors`のbitmap null判定など、Javaの表示だけで異常実装と断定しない。フックはそこには入れない。
 
