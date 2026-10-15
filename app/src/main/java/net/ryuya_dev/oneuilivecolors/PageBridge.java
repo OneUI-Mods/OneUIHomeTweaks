@@ -209,6 +209,11 @@ final class PageBridge {
   }
 
   private void request(ViewGroup view) {
+    android.app.Activity owner = homeActivity.get();
+    if (owner != null && !owner.isDestroyed()) {
+      IBinder expected = owner.getWindow().getDecorView().getWindowToken();
+      if (expected != null && view.getWindowToken() != expected) return;
+    }
     last = new WeakReference<>(view);
     if (!enabled || failed || pending) return;
     pending = true;
