@@ -8,7 +8,7 @@ First public development release for the documented SM-S948Q / Android 16 baseli
 - Independent home and drawer color modes; native drawer automatic behavior by default.
 - Standard page offset notifications, including dynamically loaded Home Up free-style workspaces; remote preview workspaces excluded by real Activity window token.
 - Current home wallpaper surface preview without a second live wallpaper engine.
-- Optional volume-only light/dark configuration in SystemUI.
+- Optional volume-only light/dark configuration in SystemUI, including dynamically loaded Sound Assistant panels and their effect bar color model.
 - Global and per-target switches, graphical hook status, root request and target restart controls.
 - Host-private crash startup protection, compatibility gates and safe fallbacks.
 - Material 3 bottom navigation, insets, icon, OS language following and five UI languages.
