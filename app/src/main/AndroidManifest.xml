@@ -1,0 +1,24 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <queries>
+        <package android:name="com.sec.android.app.launcher" />
+        <package android:name="com.android.systemui" />
+        <package android:name="com.samsung.android.app.dressroom" />
+    </queries>
+    <application android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher" android:localeConfig="@xml/locales_config" android:theme="@style/Theme.OneUiLiveColors"
+        android:allowBackup="false" android:supportsRtl="true">
+        <meta-data android:name="xposedmodule" android:value="true" />
+        <meta-data android:name="xposeddescription" android:resource="@string/module_description" />
+        <meta-data android:name="xposedminversion" android:value="82" />
+        <meta-data android:name="xposedscope" android:resource="@array/xposed_scope" />
+        <activity android:name=".MainActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".LicensesActivity" android:exported="false" />
+        <service android:name="androidx.appcompat.app.AppLocalesMetadataHolderService" android:enabled="false" android:exported="false"><meta-data android:name="autoStoreLocales" android:value="true" /></service>
+        <provider android:name=".ConfigProvider" android:authorities="net.ryuya_dev.oneuilivecolors.config"
+            android:exported="true" android:grantUriPermissions="false" />
+    </application>
+</manifest>

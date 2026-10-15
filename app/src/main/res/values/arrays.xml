@@ -1,0 +1,7 @@
+<resources>
+    <string-array name="xposed_scope">
+        <item>com.sec.android.app.launcher</item>
+        <item>com.android.systemui</item>
+        <item>com.samsung.android.app.dressroom</item>
+    </string-array>
+</resources>

@@ -1,0 +1,15 @@
+.gradle/
+.kotlin/
+local.properties
+**/build/
+artifacts/device/
+artifacts/decompiled/
+artifacts/probe/
+research/*.java
+research/*.md
+*.log
+artifacts/
+research/
+.DS_Store
+*.jks
+*.keystore
