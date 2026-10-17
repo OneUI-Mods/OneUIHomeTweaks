@@ -10,6 +10,7 @@ import android.graphics.drawable.Drawable;
 import android.os.*;
 import android.text.Layout;
 import android.view.*;
+import android.widget.ImageView;
 import android.widget.TextView;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
@@ -568,6 +569,7 @@ final class HomeLabelBridge {
                   if (original.applied == null || view.getCurrentTextColor() != original.applied)
                     original.textColors = view.getTextColors();
                   setTextColor(view, target.color);
+                  tintSearchIcon(view, original, target.color);
                 } else {
                   Integer current = (Integer) getColor.invoke(view);
                   if (original.applied == null || !Objects.equals(current, original.applied))
@@ -583,7 +585,9 @@ final class HomeLabelBridge {
               if (target.finder) finderState = "waiting";
               if (original.applied != null && !original.pending) {
                 if (target.finder)
-                  finderState = original.applied == LocalContrast.BLACK ? "black" : "white";
+                  finderState =
+                      (original.applied == LocalContrast.BLACK ? "black" : "white")
+                          + (original.appliedSearchTint != null ? "+icon" : "");
                 else if (original.applied == LocalContrast.BLACK) black++;
                 else white++;
               }
@@ -606,10 +610,43 @@ final class HomeLabelBridge {
         });
   }
 
+  private void tintSearchIcon(TextView text, Saved original, int color) {
+    if (!(text.getParent() instanceof ViewGroup parent)) return;
+    for (int i = 0; i < parent.getChildCount(); i++) {
+      View child = parent.getChildAt(i);
+      if (!(child instanceof ImageView image) || !"searchIcon".equals(resourceName(child)))
+        continue;
+      ImageView previous = original.search == null ? null : original.search.get();
+      if (previous != image) {
+        restoreSearchIcon(original);
+        original.search = new WeakReference<>(image);
+        original.searchTint = image.getImageTintList();
+        original.appliedSearchTint = null;
+      } else if (!Objects.equals(image.getImageTintList(), original.appliedSearchTint)) {
+        original.searchTint = image.getImageTintList();
+      }
+      ColorStateList next = ColorStateList.valueOf(color);
+      if (!Objects.equals(image.getImageTintList(), next)) image.setImageTintList(next);
+      original.appliedSearchTint = next;
+      return;
+    }
+  }
+
+  private void restoreSearchIcon(Saved original) {
+    ImageView image = original.search == null ? null : original.search.get();
+    if (image != null
+        && original.appliedSearchTint != null
+        && Objects.equals(image.getImageTintList(), original.appliedSearchTint))
+      image.setImageTintList(original.searchTint);
+    original.search = null;
+    original.appliedSearchTint = null;
+  }
+
   private void restore(TextView view) {
     Saved original = saved.remove(view);
     if (original == null) return;
     if (original.animator != null) original.animator.cancel();
+    restoreSearchIcon(original);
     if (original.attach != null) view.removeOnAttachStateChangeListener(original.attach);
     if (original.applied == null) return;
     try {
@@ -649,6 +686,8 @@ final class HomeLabelBridge {
   private static final class Saved {
     Integer original, applied, candidate;
     ColorStateList textColors;
+    WeakReference<ImageView> search;
+    ColorStateList searchTint, appliedSearchTint;
     ValueAnimator animator;
     View.OnAttachStateChangeListener attach;
     int[] pixels;
