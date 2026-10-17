@@ -1,5 +1,6 @@
 package net.ryuya_dev.oneuilivecolors;
 
+import android.animation.ValueAnimator;
 import android.app.*;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -23,11 +24,13 @@ final class HomeLabelBridge {
   private Class<?> iconClass, finderClass;
   private Method getColor, setColor, screenshot;
   private Object windowService;
-  private boolean enabled, failed, busy, ownTextColor;
+  private boolean enabled, failed, busy, ownTextColor, geometryBlocked;
+  private int initialReveals, initialFallbacks;
   private long generation;
   private String state = "unavailable", lastLog = "";
   private Runnable changed;
   private final Runnable sample = this::sample;
+  private final Runnable expirePending = this::expirePending;
   private final ViewTreeObserver.OnGlobalLayoutListener layout = this::invalidate;
   private final ViewTreeObserver.OnScrollChangedListener scroll = this::invalidate;
   private final ViewTreeObserver.OnWindowFocusChangeListener focus =
@@ -99,6 +102,39 @@ final class HomeLabelBridge {
             if (!p.hasThrowable() && enabled) invalidate();
           }
         });
+    ModernHook.hookMethod(
+        icon.getDeclaredMethod("onDraw", Canvas.class),
+        new ModernHook.Callback() {
+          @Override
+          protected void beforeHookedMethod(ModernHook.Param p) {
+            if (!enabled
+                || failed
+                || geometryBlocked
+                || Looper.myLooper() != Looper.getMainLooper()) return;
+            TextView view = (TextView) p.thisObject;
+            Activity activity = home.get();
+            if (!usable(activity)
+                || view.getRootView() != activity.getWindow().getDecorView()
+                || view.getRootView().getHeight() <= view.getRootView().getWidth()
+                || !homeIcon(view)
+                || view.getText().length() == 0
+                || saved.containsKey(view)) return;
+            Rect visible = new Rect();
+            if (!view.getGlobalVisibleRect(visible)) return;
+            try {
+              Saved original = remember(view);
+              original.original = (Integer) getColor.invoke(view);
+              original.pending = true;
+              original.applied = Color.TRANSPARENT;
+              // Only the label is delayed; icon graphics stay visible. Never paint a native white
+              // label on a previously unseen page before the first local contrast result is ready.
+              setColor.invoke(view, Integer.valueOf(Color.TRANSPARENT));
+              invalidate();
+            } catch (Throwable t) {
+              disable(t);
+            }
+          }
+        });
     state = "off";
     HookEntry.log("LOCAL_LABEL_READY wallpaper-only screenshot; native per-icon color API");
   }
@@ -165,11 +201,69 @@ final class HomeLabelBridge {
     main.postDelayed(sample, 1200);
     main.postDelayed(sample, 1800);
     main.postDelayed(sample, 2600);
+    main.postDelayed(expirePending, 3000);
   }
 
   private void cancel() {
     generation++;
     main.removeCallbacks(sample);
+    main.removeCallbacks(expirePending);
+  }
+
+  private Saved remember(TextView view) {
+    Saved original = saved.get(view);
+    if (original != null) return original;
+    original = new Saved();
+    original.attach =
+        new View.OnAttachStateChangeListener() {
+          @Override
+          public void onViewAttachedToWindow(View v) {
+            if (!homeIcon(v) && !finder(v)) restore((TextView) v);
+          }
+
+          @Override
+          public void onViewDetachedFromWindow(View v) {}
+        };
+    saved.put(view, original);
+    view.addOnAttachStateChangeListener(original.attach);
+    return original;
+  }
+
+  private void expirePending() {
+    if (!usable(home.get())) return;
+    int count = 0;
+    try {
+      for (TextView view : new ArrayList<>(saved.keySet())) {
+        Saved original = saved.get(view);
+        if (original == null || !original.pending) continue;
+        if (Objects.equals(getColor.invoke(view), original.applied))
+          setColor.invoke(view, original.original);
+        original.applied = null;
+        original.pending = false;
+        // Retain this entry to prevent hide/retry loops when capture never becomes available.
+        count++;
+      }
+      initialFallbacks += count;
+      if (count > 0) HookEntry.log("LOCAL_LABEL_INITIAL_FALLBACK count=" + count);
+    } catch (Throwable t) {
+      disable(t);
+    }
+  }
+
+  private void reveal(TextView view, Saved original, int color) {
+    original.pending = false;
+    initialReveals++;
+    if (original.animator != null) original.animator.cancel();
+    ValueAnimator fade = ValueAnimator.ofInt(0, 255);
+    original.animator = fade;
+    fade.setDuration(120);
+    setTextColor(view, color & 0x00ffffff);
+    fade.addUpdateListener(
+        animation -> {
+          if (enabled && saved.get(view) == original)
+            setTextColor(view, ((int) animation.getAnimatedValue() << 24) | (color & 0x00ffffff));
+        });
+    fade.start();
   }
 
   private boolean usable(Activity activity) {
@@ -444,11 +538,15 @@ final class HomeLabelBridge {
           }
           if (skip != null) {
             // A temporarily hidden wallpaper during a page transition is not a compatibility error.
-            if (!"waiting".equals(skip)) restore();
+            if (!"waiting".equals(skip)) {
+              geometryBlocked = true;
+              restore();
+            }
             update(skip);
             return;
           }
           try {
+            geometryBlocked = false;
             int black = 0, white = 0;
             String finderState = finderClass == null ? "unavailable" : "not-visible";
             for (Target target : targets) {
@@ -457,24 +555,10 @@ final class HomeLabelBridge {
                 continue;
               if (target.color == null) {
                 restore(view);
+                remember(view); // Unknown pixels use native text, without repeatedly hiding it.
                 continue;
               }
-              Saved original = saved.get(view);
-              if (original == null) {
-                original = new Saved();
-                original.attach =
-                    new View.OnAttachStateChangeListener() {
-                      @Override
-                      public void onViewAttachedToWindow(View v) {
-                        if (!homeIcon(v) && !finder(v)) restore((TextView) v);
-                      }
-
-                      @Override
-                      public void onViewDetachedFromWindow(View v) {}
-                    };
-                saved.put(view, original);
-                view.addOnAttachStateChangeListener(original.attach);
-              }
+              Saved original = remember(view);
               boolean settled = LocalContrast.settled(original.pixels, target.pixels);
               original.pixels = target.pixels;
               // Publish a changed color only after two matching, settled local observations.
@@ -493,10 +577,11 @@ final class HomeLabelBridge {
                     setTextColor(view, target.color);
                 }
                 original.applied = target.color;
+                if (original.pending) reveal(view, original, target.color);
               }
               original.candidate = target.color;
               if (target.finder) finderState = "waiting";
-              if (original.applied != null) {
+              if (original.applied != null && !original.pending) {
                 if (target.finder)
                   finderState = original.applied == LocalContrast.BLACK ? "black" : "white";
                 else if (original.applied == LocalContrast.BLACK) black++;
@@ -510,7 +595,11 @@ final class HomeLabelBridge {
                     + " white="
                     + white
                     + " finder="
-                    + finderState);
+                    + finderState
+                    + " initial="
+                    + initialReveals
+                    + " fallback="
+                    + initialFallbacks);
           } catch (Throwable t) {
             disable(t);
           }
@@ -520,6 +609,7 @@ final class HomeLabelBridge {
   private void restore(TextView view) {
     Saved original = saved.remove(view);
     if (original == null) return;
+    if (original.animator != null) original.animator.cancel();
     if (original.attach != null) view.removeOnAttachStateChangeListener(original.attach);
     if (original.applied == null) return;
     try {
@@ -559,9 +649,10 @@ final class HomeLabelBridge {
   private static final class Saved {
     Integer original, applied, candidate;
     ColorStateList textColors;
+    ValueAnimator animator;
     View.OnAttachStateChangeListener attach;
     int[] pixels;
-    boolean finder;
+    boolean finder, pending;
   }
 
   private static final class Target {
