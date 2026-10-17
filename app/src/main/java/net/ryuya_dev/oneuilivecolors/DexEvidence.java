@@ -12,6 +12,59 @@ import org.jf.dexlib2.iface.reference.MethodReference;
 
 /** Finds the real callers by DEX type relationships; no obfuscated name assumptions. */
 final class DexEvidence {
+  static List<java.lang.reflect.Method> recentsCardProducers(String apk, ClassLoader loader)
+      throws Exception {
+    var dex = DexFileFactory.loadDexContainer(new File(apk), Opcodes.getDefault());
+    List<java.lang.reflect.Method> matches = new ArrayList<>();
+    for (String entry : dex.getDexEntryNames())
+      for (ClassDef c : dex.getEntry(entry).getDexFile().getClasses()) {
+        if (!c.getInterfaces().contains("Lkotlin/jvm/functions/Function0;")) continue;
+        for (var m : c.getMethods()) {
+          if (!m.getName().equals("invoke")
+              || !m.getParameterTypes().isEmpty()
+              || !m.getReturnType().equals("Ljava/lang/Object;")
+              || m.getImplementation() == null) continue;
+          boolean info = false, child = false, location = false;
+          for (var i : m.getImplementation().getInstructions())
+            if (i instanceof ReferenceInstruction r
+                && r.getReference() instanceof MethodReference ref) {
+              if (ref.getName().equals("<init>")) {
+                info |=
+                    ref.getDefiningClass()
+                        .equals("Lcom/honeyspace/sdk/source/entity/TaskViewInfo;");
+                child |=
+                    ref.getDefiningClass()
+                        .equals("Lcom/honeyspace/sdk/source/entity/TaskChildViewInfo;");
+              }
+              location |=
+                  ref.getName().equals("getLocationOnScreen")
+                      && ref.getParameterTypes().toString().equals("[[I]");
+            }
+          if (!info || !child || !location) continue;
+          Class<?> actual =
+              Class.forName(
+                  c.getType().substring(1, c.getType().length() - 1).replace('/', '.'),
+                  false,
+                  loader);
+          boolean capturesView = false;
+          for (var f : actual.getDeclaredFields())
+            capturesView |=
+                !Modifier.isStatic(f.getModifiers())
+                    && android.view.View.class.isAssignableFrom(f.getType());
+          if (!capturesView)
+            throw new IllegalStateException("Card producer no longer captures a View");
+          var method = actual.getDeclaredMethod("invoke");
+          method.setAccessible(true);
+          if (!ModernHook.deoptimize(method))
+            throw new IllegalStateException("Cannot deoptimize card producer");
+          matches.add(method);
+        }
+      }
+    if (matches.size() != 1) throw new IllegalStateException("Ambiguous card geometry producer");
+    HookEntry.log("RECENTS_CARD_PRODUCER_VERIFIED methods=" + matches.size());
+    return matches;
+  }
+
   record CapturedEmitter(java.lang.reflect.Method emit, java.lang.reflect.Field owner) {}
 
   static void deoptimizeRecentsCoordinateCalls(

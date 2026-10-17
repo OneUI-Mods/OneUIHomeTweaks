@@ -47,6 +47,7 @@ public final class HookEntry extends XposedModule {
   private volatile boolean failed;
   private int failures;
   private WallpaperManager.OnColorsChangedListener listener;
+  private final RecentsLiveTileHooks liveRecents = new RecentsLiveTileHooks();
   private String lastReport = "";
   private String processName;
   private final Runnable refresh = this::refresh;
@@ -58,7 +59,9 @@ public final class HookEntry extends XposedModule {
     diyGrid.setChanged(this::requestRefresh);
     processName = param.getProcessName();
     log(
-        "MODULE_LOADED api="
+        "MODULE_LOADED build="
+            + BuildConfig.VERSION_CODE
+            + " api="
             + ModernHook.apiVersion()
             + " framework="
             + ModernHook.frameworkDescription()
@@ -337,6 +340,12 @@ public final class HookEntry extends XposedModule {
     } catch (Throwable t) {
       log("RECENTS_BAR_UNSUPPORTED " + t);
     }
+    if (BuildConfig.RECENTS_LIVE_TILE_EXPERIMENTAL)
+      try {
+        liveRecents.install(app, app.getApplicationInfo().sourceDir, launcherLoader);
+      } catch (Throwable t) {
+        log("RECENTS_LIVE_UNSUPPORTED " + t);
+      }
     // Samsung's actual WhichChecker and public constants were verified on this device.
     Class<?> wc = Class.forName("com.samsung.android.wallpaper.utils.WhichChecker");
     if (!Integer.valueOf(1).equals(wc.getMethod("getType", int.class).invoke(null, 5))
@@ -478,6 +487,7 @@ public final class HookEntry extends XposedModule {
             drawer.setMode(currentDrawerMode, apply);
             homeLabels.setEnabled(localLabels);
             recents.setEnabled(currentRecentsPortrait);
+            liveRecents.setEnabled(BuildConfig.RECENTS_LIVE_TILE_EXPERIMENTAL && currentMaster);
             recentsBar.setEnabled(currentHideRecentsBar);
             diyGrid.setEnabled(currentDiyGrid);
             gridSave.accept(context, gridRequest);
