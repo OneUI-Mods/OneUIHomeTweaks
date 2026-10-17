@@ -1,6 +1,6 @@
 # Portrait Recents: motion adapter investigation
 
-Status: **incomplete**. A new continuous app/card controller now runs on the device behind a development-only build flag. It preserves the source aspect ratio and replays the native portrait card list. A separate window-local insets correction fixes a measured Home Up selection jump at handoff. Visual continuity, interruption and live-tile integration still require validation; do not publish this work as a completed animation fix.
+Status: **0.10.0 release candidate**. The common-viewport controller and independently optional live rendering are now part of normal builds; the latter defaults OFF. They have been exercised with the documented Launcher/Home Up pair, including Task Changer ON and OFF and a real hardware-video Surface. Perspective cards temporarily use native snapshots while the app keeps drawing. This is a device-specific implementation, not a guarantee for every app, layout or interruption. The dated sections below preserve earlier failures and superseded prototypes.
 
 ## Preserved device baseline
 
@@ -214,3 +214,34 @@ The private build now has a Material 3 switch and graphical status card for live
 
 
 With the private UI switch enabled, another landscape gesture exercised the combined renderer and continued live drawing. Tapping the visible edge of the running probe's card invoked the owned native task-launch path, released the controller and returned to that same fullscreen landscape app. The activity-manager result and native release log agreed. A one-shot 2.2-second main-thread deadline now complements the frame-based motion deadline, so missing Choreographer frames cannot leave the viewport's own hold waiting indefinitely. The new deadline itself has not been forced in a device test.
+
+
+## Hardware video and backdrop isolation (stages 18–21)
+
+A private, permission-free probe additionally uses a real `VideoView`/`SurfaceView` playing a local synthetic moving test pattern, with volume zero and no audio focus. With live Recents OFF the native Activity paused/stopped after entry. With it ON, both the Canvas counter and hardware video continued changing. No app lifecycle callback or playback policy is hooked. This verifies a real child Surface, not YouTube's particular playback policy.
+
+The earlier path-only blur exclusion allowed the moving video's colors to bleed outside the card through Samsung's full-screen blur. The replacement owns one effect Surface below the live app, disables only the verified full-window native `BackgroundBlurDrawable` radii while active, and preserves the native tint/card foreground above. The effect is parented to the actual portrait `ViewRootImpl` Surface, not the remote Recents leash, whose source space was still landscape. The live app has an explicit native-card crop and corner radius. In the stage 20 screenshots the video pattern and counter changed while the colored halo disappeared and wallpaper blur remained. Unsupported/changed backdrop identities or clipping fall back to the native snapshot.
+
+Stage 21 combined this crop/backdrop fix, the common viewport and live rendering with **Task Changer OFF**, read back through Home Up's UI. Native card icons/order/layout remained and both moving contents rendered. Home removed the owned effect Surface (SurfaceFlinger list count returned to zero); native app pause/stop resumed. Task Changer was restored to ON. Earlier ON trials also exercised perspective snapshot fallback and subsequent live resumption. User-selected layout type and center-running-app preferences were not changed.
+
+`active` is recorded before the first native blur mutation so partial setup failure can restore the original radii. Effect removal is attempted even when restoration fails, with separate diagnostics. Navigation-mode guards accept only the verified Samsung gesture modes 2/3; unknown modes and buttons leave the gesture renderer untouched. Three-button navigation has not been switched on in the user's device for this experiment.
+
+
+### Native exit paths and input ownership
+
+A later normal-build check exposed a genuine retained-controller bug: BACK left the live effect present, and starting the manager Activity through an external intent could leave the old Recents Surface over the newly focused app. Samsung's `InputConsumerProxy.sendToInputProxy(InputEvent)` returns false for all non-MotionEvents. The module now handles only BACK events belonging to the held session's verified proxy, releases the controller, and invokes that Recents Activity's existing `onBackPressed` behavior. The device then returned to the fullscreen probe and the owned effect count became zero.
+
+Pausing/stopping the Recents Activity alone is insufficient for external launches. During the retained **transient** animation, both the new app and Recents appeared as resumed activities; the Recents window did not pause just because the external app became focused. The implementation therefore observes the already registered native `TaskStackChangeListeners.Impl.handleMessage` path for its verified `ON_TASK_MOVED_TO_FRONT` constant. An event for another task on display 0 ends the held controller; the owned Recents task and events queued before the hold are excluded. It registers no additional task listener and does not poll the foreground app. A subsequent external manager launch removed the effect, logged `foreground task changed`, displayed the actual manager UI and allowed the Material switch to be turned off and read back.
+
+The private harness previously used a fixed five-second Launcher startup wait. One candidate's verified hook initialization took longer, so the portrait trial stopped **before** input rather than exercising an unconfirmed implementation. A bounded wait for the fresh process's implementation tag replaced that fixed readiness assumption. The repeated portrait trial passed. This was not a Launcher crash or startup-protection event.
+
+
+### Portrait navigation while the controller is retained
+
+Holding the landscape controller leaves the physical display and native gesture-region state landscape even when the fixed-orientation Recents window is portrait. A natural-portrait bottom swipe reached the card list but did not perform Home. The bridge now uses that portrait window's actual navigation/mandatory-gesture insets (94 pixels in the measured session), one pointer, a matching downTime, native touch slop, upward motion and the native Recents cancel-area boundary. It applies only while the proxy reports landscape and the owned root is portrait. An accepted sequence cancels the list's stream and posts the existing native `KeyInjector.injectKey(HOME, ownerUser, display0)` after input dispatch. Ordinary card scrolling, taps and portrait-source sessions do not use this bridge. Missing insets or a missing native navigation owner use native fallback.
+
+`GestureInputHandler.inputHandle(int, MotionEvent)` and `getKeyInjector()` are verified in the actual APK. Its main-display DOWN supplies the existing injector; no privileged service, new app permission or guessed obfuscated graph getter is introduced. An attempted Dagger return-type lookup found no direct getter and safely disabled the feature; that lookup was removed. `HoneySystemController.emulateHomeKeyPressInLauncher()` was also unsuitable for leaving the Recents Activity and is not used.
+
+In the subsequent native-input candidate, a real injected bottom swipe returned to `LauncherActivity`, removed the effect Surface and logged `portrait navigation home`. Native keyboard BACK and external task launches have separate release paths as documented above. This does not validate every predictive-back or taskbar configuration.
+
+The unused old `RecentsGestureCoordinates` adapter and its eight tests were removed during cleanup; the final current pure-test total is **76**. Historical counts above describe the earlier source states.

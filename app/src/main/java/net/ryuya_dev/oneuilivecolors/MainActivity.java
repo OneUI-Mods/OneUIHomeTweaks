@@ -176,8 +176,7 @@ public final class MainActivity extends AppCompatActivity {
                       .setPositiveButton(R.string.close, null)
                       .show());
     }
-    findViewById(R.id.recents_live_section)
-        .setVisibility(BuildConfig.RECENTS_LIVE_TILE_EXPERIMENTAL ? View.VISIBLE : View.GONE);
+
     BottomNavigationView navigation = findViewById(R.id.navigation);
     int[] pageIds = {R.id.page_0, R.id.page_1, R.id.page_2, R.id.page_3};
     int[] navigationIds = {R.id.nav_home, R.id.nav_appearance, R.id.nav_status, R.id.nav_settings};
@@ -270,7 +269,7 @@ public final class MainActivity extends AppCompatActivity {
           recreate();
         });
     LinearLayout cards = findViewById(R.id.status_cards);
-    statusCards = new HookStatusCard[BuildConfig.RECENTS_LIVE_TILE_EXPERIMENTAL ? 9 : 8];
+    statusCards = new HookStatusCard[9];
     int[] titles = {
       R.string.scope_home,
       R.string.volume_theme,

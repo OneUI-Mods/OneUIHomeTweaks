@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.function.Consumer;
 
-/** Experimental common-viewport controller using the native portrait card as the motion target. */
+/** Common-viewport controller using the native portrait card as the motion target. */
 final class RecentsViewportHooks {
   private final Consumer<Throwable> failure;
   private final RecentsViewportInsets insets = new RecentsViewportInsets();
@@ -308,20 +308,21 @@ final class RecentsViewportHooks {
                       rollback(ss, new IllegalStateException("Native handoff failed"));
                     else {
                       traceCards(ss, "handoff");
-                      for (long delay : new long[] {100, 400, 1000})
+                      for (long delay :
+                          BuildConfig.RECENTS_MOTION_TRACE
+                              ? new long[] {100, 400, 1000}
+                              : new long[0])
                         ss.overlayRoot.postDelayed(() -> traceCards(ss, "after" + delay), delay);
                       if (ss.motion != null) ss.motion.handoff();
                       restoreHold(ss);
-                      if (BuildConfig.RECENTS_LIVE_TILE_EXPERIMENTAL) {
-                        ss.overlayRoot.postOnAnimation(
-                            () -> {
-                              if (sessions.get(ss.manager) == ss) {
-                                sessions.remove(ss.manager);
-                                ss.clear();
-                                RecentsHandoffGate.SHARED.complete(ss.handoff, true);
-                              }
-                            });
-                      } else RecentsHandoffGate.SHARED.complete(ss.handoff, true);
+                      ss.overlayRoot.postOnAnimation(
+                          () -> {
+                            if (sessions.get(ss.manager) == ss) {
+                              sessions.remove(ss.manager);
+                              ss.clear();
+                              RecentsHandoffGate.SHARED.complete(ss.handoff, true);
+                            }
+                          });
                     }
                   } catch (Throwable error) {
                     rollback(ss, error);
@@ -346,7 +347,7 @@ final class RecentsViewportHooks {
               RecentsHandoffGate.SHARED.discard(ss.handoff);
             }
           });
-      HookEntry.log("RECENTS_VIEWPORT_READY stage15 viewport and live tile");
+      HookEntry.log("RECENTS_VIEWPORT_READY continuous viewport 0.10");
     } catch (Throwable error) {
       uninstall();
       if (error instanceof Exception e) throw e;
@@ -388,6 +389,7 @@ final class RecentsViewportHooks {
     Object o = overlay.get(interaction.get(owner));
     Object root = overlayRoot.get(o);
     if (!(root instanceof ViewGroup group)) return;
+    if (!NavigationPolicy.gestures(group.getContext())) return;
     sessions.put(p.thisObject, new Session(p.thisObject, owner, group, info.taskId));
     HookEntry.log("RECENTS_VIEWPORT_BEGIN source=" + p.args[1]);
   }
@@ -582,6 +584,7 @@ final class RecentsViewportHooks {
   }
 
   private void traceCards(Session ss, String stage) {
+    if (!BuildConfig.RECENTS_MOTION_TRACE) return;
     try {
       View root = (View) recentRoot.invoke(controller.invoke(ss.manager));
       StringBuilder out =

@@ -103,3 +103,20 @@ SystemUIメインプロセス・メイン画面・確認済みビルドBP4A.2512
 ## DIY Homeの通常グリッド（0.9.0）
 
 アプリ・フォルダの描画、モデルによる当たり判定、純正DIYエディターの移動・ドロップを対象にする。Home Upの通常グリッドを取得し、ウィジェット・ステッカーの自由配置とDIY Home設定は維持する。[対象メソッド・保存座標・検証範囲](diy-home-grid.md)を参照。
+
+
+## 履歴の連続遷移・継続描画（0.10.0）
+
+`RecentsViewportHooks`が実際の`RecentsAnimationManager`と`AnimationSession`の所有関係を確認し、ジェスチャー側の横向きRootと縦向き`RecentsActivity`を共通座標へつなぎます。`RecentStyler.createStyleData`が読むinsetsは対象ウィンドウの計算中だけ補い、共有キャッシュは変更しません。`RecentsViewportMotion`はネイティブカードの実描画行列を到着先にし、アプリSurfaceと同じ姿勢でネイティブのカード一覧を再描画します。Home Upの並び順やレイアウト設定は変更しません。透明化や描画待ちで途中を隠す方式は使いません。
+
+継続描画は`AnimationSession.requestFinishRecentAnimation`の既存holdを所有セッションだけで利用します。`RecentsHandoffGate`で遷移からライブ描画へSurfaceの所有権を引き継ぎ、`TaskSceneView.draw`の実際のshader・clip・行列を使います。壁紙ぼかしは所有ウィンドウのeffect Surfaceへ分離し、動画の色がカード外へにじまないようにします。定期ポーリングは行いません。
+
+最後の通常fullscreenアプリ、同一ユーザー、メイン画面、SDK 36、ジェスチャー操作に限定します。保護・実画面ではないsnapshot・アプリロック・複数アプリの対象・不明な描画契約では標準動作へ戻します。遠近変形中と画面外では静止画へ一時退避し、アプリ自体の描画は継続します。タスク起動、Home、Recents終了、別タスクの前面化、画面OFF、機能OFF、ネイティブinvalidateでhold・ぼかし・所有Surfaceを解放します。画面OFF経路は実装済みですが、今回の実機テストでは端末を再ロックしていません。
+
+詳細な対象シグネチャ、AOSPの参照元、実機記録と未確認事項は[履歴の技術記録](recents-motion.md)を参照してください。SystemUIや対象アプリのライフサイクルへの新しいフックはありません。
+
+
+保持中のネイティブ入力proxyはMotionEvent以外を処理しないため、所有セッションのBACKキーだけを既存の`RecentsActivity.onBackPressed`へ渡します。外部起動ではtransient Recentsがresumeのまま残るため、既存`TaskStackChangeListeners.Impl.handleMessage`の前面タスク通知でも終了させます。このクラスはLauncherに同梱された実装で、SystemUIプロセスへの追加フックではありません。新しいタスクリスナー・権限・ポーリングは追加しません。
+
+
+横向きのcontroller保持中だけ、縦向きウィンドウの実ナビゲーションinsetsに基づく下端スワイプを既存の`KeyInjector`へ渡します。`GestureInputHandler`のdisplay 0のDOWNから既存の所有者を取得し、難読化されたDIの名前には依存しません。前提を確認できない場合は保持を終了して標準へ戻します。[経路と実機結果](recents-motion.md#portrait-navigation-while-the-controller-is-retained)を参照。

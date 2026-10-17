@@ -1,13 +1,17 @@
 # Changelog
 
-## 0.10.0 (unreleased)
+## 0.10.0 (2026-10-18)
 
 - Add explicit persistence of aligned app, shortcut and folder positions through the native DIY editor, with a preview of affected items/pages and a confirmation step.
 - Reject stale layout previews and confirm the resulting coordinates using a read-only database query; leave widgets, scale and rotation unchanged.
 - Redesign the four-tab Material 3 manager with grouped settings, detail dialogs, immediate color choices, a theme selector and optional dynamic colors.
 - Distinguish pending hook responses from crash protection; reject diagnostics from an earlier device boot.
 - Allow volume theme configuration to recover after temporary provider errors and first unlock.
-- Investigate the native gesture overlay separately from RecentsActivity. Seamless portrait transitions remain under device testing; no visibility masking or draw blocking is used.
+- Replace the mismatched landscape/portrait card transition with a common viewport for the app Surface and native portrait card list; preserve Home Up ordering and fix window-local insets that shifted the selected card at handoff.
+- Add an independent, default-OFF experimental option to keep the last app drawing in Recents. Retain only its owned native controller, map the live Surface to the native card and isolate wallpaper blur below it.
+- Preserve native snapshots during perspective animations and for protected/incompatible tasks; restore native state on launch, Home, cancellation, Recents exit and disable.
+- Include graphical ready/active/unsupported states and localized controls. Limit the new renderer to SDK 36, the main fullscreen display and verified gesture modes; no SystemUI or app-lifecycle hooks are added.
+- Remove abandoned coordinate adapters and private build switches. Detailed card traces remain opt-in and disabled in distributed APKs.
 
 ## 0.9.0
 

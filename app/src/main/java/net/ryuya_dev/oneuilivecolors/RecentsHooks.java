@@ -17,7 +17,7 @@ final class RecentsHooks {
   private final List<ModernHook.Handle> handles = new ArrayList<>();
   private final ThreadLocal<Boolean> restoring = ThreadLocal.withInitial(() -> false);
   private final RecentsMotionTrace motion = new RecentsMotionTrace();
-  private final RecentsCoordinateHooks coordinates = new RecentsCoordinateHooks(this::disable);
+  private final RecentsViewportHooks coordinates = new RecentsViewportHooks(this::disable);
   private Class<?> recentsClass;
   private volatile boolean enabled;
   private volatile boolean failed;
@@ -75,7 +75,7 @@ final class RecentsHooks {
                     apply((Activity) p.thisObject);
                 }
               }));
-      if (BuildConfig.RECENTS_COORDINATE_EXPERIMENTAL) coordinates.install(apk, loader);
+      coordinates.install(apk, loader);
       if (BuildConfig.RECENTS_MOTION_TRACE) motion.install(apk, loader);
       diagnostic = "off";
       HookEntry.log("RECENTS_HOOK_READY Activity-local portrait policy");

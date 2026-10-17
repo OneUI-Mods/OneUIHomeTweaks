@@ -10,8 +10,12 @@ import android.content.IntentFilter;
 import android.graphics.Point;
 import android.os.Bundle;
 import android.os.Looper;
+import android.view.InputEvent;
+import android.view.KeyEvent;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.view.ViewGroup;
+import android.view.WindowInsets;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -19,9 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
-/**
- * Local prototype of Samsung's native live-tile lifetime. No app lifecycle methods are suppressed.
- */
+/** Owns Samsung's native live-tile lifetime without suppressing app lifecycle methods. */
 final class RecentsLiveTileHooks {
   private final Map<Object, Session> sessions = new WeakHashMap<>();
   private final Map<Object, Session> gestures = new WeakHashMap<>();
@@ -30,6 +32,9 @@ final class RecentsLiveTileHooks {
   private Field nativeHold, willGo;
   private Method desktop, gestureDesktop, topTask, taskConfig, windowMode, activityType;
   private Method setHold, finish, systemController, recentTarget, taskId, taskScene;
+  private Method handlerDisplay, handlerKeyInjector, injectKey;
+  private Object mainKeyInjector;
+  private Class<?> handlerType;
   private Field inputProxy, proxyRecents, proxyHome, proxySize, appPlayer;
   private Class<?> taskViewType;
   private RecentsLiveSurface surface;
@@ -39,6 +44,7 @@ final class RecentsLiveTileHooks {
   private boolean releasing;
   private Application application;
   private Class<?> recentsType;
+  private Activity foregroundRecents;
   private final Application.ActivityLifecycleCallbacks lifecycle =
       new Application.ActivityLifecycleCallbacks() {
         public void onActivityCreated(Activity a, Bundle b) {}
@@ -46,13 +52,17 @@ final class RecentsLiveTileHooks {
         public void onActivityStarted(Activity a) {}
 
         public void onActivityResumed(Activity a) {
+          if (recentsType != null && recentsType.isInstance(a)) foregroundRecents = a;
           if (recentsType != null
               && !recentsType.isInstance(a)
               && sessions.values().stream().anyMatch(s -> s.held))
             release("other activity resumed");
         }
 
-        public void onActivityPaused(Activity a) {}
+        public void onActivityPaused(Activity a) {
+          releaseActivity(a, "recents paused");
+          if (foregroundRecents == a) foregroundRecents = null;
+        }
 
         public void onActivityStopped(Activity a) {
           releaseActivity(a, "recents stopped");
@@ -62,6 +72,7 @@ final class RecentsLiveTileHooks {
 
         public void onActivityDestroyed(Activity a) {
           releaseActivity(a, "recents destroyed");
+          if (foregroundRecents == a) foregroundRecents = null;
         }
       };
   private String diagnostic = "unavailable";
@@ -92,6 +103,10 @@ final class RecentsLiveTileHooks {
     final Object manager, gesture;
     final boolean originalHold;
     boolean held;
+    long heldAt;
+    long navigationDown;
+    float navigationX, navigationY;
+    Object navigationInjector;
     int taskId;
     View boundRoot;
 
@@ -156,6 +171,14 @@ final class RecentsLiveTileHooks {
     proxyRecents = field(proxy, "sendRecents", boolean.class);
     proxyHome = field(proxy, "sendLauncher", boolean.class);
     proxySize = field(proxy, "displaySize", Point.class);
+    handlerType = type(loader, "com.honeyspace.gesture.GestureInputHandler");
+    handlerDisplay = method(handlerType, "getDisplayId", int.class);
+    Method nativeInput =
+        method(handlerType, "inputHandle", void.class, int.class, android.view.MotionEvent.class);
+    Class<?> injectorType = type(loader, "com.honeyspace.gesture.keyinject.KeyInjector");
+    handlerKeyInjector = method(handlerType, "getKeyInjector", injectorType);
+    injectKey = method(injectorType, "injectKey", void.class, int.class, int.class, int.class);
+    Method input = method(proxy, "sendToInputProxy", boolean.class, InputEvent.class);
     appPlayer =
         field(manager, "appPlayer", type(loader, "com.honeyspace.transition.anim.floating.Player"));
     taskViewType = type(loader, "com.honeyspace.ui.honeypots.tasklist.presentation.TaskView");
@@ -191,11 +214,89 @@ final class RecentsLiveTileHooks {
             type(loader, "com.honeyspace.transition.ShellAnimationRunner"));
     Method launchView = launchInfo.getMethod("getTargetView");
     Class<?> recents = type(loader, "com.android.quickstep.RecentsActivity");
+    Method back = recents.getMethod("onBackPressed");
+    if (back.getReturnType() != void.class)
+      throw new IllegalStateException("Back contract changed");
     recentsType = recents;
+    Class<?> taskMessages =
+        type(loader, "com.android.systemui.shared.system.TaskStackChangeListeners$Impl");
+    Method taskMessage =
+        method(taskMessages, "handleMessage", boolean.class, android.os.Message.class);
+    int movedToFront = field(taskMessages, "ON_TASK_MOVED_TO_FRONT", int.class).getInt(null);
+    Field movedDisplay = ActivityManager.RunningTaskInfo.class.getField("displayId");
     DexEvidence.deoptimizeRecentsCoordinateCalls(
-        apk, loader, List.of(begin, decision, request, invalidate, setHold, finish, launch));
+        apk,
+        loader,
+        List.of(
+            begin,
+            decision,
+            request,
+            invalidate,
+            setHold,
+            finish,
+            launch,
+            input,
+            taskMessage,
+            nativeInput));
     try {
-      surface = new RecentsLiveSurface(loader, () -> release("unsupported live surface"));
+      surface = new RecentsLiveSurface(loader, () -> fallback("unsupported live surface"));
+      hook(
+          nativeInput,
+          false,
+          p -> {
+            if ((Integer) p.args[0] == 0
+                && ((android.view.MotionEvent) p.args[1]).getActionMasked()
+                    == android.view.MotionEvent.ACTION_DOWN
+                && (Integer) handlerDisplay.invoke(p.thisObject) == 0)
+              mainKeyInjector = handlerKeyInjector.invoke(p.thisObject);
+          });
+      hook(
+          taskMessage,
+          false,
+          p -> {
+            android.os.Message message = (android.os.Message) p.args[0];
+            if (message.what != movedToFront
+                || !(message.obj instanceof ActivityManager.RunningTaskInfo task)
+                || movedDisplay.getInt(task) != 0) return;
+            for (Session s : new ArrayList<>(sessions.values())) {
+              Activity activity = foregroundRecents;
+              if (s.held
+                  && message.getWhen() >= s.heldAt
+                  && activity != null
+                  && task.taskId != activity.getTaskId()) {
+                release("foreground task changed");
+                break;
+              }
+            }
+          });
+      hook(
+          input,
+          false,
+          p -> {
+            if (!(p.args[0] instanceof KeyEvent key) || key.getKeyCode() != KeyEvent.KEYCODE_BACK)
+              return;
+            for (Session s : new ArrayList<>(sessions.values())) {
+              Activity activity = foregroundRecents;
+              if (!s.held
+                  || inputProxy.get(s.manager()) != p.thisObject
+                  || activity == null
+                  || activity.getWindow().getDecorView() != s.boundRoot) continue;
+              p.setResult(true);
+              if (key.getAction() == KeyEvent.ACTION_UP && !key.isCanceled()) {
+                s.boundRoot.post(
+                    () -> {
+                      if (sessions.get(s.manager()) != s || foregroundRecents != activity) return;
+                      release("back key");
+                      try {
+                        back.invoke(activity);
+                      } catch (Throwable error) {
+                        HookEntry.log("RECENTS_LIVE_BACK_ERROR " + error);
+                      }
+                    });
+              }
+              break;
+            }
+          });
       hook(begin, false, this::begin);
       hooks.add(
           ModernHook.hookMethod(
@@ -210,6 +311,11 @@ final class RecentsLiveTileHooks {
                       try {
                         android.view.MotionEvent original = (android.view.MotionEvent) p.args[0];
                         android.view.MotionEvent copy = RecentsLocalMotion.rebase(v, original);
+                        if (navigationHome(ss, v, copy == null ? original : copy)) {
+                          if (copy == null) copy = android.view.MotionEvent.obtain(original);
+                          copy.setAction(android.view.MotionEvent.ACTION_CANCEL);
+                          p.setObjectExtra("liveNavigationHome", ss);
+                        }
                         if (copy != null) {
                           p.setObjectExtra("liveRawEvent", copy);
                           p.args[0] = copy;
@@ -234,9 +340,29 @@ final class RecentsLiveTileHooks {
 
                 @Override
                 protected void afterHookedMethod(ModernHook.Param p) {
+                  if (p.getObjectExtra("liveNavigationHome") instanceof Session s
+                      && sessions.get(s.manager()) == s
+                      && s.held) {
+                    s.boundRoot.post(
+                        () -> {
+                          if (sessions.get(s.manager()) != s || !s.held) return;
+                          Object injector = s.navigationInjector;
+                          release("portrait navigation home");
+                          try {
+                            injectKey.invoke(
+                                injector,
+                                KeyEvent.KEYCODE_HOME,
+                                android.os.Process.myUid() / 100000,
+                                0);
+                          } catch (Throwable error) {
+                            HookEntry.log("RECENTS_LIVE_HOME_ERROR " + error);
+                          }
+                        });
+                  }
                   Object copy = p.getObjectExtra("liveRawEvent");
                   if (copy instanceof android.view.MotionEvent e) {
-                    if (e.getActionMasked() == android.view.MotionEvent.ACTION_UP) {
+                    if (BuildConfig.RECENTS_MOTION_TRACE
+                        && e.getActionMasked() == android.view.MotionEvent.ACTION_UP) {
                       View view = (View) p.thisObject;
                       for (Session ss : new ArrayList<>(sessions.values()))
                         if (ss.held && view.getRootView() == ss.boundRoot)
@@ -271,6 +397,7 @@ final class RecentsLiveTileHooks {
               if (s.held) return;
               setDiagnostic("held");
               s.held = true;
+              s.heldAt = android.os.SystemClock.uptimeMillis();
               s.boundRoot = (View) recentTarget.invoke(systemController.invoke(s.manager()));
               HookEntry.log("RECENTS_LIVE_HELD native controller retained");
               if (RecentsHandoffGate.SHARED.await(
@@ -278,14 +405,14 @@ final class RecentsLiveTileHooks {
                   success -> {
                     if (sessions.get(s.manager()) != s || !enabled) return;
                     if (!success) {
-                      release("viewport handoff unavailable");
+                      fallback("viewport handoff unavailable");
                       return;
                     }
                     try {
                       activateSurface(s);
                     } catch (Throwable error) {
                       HookEntry.log("RECENTS_LIVE_HANDOFF_ERROR " + error);
-                      release("live handoff failed");
+                      fallback("live handoff failed");
                     }
                   })) HookEntry.log("RECENTS_LIVE_WAIT_VIEWPORT owned handoff pending");
               else activateSurface(s);
@@ -316,7 +443,7 @@ final class RecentsLiveTileHooks {
       context.registerReceiver(
           screenOff, new IntentFilter(Intent.ACTION_SCREEN_OFF), Context.RECEIVER_NOT_EXPORTED);
       setDiagnostic("off");
-      HookEntry.log("RECENTS_LIVE_READY prototype configurable live tile v18");
+      HookEntry.log("RECENTS_LIVE_READY native-input navigation 0.10");
     } catch (Throwable t) {
       uninstall();
       if (t instanceof Exception e) throw e;
@@ -325,10 +452,79 @@ final class RecentsLiveTileHooks {
   }
 
   private void activateSurface(Session s) throws Exception {
-    inspect(s);
+    if (BuildConfig.RECENTS_MOTION_TRACE) inspect(s);
     View root = (View) recentTarget.invoke(systemController.invoke(s.manager()));
-    if (!surface.bind(s.manager(), root, s.taskId)) release("unsupported live binding");
+    Point physical = (Point) proxySize.get(inputProxy.get(s.manager()));
+    if (root != null && physical.x > physical.y && root.getWidth() < root.getHeight()) {
+      int bottom = navigationBottom(root);
+      if (bottom <= 0 || bottom >= root.getHeight() * .1f) {
+        fallback("portrait navigation region unavailable");
+        return;
+      }
+      s.navigationInjector = mainKeyInjector;
+      if (s.navigationInjector == null) {
+        fallback("native home navigation unavailable");
+        return;
+      }
+    }
+    if (!surface.bind(s.manager(), root, s.taskId)) fallback("unsupported live binding");
     else s.boundRoot = root;
+  }
+
+  private static int navigationBottom(View root) {
+    WindowInsets insets = root.getRootWindowInsets();
+    return insets == null
+        ? 0
+        : insets.getInsetsIgnoringVisibility(
+                WindowInsets.Type.navigationBars() | WindowInsets.Type.mandatorySystemGestures())
+            .bottom;
+  }
+
+  /**
+   * Native RecentsScreenInputConsumer uses the physical display's gesture region, which stays
+   * landscape while the remote controller is held. Recognize only the portrait window's bottom
+   * strip, then use the same native Home command and cancel the list's touch stream.
+   */
+  private boolean navigationHome(Session s, View view, android.view.MotionEvent event)
+      throws Exception {
+    Point physical = (Point) proxySize.get(inputProxy.get(s.manager()));
+    if (physical.x <= physical.y || s.boundRoot.getWidth() >= s.boundRoot.getHeight()) return false;
+    if (event.getPointerCount() != 1
+        || event.getActionMasked() == android.view.MotionEvent.ACTION_CANCEL) {
+      s.navigationDown = 0;
+      return false;
+    }
+    float[] xy = {event.getX(), event.getY()};
+    android.graphics.Matrix matrix = new android.graphics.Matrix();
+    view.transformMatrixToGlobal(matrix);
+    matrix.mapPoints(xy);
+    int height = s.boundRoot.getHeight(), width = s.boundRoot.getWidth();
+    if (event.getActionMasked() == android.view.MotionEvent.ACTION_DOWN) {
+      s.navigationDown = 0;
+      int bottom = navigationBottom(s.boundRoot);
+      if (bottom <= 0 || bottom >= height * .1f || s.navigationInjector == null)
+        throw new IllegalStateException("Portrait navigation region changed");
+      if (bottom > 0
+          && bottom < height * .1f
+          && xy[1] >= height - bottom
+          && xy[1] <= height
+          && xy[0] >= width * .04f
+          && xy[0] <= width * .96f) {
+        s.navigationDown = event.getDownTime();
+        s.navigationX = xy[0];
+        s.navigationY = xy[1];
+      }
+      HookEntry.log(
+          "RECENTS_LIVE_NAVIGATION bottom=" + bottom + " armed=" + (s.navigationDown != 0));
+    }
+    if (event.getActionMasked() != android.view.MotionEvent.ACTION_UP) return false;
+    boolean owned = s.navigationDown != 0 && s.navigationDown == event.getDownTime();
+    s.navigationDown = 0;
+    float dy = s.navigationY - xy[1];
+    return owned
+        && xy[1] < height * .9f
+        && dy > ViewConfiguration.get(view.getContext()).getScaledTouchSlop()
+        && Math.abs(xy[0] - s.navigationX) < dy;
   }
 
   private void releaseActivity(Activity a, String reason) {
@@ -342,7 +538,8 @@ final class RecentsLiveTileHooks {
   }
 
   private void begin(ModernHook.Param p) throws Exception {
-    if (Boolean.TRUE.equals(p.args[2])
+    if (!NavigationPolicy.gestures(context)
+        || Boolean.TRUE.equals(p.args[2])
         || Boolean.TRUE.equals(p.args[3])
         || Boolean.TRUE.equals(p.args[4])
         || managerDisplay.getInt(p.thisObject) != 0
@@ -480,13 +677,20 @@ final class RecentsLiveTileHooks {
     }
   }
 
+  private void fallback(String reason) {
+    release(reason);
+    setDiagnostic("unavailable:" + reason);
+  }
+
   void setEnabled(boolean value) {
     if (hooks.isEmpty()) {
       enabled = false;
       setDiagnostic("unavailable");
       return;
     }
-    enabled = value && !failed;
+    boolean next = value && !failed;
+    if (next == enabled) return;
+    enabled = next;
     if (!enabled) release("disabled");
     else if (sessions.isEmpty()) setDiagnostic("ready");
   }
@@ -518,6 +722,8 @@ final class RecentsLiveTileHooks {
       application.unregisterActivityLifecycleCallbacks(lifecycle);
       application = null;
     }
+    foregroundRecents = null;
+    mainKeyInjector = null;
   }
 
   private interface Action {

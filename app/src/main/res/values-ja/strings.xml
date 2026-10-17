@@ -99,6 +99,6 @@
   <string name="app_theme">アプリのテーマ</string>
   <string name="dynamic_ui">壁紙の色をアプリに使う</string>
   <string name="recents_live_tile">履歴で最後のアプリの描画を続ける</string>
-  <string name="recents_live_tile_note">履歴を開いている間、最後のアプリだけ描画を続けます。Home Upの配置を維持します。遠近変形中は標準の静止画を使い、変形後にライブ表示へ戻します。保護されたアプリや非対応の構成では標準動作に戻ります。現在はAndroid 16 / One UI 8.5のジェスチャー操作で検証中です。</string>
+  <string name="recents_live_tile_note">履歴を開いている間、最後のアプリだけ描画を続けます。Home Upの配置を維持し、遠近変形中は一時的に標準の静止画を使います。保護されたアプリや非対応の構成は標準動作に戻します。実験的機能：Android 16 / One UI 8.5、ジェスチャー操作のみ。横向きアプリには「履歴を縦向きに固定」も有効にしてください。アプリ側の再生・音声の制御は変更しません。</string>
   <string name="status_ready">準備完了</string>
 </resources>

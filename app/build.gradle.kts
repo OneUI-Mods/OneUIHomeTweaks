@@ -17,12 +17,10 @@ android {
         applicationId = "net.ryuya_dev.oneuilivecolors"
         minSdk = 31
         targetSdk = 36
-        versionCode = 14
+        versionCode = 15
         versionName = "0.10.0"
         // Observational geometry logging is opt-in for local investigation, never default release behavior.
         buildConfigField("boolean", "RECENTS_MOTION_TRACE", providers.gradleProperty("recentsMotionTrace").map { (it == "true").toString() }.getOrElse("false"))
-        buildConfigField("boolean", "RECENTS_LIVE_TILE_EXPERIMENTAL", providers.gradleProperty("recentsLiveTileExperimental").map { (it == "true").toString() }.getOrElse("false"))
-        buildConfigField("boolean", "RECENTS_COORDINATE_EXPERIMENTAL", providers.gradleProperty("recentsCoordinateExperimental").map { (it == "true").toString() }.getOrElse("false"))
     }
     signingConfigs {
         if (!distributionProperties.isEmpty) create("distribution") {

@@ -19,7 +19,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
 
-/** Experimental, session-owned live surface. Native card drawing supplies clipping and geometry. */
+/** Session-owned live surface. Native card drawing supplies clipping and geometry. */
 final class RecentsLiveSurface {
   private final Runnable unsupported;
   private final RecentsLiveBlur blur;
@@ -39,7 +39,14 @@ final class RecentsLiveSurface {
   private final Method updaterTargets, recent, apps, mode, playerBasis, releaseCheck;
   private final Field updater, player;
   private final Constructor<?> transaction, applier;
-  private final Method forSurface, setMatrix, setCrop, setAlpha, show, getTransaction, schedule;
+  private final Method forSurface,
+      setMatrix,
+      setCrop,
+      setRadius,
+      setAlpha,
+      show,
+      getTransaction,
+      schedule;
   private final Field rawTransaction;
   private final Method relativeLayer;
   private final ModernHook.Handle drawHook;
@@ -92,8 +99,8 @@ final class RecentsLiveSurface {
 
   private void suspendVisual(String reason) throws Exception {
     if (visualSuspended) return;
-    blur.restore();
     Object tx = transaction.newInstance(), props = forSurface.invoke(tx, appLeash);
+    blur.restore((SurfaceControl.Transaction) rawTransaction.get(getTransaction.invoke(tx)));
     setAlpha.invoke(props, 0f);
     schedule.invoke(syncApplier, tx);
     visualSuspended = true;
@@ -159,6 +166,7 @@ final class RecentsLiveSurface {
     forSurface = tx.getMethod("forSurface", SurfaceControl.class);
     setMatrix = props.getMethod("setMatrix", Matrix.class);
     setCrop = props.getMethod("setWindowCrop", Rect.class);
+    setRadius = props.getMethod("setCornerRadius", float.class);
     setAlpha = props.getMethod("setAlpha", float.class);
     show = props.getMethod("setShow");
     getTransaction = tx.getMethod("getTransaction");
@@ -260,7 +268,7 @@ final class RecentsLiveSurface {
     viewportWidth = root.getWidth();
     viewportHeight = root.getHeight();
     root.getViewTreeObserver().addOnPreDrawListener(preDraw);
-    if (!blur.bind(root)) {
+    if (!blur.bind(root, appLeash)) {
       clear();
       return false;
     }
@@ -350,19 +358,49 @@ final class RecentsLiveSurface {
                 tiltPath.invoke(scene, bounds.get(0), corners.get(0), args[4], tilt.invoke(scene)));
     String geometry =
         output.toString() + bounds.get(0) + java.util.Arrays.toString((float[]) corners.get(0));
-    if (!blur.exclude(scene, path, geometry)) return Draw.INVALID;
+    if (!blur.valid()) return Draw.INVALID;
     if (geometry.equals(lastGeometry)) return Draw.LIVE;
+    Matrix inverse = new Matrix();
+    if (!output.invert(inverse)) return Draw.INVALID;
+    Matrix localToSource = new Matrix();
+    localToSource.setConcat(inverse, global);
+    Path sourceClip = new Path(path);
+    sourceClip.transform(localToSource);
+    RectF cropBounds = new RectF();
+    sourceClip.computeBounds(cropBounds, true);
+    if (!cropBounds.intersect(new RectF(source))) return Draw.INVALID;
+    Rect sourceCrop =
+        new Rect(
+            Math.max(source.left, (int) Math.floor(cropBounds.left)),
+            Math.max(source.top, (int) Math.floor(cropBounds.top)),
+            Math.min(source.right, (int) Math.ceil(cropBounds.right)),
+            Math.min(source.bottom, (int) Math.ceil(cropBounds.bottom)));
+    if (!(corners.get(0) instanceof float[] rr) || rr.length != 8) return Draw.INVALID;
+    for (float corner : rr)
+      if (!Float.isFinite(corner) || Math.abs(corner - rr[0]) > .1) return Draw.INVALID;
+    Matrix relative = new Matrix(), inverseGlobal = new Matrix();
+    if (!global.invert(inverseGlobal)) return Draw.INVALID;
+    relative.setConcat(inverseGlobal, output);
+    float[] relativeValues = new float[9];
+    relative.getValues(relativeValues);
+    double contentScale =
+        Math.sqrt(
+            Math.abs(
+                relativeValues[0] * relativeValues[4] - relativeValues[1] * relativeValues[3]));
+    if (!Double.isFinite(contentScale) || contentScale <= 0) return Draw.INVALID;
     Object tx = transaction.newInstance();
     Object props = forSurface.invoke(tx, appLeash);
     Matrix leashMatrix = new Matrix();
     leashMatrix.setConcat(viewportToLeash, output);
     setMatrix.invoke(props, leashMatrix);
-    setCrop.invoke(props, source);
+    setCrop.invoke(props, sourceCrop);
+    setRadius.invoke(props, (float) (rr[0] / contentScale));
     setAlpha.invoke(props, 1f);
     show.invoke(props);
     SurfaceControl.Transaction raw =
         (SurfaceControl.Transaction) rawTransaction.get(getTransaction.invoke(tx));
     relativeLayer.invoke(raw, appLeash, recentsLeash, -1);
+    blur.apply(raw);
     schedule.invoke(syncApplier, tx);
     lastGeometry = geometry;
     if (visualSuspended) {

@@ -99,6 +99,6 @@
   <string name="app_theme">应用主题</string>
   <string name="dynamic_ui">使用壁纸配色</string>
   <string name="recents_live_tile">在最近任务中保持最后一个应用绘制</string>
-  <string name="recents_live_tile_note">最近任务打开时，仅保持最后一个应用绘制。保留 Home Up 布局。透视动画期间临时使用原生快照，随后恢复实时显示。受保护或不兼容的任务使用标准行为。此实验版本目前在 Android 16 / One UI 8.5 的手势导航中验证。</string>
+  <string name="recents_live_tile_note">在最近任务中仅保持最后一个应用绘制，并保留 Home Up 布局。透视动画期间暂时使用原生快照。受保护或不兼容的任务使用标准行为。实验功能：Android 16 / One UI 8.5，仅支持手势导航。横屏应用还需开启最近任务竖屏固定。不更改应用的播放或音频策略。</string>
   <string name="status_ready">已就绪</string>
 </resources>

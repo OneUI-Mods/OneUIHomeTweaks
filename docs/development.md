@@ -50,7 +50,7 @@ export ONEUI_SIGNING_PROPERTIES=/absolute/path/to/private-signing.properties
 - Home UpはLauncher内に動的ロードされたクラスを扱います。壁紙アプリやHome Up本体のプロセスには適用しません。
 - クラス構造・シグネチャ・実際のDEX呼び出し関係を検証し、互換性を確認できない機能は停止します。難読化された名前だけに依存する探索は避けます。
 - 色、壁紙、ページ、設定のイベントを使用し、定期ポーリングは行いません。
-- システムパーティション、root実装、壁紙画像、ホーム配置は変更しません。端末再起動も行いません。
+- システムパーティション、root実装、壁紙画像は変更しません。ホーム配置の保存は利用者が専用操作で確認した場合だけ行います。端末再起動は行いません。
 
 ## 調査・検証資料
 
@@ -87,11 +87,13 @@ adb logcat -s OneUiLiveColors:I '*:S'
 
 対象メソッド、座標の扱い、編集時の吸着と実機検証の範囲は[DIY Homeの技術記録](diy-home-grid.md)を参照してください。SamsungのAPK・逆コンパイル結果・ホームDB・壁紙画像は私用の調査資料で、公開ソースや配布APKには含めません。
 
-- [履歴の連続アニメーション調査（開発中・未解決）](recents-motion.md)
+- [履歴の連続アニメーション・ライブ描画の技術記録](recents-motion.md)
 
 
-## 履歴の連続描画とライブカードのローカル実験
+## 履歴の連続遷移とライブ描画
 
-`-PrecentsMotionTrace=true` は測定ログ、`-PrecentsCoordinateExperimental=true` は共通座標系でのアプリ・カード遷移、`-PrecentsLiveTileExperimental=true` は最後のアプリの描画継続を登録します。**全て通常ビルドではfalse**です。後二つを組み合わせる場合は、所有セッションのhandoff barrierを通してSurface操作を引き継ぎます。
+0.10.0では共通ビューポートのコントローラーを通常ビルドに含め、縦向き固定スイッチに従って有効にします。ライブ描画も通常ビルドの独立したスイッチで設定し、初期OFFです。以前の`recentsCoordinateExperimental`／`recentsLiveTileExperimental`ビルドフラグと不要な旧入力変換アダプターは削除しました。所有セッションのhandoff barrierを通してSurface操作を引き継ぎます。
 
-最新の実機結果・失敗した試作・未検証事項は[履歴の技術記録](recents-motion.md)に残しています。ビルド成功やフック登録だけを動作確認と扱わず、通常の署名済みAPKを用意してから検証してください。公開リリースへ実験フラグを混入させないでください。
+`-PrecentsMotionTrace=true`だけが調査用フラグとして残っています。通常はfalseで、カードID・寸法などの詳細トレースを出しません。公開APKは追加のGradleプロパティなしでビルドしてください。
+
+対象メソッド、失敗した試作、実機検証の範囲は[履歴の技術記録](recents-motion.md)に残しています。OS・Launcher・Home Up更新時は同じ検証を再実施してください。構造検証が通ることと、アニメーションが正しく見えることは別です。
