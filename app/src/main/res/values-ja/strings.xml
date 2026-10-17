@@ -85,4 +85,5 @@
   <string name="clock_date_left_note">ステータスバーに表示されている日付を時刻の左側へ移します。日付の表示・非表示と書式はOS・QuickStarの設定に従います。初期設定はOFFです。</string>
   <string name="diy_icon_grid">DIY Homeのアイコンを通常グリッドに整列</string>
   <string name="diy_icon_grid_note">DIY Homeを有効なまま、アプリアイコンとフォルダを通常ホームのグリッドに揃え、編集時の移動もセル単位にします。ウィジェットとステッカーは自由配置のままです。OFFで保存中の自由配置を表示します。編集の取り消しではありません。縦画面のみ対応。初期設定はOFFです。</string>
+  <string name="status_waiting_note">今回の確認への応答を待っています。対象アプリが未起動、設定の取得待ち、読み込み失敗などの場合があります。クラッシュ保護による停止とは別の状態です。</string>
 </resources>

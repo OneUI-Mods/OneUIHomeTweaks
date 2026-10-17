@@ -20,6 +20,7 @@ import java.util.function.Supplier;
 final class VolumeHooks {
   private volatile int mode;
   private boolean failed;
+  private String failureDetail = "Volume hook stopped";
   private Context context;
   private Handler main, worker;
   private WeakReference<Object> panel = new WeakReference<>(null);
@@ -179,6 +180,16 @@ final class VolumeHooks {
                 refresh();
               }
             });
+    app.registerReceiver(
+        new BroadcastReceiver() {
+          @Override
+          public void onReceive(Context context, Intent intent) {
+            if (Intent.ACTION_USER_UNLOCKED.equals(intent.getAction()))
+              worker.post(VolumeHooks.this::refresh);
+          }
+        },
+        new IntentFilter(Intent.ACTION_USER_UNLOCKED),
+        Context.RECEIVER_NOT_EXPORTED);
     worker.post(this::refresh);
     HookEntry.log("VOLUME_HOOK_READY native context + native recreate");
   }
@@ -207,7 +218,10 @@ final class VolumeHooks {
   }
 
   private void refresh() {
-    if (failed) return;
+    if (failed) {
+      HostStatus.report(context, "ERROR", failureDetail);
+      return;
+    }
     try (Cursor c =
         context.getContentResolver().query(ConfigProvider.URI, null, null, null, null)) {
       if (c == null || !c.moveToFirst()) throw new IllegalStateException("No configuration");
@@ -242,8 +256,26 @@ final class VolumeHooks {
     } catch (Throwable t) {
       main.post(
           () -> {
+            if (failed) return;
+            boolean restore = mode != 0;
             mode = 0;
-            disable(t);
+            volumeStar.setMode(0);
+            try {
+              Object current = panel.get();
+              if (restore && current != null) recreate.invoke(current);
+            } catch (Throwable error) {
+              disable(error);
+              return;
+            }
+            // Provider availability is transient before user unlock. Keep the observer alive;
+            // unlock or opening the settings app retries without polling or bypassing guards.
+            HostStatus.report(
+                context,
+                "ERROR",
+                "Volume configuration unavailable; native mode; retries on unlock/config"
+                    + " notification: "
+                    + t.getClass().getSimpleName());
+            HookEntry.log("VOLUME_CONFIG_UNAVAILABLE " + t);
           });
     }
   }
@@ -251,9 +283,10 @@ final class VolumeHooks {
   private void disable(Throwable t) {
     boolean restore = !failed;
     failed = true;
+    failureDetail = "Volume: " + t.getClass().getSimpleName();
     mode = 0;
     volumeStar.setMode(0);
-    HostStatus.report(context, "ERROR", "Volume: " + t.getClass().getSimpleName());
+    HostStatus.report(context, "ERROR", failureDetail);
     HookEntry.log("VOLUME_DISABLED " + t);
     if (restore && main != null)
       main.post(

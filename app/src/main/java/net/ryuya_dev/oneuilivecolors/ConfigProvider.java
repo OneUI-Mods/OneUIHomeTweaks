@@ -95,6 +95,7 @@ public final class ConfigProvider extends ContentProvider {
         .putString(host + ".detail", detail)
         .putLong(host + ".elapsed", extras.getLong("elapsed"))
         .putInt(host + ".pid", extras.getInt("pid"))
+        .putInt(host + ".boot", extras.getInt("boot", -1))
         .apply();
     getContext().getContentResolver().notifyChange(STATUS_URI, null);
     Bundle result = new Bundle();

@@ -85,11 +85,14 @@ final class HookStatusCard extends MaterialCardView {
     badge.setText(label);
     badge.setTextColor(color);
     badge.setChipBackgroundColor(ColorStateList.valueOf(background));
+    boolean waiting = on && state.isEmpty();
     detail.setText(
-        info.contains("hints=null") && !info.contains("localLabels=active")
-            ? R.string.status_no_colors
-            : "ACTIVE".equals(state) ? R.string.status_response : R.string.status_open_details);
-    detail.setVisibility(info.isEmpty() ? GONE : VISIBLE);
+        waiting
+            ? R.string.status_waiting_note
+            : info.contains("hints=null") && !info.contains("localLabels=active")
+                ? R.string.status_no_colors
+                : "ACTIVE".equals(state) ? R.string.status_response : R.string.status_open_details);
+    detail.setVisibility(info.isEmpty() && !waiting ? GONE : VISIBLE);
     setClickable(!info.isEmpty());
     setFocusable(!info.isEmpty());
     setOnClickListener(

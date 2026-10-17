@@ -16,8 +16,8 @@ android {
         applicationId = "net.ryuya_dev.oneuilivecolors"
         minSdk = 31
         targetSdk = 36
-        versionCode = 12
-        versionName = "0.9.0"
+        versionCode = 13
+        versionName = "0.9.1"
     }
     signingConfigs {
         if (!distributionProperties.isEmpty) create("distribution") {

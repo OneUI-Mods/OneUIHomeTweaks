@@ -85,4 +85,5 @@
   <string name="clock_date_left_note">将状态栏中已显示的日期移到时间左侧。日期的显示与隐藏及格式遵循系统和 QuickStar 设置。默认关闭。</string>
   <string name="diy_icon_grid">DIY Home 图标使用标准网格</string>
   <string name="diy_icon_grid_note">保持 DIY Home 启用，将应用图标和文件夹对齐到普通主屏幕网格，编辑移动时也按网格吸附。小组件和贴纸仍可自由放置。关闭后显示已保存的自由位置，不会撤销编辑。仅支持竖屏，默认关闭。</string>
+  <string name="status_waiting_note">正在等待本次检查的响应。目标应用可能未启动、正在等待设置或未能加载挂钩。这不代表已被崩溃保护停止。</string>
 </resources>

@@ -16,6 +16,10 @@ final class HostStatus {
       b.putString("detail", detail);
       b.putInt("pid", android.os.Process.myPid());
       b.putLong("elapsed", SystemClock.elapsedRealtime());
+      b.putInt(
+          "boot",
+          android.provider.Settings.Global.getInt(
+              context.getContentResolver(), android.provider.Settings.Global.BOOT_COUNT, -1));
       b.putString("host", context.getPackageName());
       if (feature != null) b.putString("feature", feature);
       context.getContentResolver().call(ConfigProvider.URI, "report_status", null, b);

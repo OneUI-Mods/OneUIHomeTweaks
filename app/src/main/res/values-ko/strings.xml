@@ -85,4 +85,5 @@
   <string name="clock_date_left_note">상태 표시줄에 표시된 날짜를 시간 왼쪽으로 이동합니다. 날짜 표시 여부와 형식은 시스템 및 QuickStar 설정을 따릅니다. 기본값은 꺼짐입니다.</string>
   <string name="diy_icon_grid">DIY Home 아이콘을 기본 격자에 정렬</string>
   <string name="diy_icon_grid_note">DIY Home을 유지하면서 앱 아이콘과 폴더를 기본 홈 격자에 맞추고 편집 중 이동도 셀 단위로 맞춥니다. 위젯과 스티커는 자유 배치를 유지합니다. 끄면 저장된 자유 위치를 표시하며 편집을 취소하지는 않습니다. 세로 화면 전용이며 기본값은 꺼짐입니다.</string>
+  <string name="status_waiting_note">이번 확인 요청에 대한 응답을 기다리고 있습니다. 대상 앱이 닫혀 있거나 설정을 기다리거나 후크를 불러오지 못했을 수 있습니다. 충돌 보호로 중지된 상태와는 다릅니다.</string>
 </resources>

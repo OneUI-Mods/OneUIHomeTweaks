@@ -199,7 +199,7 @@ public final class MainActivity extends AppCompatActivity {
     statusCards = new HookStatusCard[8];
     int[] titles = {
       R.string.scope_home,
-      R.string.scope_volume,
+      R.string.volume_theme,
       R.string.scope_preview,
       R.string.recents_portrait,
       R.string.recents_hide_bar,
@@ -233,10 +233,17 @@ public final class MainActivity extends AppCompatActivity {
     String dateKey = "com.android.systemui.clock_date";
     String dateState = dateOn ? report.getString(dateKey + ".state", "") : "OFF";
     long dateReported = report.getLong(dateKey + ".elapsed", 0);
+    int boot =
+        android.provider.Settings.Global.getInt(
+            getContentResolver(), android.provider.Settings.Global.BOOT_COUNT, -1);
     if (dateOn
-        && (dateReported > SystemClock.elapsedRealtime()
-            || (dateReported < statusRequest
-                && ("ACTIVE".equals(dateState) || "OFF".equals(dateState))))) dateState = "";
+        && !StatusFreshness.usable(
+            dateState,
+            report.getInt(dateKey + ".boot", -1),
+            boot,
+            dateReported,
+            SystemClock.elapsedRealtime(),
+            statusRequest)) dateState = "";
     int dateLabel =
         !dateOn
             ? R.string.status_off
@@ -250,7 +257,14 @@ public final class MainActivity extends AppCompatActivity {
     // A host-wide crash guard/compatibility gate also prevents this feature from loading.
     if (dateOn && dateState.isEmpty()) {
       String hostState = report.getString("com.android.systemui.state", "");
-      if ("CRASH_GUARD".equals(hostState) || "UNSUPPORTED".equals(hostState)) {
+      if (("CRASH_GUARD".equals(hostState) || "UNSUPPORTED".equals(hostState))
+          && StatusFreshness.usable(
+              hostState,
+              report.getInt("com.android.systemui.boot", -1),
+              boot,
+              report.getLong("com.android.systemui.elapsed", 0),
+              SystemClock.elapsedRealtime(),
+              statusRequest)) {
         dateState = hostState;
         dateLabel =
             "CRASH_GUARD".equals(hostState) ? R.string.status_guard : R.string.status_unsupported;
@@ -268,9 +282,13 @@ public final class MainActivity extends AppCompatActivity {
       long reported = report.getLong(host + ".elapsed", 0);
       // ACTIVE/OFF describe a live process and need a fresh response. Terminal diagnostics remain
       // useful when that process deliberately installs no observers (especially CRASH_GUARD).
-      if (reported > SystemClock.elapsedRealtime()
-          || (reported < statusRequest && ("ACTIVE".equals(state) || "OFF".equals(state))))
-        state = "";
+      if (!StatusFreshness.usable(
+          state,
+          report.getInt(host + ".boot", -1),
+          boot,
+          reported,
+          SystemClock.elapsedRealtime(),
+          statusRequest)) state = "";
       int label =
           !on
               ? R.string.status_off
