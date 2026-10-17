@@ -32,6 +32,14 @@ A private Instrumentation helper injects DOWN/MOVE/UP with one `downTime` and a 
 
 The later card target moved offscreen during the recorded native animation. Whether this is native task selection, overlay layout or handoff behavior still requires matching the remote app task ID to the actual final thumbnail. Do not infer a fix from those outer bounds alone.
 
+## Matching the closing app to its actual thumbnail
+
+A subsequent measurement matched the remote closing app and final card by the same task ID. The app Surface crop/source was 3120 x 1440; its corresponding snapshot was also 3120 x 1440, rotation 1, scale 1. The portrait card used a real shader matrix approximately `[0 -0.6955 970.9; 0.6946 0 -97.2; 0 0 1]`, followed by its measured View-to-global transform. These are anonymized geometry values, not screenshots.
+
+In that run, converting the full app into the portrait basis and the snapshot shader into the same basis gave the same approximately +90-degree content angle at both ends. A new interpolated rotation is therefore **not necessarily needed** for this case. Position, scale, crop, the gesture viewport and the final handoff still need one consistent mapping. These measurements supersede any initial assumption that rotating the content by another quarter turn would fix the problem.
+
+The native shader also has small nonuniform scaling caused by layout/rounding, and other cards use shear for the selected task-changer style. Exact endpoint matching must preserve these transforms or explicitly decline unsupported geometry. Do not coerce arbitrary matrices to uniform scale. `SceneStateInfo.getPositionMatrix(1)` alone is not the actual draw matrix: native drawing uses its current drawing ratio and composes the snapshot rotation. Reading a shader after a later frame can also see a reset identity matrix; a finished adapter must capture the actual draw event rather than assuming that cache is stable.
+
 ## Replacement kernel
 
 `RecentsMotionPath` holds app-content center, uniform scale and unwrapped angle in a stable natural-portrait basis. One gesture fraction drives all components; reverse motion retraces the same path. Similarity transforms preserve aspect ratio and avoid singular matrices during a quarter turn. An explicit verified leash-to-portrait transform projects the same pose into the current Surface basis. Display rotation alone cannot stand in for that transform because Shell may insert fixed-rotation parents.
@@ -54,3 +62,13 @@ Tags: `RECENTS_MOTION_DEX_VERIFIED`, `RECENTS_MOTION_BEGIN`, `RECENTS_MOTION_FRA
 - Fullscreen launcher gestures, reverse/cancel, quick Home, task launch, repeated landscape rotations, feature OFF, three-button navigation, PiP, split screen and process recovery still need validation with the finished adapter.
 
 Primary reference for coordinate-space handling: [AOSP TaskViewSimulator](https://android.googlesource.com/platform/packages/apps/Launcher3/+/refs/heads/main/quickstep/src/com/android/quickstep/util/TaskViewSimulator.java). It explicitly separates task, Launcher and display coordinates and retains the gesture-start rotation for Shell transitions. Samsung uses a different implementation; this is a design reference, not evidence that the AOSP class is loaded here.
+
+## Input and display-change path for the replacement adapter
+
+Further inspected native code: `AnimationSessionKt.displacement` calculates deltas in captured region axes. `AnimationSessionKt.obtain` separately repositions the event passed directly into the gesture cards. Both paths need consistent coordinates; rotating only the View does not transform this direct input dispatch.
+
+`AnimationSession` also observes `DeviceState`. Its typed FlowCollector compares the new display size with `LeashSizeCalculator.getFullDisplaySize()`. During a gesture, a mismatch can dispatch `ActionEvent.StartHomeScreenAnimation`. This is a verified code path, not yet a proven explanation for every failed earlier test. Simply requesting portrait early can therefore change gesture completion behavior.
+
+`RecentsGestureCoordinates` captures the initial display transform and pointer, projects later events back into those original axes, and produces displacement plus a virtual portrait-card pointer without accumulating deltas. Six additional tests include the actual measured landscape drag, both landscape rotations, repeated rotation/reversal, horizontal drift, native side-region conventions and invalid inputs. This component is **not yet connected to live input or rendering**.
+
+The runtime adapter still needs one coordinated session: capture the source gesture; prepare a portrait overlay; rebase only its own pending display-size change before the native mismatch fallback; project both displacement and direct View events; map card target bounds through the verified player Home-to-window basis; convert spring callbacks back into card coordinates; and preserve native completion/cancellation. General rotation changes, Home gestures, DeX, split screen and unrelated tasks must retain native behavior. This is not a plan to hook all MotionEvents or globally suppress the native fallback.

@@ -29,6 +29,7 @@ final class RecentsMotionTrace {
   private Method desktop, basis, crop, taskRect, taskView, animation, shrink, infoMatrix;
   private Method systemController, recentTarget, firstTaskId, taskScene, sceneState, scenePosition;
   private Class<?> cardClass;
+  private Method foregroundPaints, sceneData, drawingRatio;
   private boolean enabled, failed;
   private long nextId;
   private Session latest;
@@ -97,6 +98,13 @@ final class RecentsMotionTrace {
       scenePosition =
           type(loader, "com.honeyspace.ui.common.taskScene.SceneStateInfo")
               .getMethod("getPositionMatrix", float.class);
+      Class<?> sceneClass = type(loader, "com.honeyspace.ui.common.taskScene.TaskSceneView");
+      foregroundPaints = sceneClass.getMethod("getForegroundPaints");
+      sceneData = sceneClass.getMethod("getTaskSceneData");
+      drawingRatio = sceneClass.getMethod("getDrawingRatio");
+      Method invokeRatio = type(loader, "kotlin.jvm.functions.Function0").getMethod("invoke");
+      Method apps = targets.getMethod("getApps");
+      Method mode = targets.getMethod("getTargetMode");
       if (create.getReturnType() != void.class
           || move.getReturnType() != void.class
           || moving.getReturnType() != void.class
@@ -159,17 +167,32 @@ final class RecentsMotionTrace {
                     latest = session;
                     managers.put(p.thisObject, session);
                     players.put(current, session);
-                    session.add(
-                        "begin basis="
+                    HookEntry.log(
+                        "RECENTS_MOTION_START id="
+                            + session.id
+                            + " basis="
                             + matrix((Matrix) basis.invoke(current))
                             + " crop="
                             + crop.invoke(current));
+                    int targetMode = (Integer) mode.invoke(p.args[0]);
+                    for (Object app : (Object[]) apps.invoke(p.args[0])) {
+                      Class<?> appClass = app.getClass();
+                      if (appClass.getField("mode").getInt(app) != targetMode) continue;
+                      HookEntry.log(
+                          "RECENTS_MOTION_APP id="
+                              + session.id
+                              + " task="
+                              + appClass.getField("taskId").getInt(app)
+                              + " source="
+                              + appClass.getField("sourceContainerBounds").get(app));
+                    }
                     HookEntry.log("RECENTS_MOTION_BEGIN id=" + session.id + " observational=true");
                   } catch (Throwable error) {
                     stop(error);
                   }
                 }
               }));
+      ratioInvoke = invokeRatio;
       handles.add(
           ModernHook.hookMethod(
               move,
@@ -278,6 +301,7 @@ final class RecentsMotionTrace {
                 protected void beforeHookedMethod(ModernHook.Param p) {
                   if (!active()) return;
                   Session session = managers.get(p.thisObject);
+                  p.setObjectExtra("motionSession", session);
                   if (session != null) {
                     try {
                       Object root = recentTarget.invoke(systemController.invoke(p.thisObject));
@@ -286,6 +310,30 @@ final class RecentsMotionTrace {
                       session.add("card-read-error=" + error.getClass().getSimpleName());
                     }
                     flush(session, "handoff");
+                  }
+                }
+
+                @Override
+                protected void afterHookedMethod(ModernHook.Param p) {
+                  if (!active()
+                      || p.hasThrowable()
+                      || !(p.getObjectExtra("motionSession") instanceof Session session)) return;
+                  try {
+                    Object value = recentTarget.invoke(systemController.invoke(p.thisObject));
+                    if (value instanceof View root && root.isAttachedToWindow()) {
+                      root.postOnAnimation(
+                          () -> {
+                            if (!active() || !root.isAttachedToWindow()) return;
+                            try {
+                              recordCards(session, root, new int[] {0});
+                              flush(session, "handoff-frame");
+                            } catch (Throwable error) {
+                              HookEntry.log("RECENTS_MOTION_CARD_ERROR " + error);
+                            }
+                          });
+                    }
+                  } catch (Throwable error) {
+                    HookEntry.log("RECENTS_MOTION_CARD_ERROR " + error);
                   }
                 }
               }));
@@ -349,13 +397,39 @@ final class RecentsMotionTrace {
                 + " global="
                 + matrix(global)
                 + " content="
-                + scenePosition.invoke(sceneState.invoke(scene), 1f));
+                + scenePosition.invoke(
+                    sceneState.invoke(scene),
+                    ((Number) ratioInvoke.invoke(drawingRatio.invoke(scene))).floatValue()));
+        for (Object value : (List<?>) foregroundPaints.invoke(scene)) {
+          if (!(value instanceof android.graphics.Paint paint) || paint.getShader() == null)
+            continue;
+          Matrix shader = new Matrix();
+          paint.getShader().getLocalMatrix(shader);
+          session.add("paint task=" + firstTaskId.invoke(view) + " shader=" + matrix(shader));
+        }
+        for (Object data : (List<?>) sceneData.invoke(scene)) {
+          Object bitmap = data.getClass().getMethod("getThumbnail").invoke(data);
+          if (bitmap instanceof android.graphics.Bitmap image)
+            session.add(
+                "snapshot task="
+                    + firstTaskId.invoke(view)
+                    + " pixels="
+                    + image.getWidth()
+                    + "x"
+                    + image.getHeight()
+                    + " rotation="
+                    + data.getClass().getMethod("getRotation").invoke(data)
+                    + " scale="
+                    + data.getClass().getMethod("getScale").invoke(data));
+        }
       }
     }
     if (view instanceof android.view.ViewGroup group)
       for (int i = 0; i < group.getChildCount(); i++)
         recordCards(session, group.getChildAt(i), visited);
   }
+
+  private Method ratioInvoke;
 
   private boolean active() {
     return enabled && !failed && Looper.myLooper() == Looper.getMainLooper();
