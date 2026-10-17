@@ -30,8 +30,8 @@ public class StartupPolicyTest {
   }
 
   @Test
-  public void unknownEarlyDeathsCountConservatively() {
-    assertEquals(3, StartupPolicy.nextCount(2, false, 1000, 2000, StartupPolicy.Exit.UNKNOWN));
+  public void unknownExitDoesNotCreateFalseCrashLoop() {
+    assertEquals(1, StartupPolicy.nextCount(2, false, 1000, 2000, StartupPolicy.Exit.UNKNOWN));
     assertEquals(
         3, StartupPolicy.nextCount(Integer.MAX_VALUE, false, 1000, 2000, StartupPolicy.Exit.CRASH));
   }

@@ -118,7 +118,9 @@ public final class HookEntry extends XposedModule {
               CrashGuard guard = preparedGuard != null ? preparedGuard : CrashGuard.enter(app);
               if (guard.blocked()) {
                 HostStatus.report(
-                    app, "CRASH_GUARD", "Three unstable starts; clear protection before retrying");
+                    app,
+                    "CRASH_GUARD",
+                    "Three confirmed crash starts; clear protection before retrying");
                 log("CRASH_GUARD blocked " + p.packageName);
                 return;
               }

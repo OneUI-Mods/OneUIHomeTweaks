@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.1
+
+- Prevent deliberate or unclassified target-process reloads from being counted as hook crashes.
+- Match Android's recorded crash reason to the exact previous process before incrementing the
+  startup protection counter.
+- Keep crash-protection diagnostics visible while requiring a fresh response for active status.
+
 ## 0.5.0
 
 - Migrate the module from legacy Xposed API 82 to modern libxposed API 102.

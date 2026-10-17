@@ -50,7 +50,7 @@ adb shell am start --user 0 -a android.intent.action.MAIN -c android.intent.cate
 
 SystemUIやWallpaper and styleの再読み込みは一時的に画面を閉じる。アプリ内の対象別ボタンを使う。端末再起動・データ消去は不要。
 
-起動保護ファイルは各対象のprivate files内の`net.ryuya_dev.oneuilivecolors.guard`。クラッシュ保護で停止した場合は原因を直し、アプリの「クラッシュ保護を解除」でこのファイルだけを削除して、対象を再読み込みする。自動解除はしない。正常な手動再起動はApplicationExitInfoで区別し、90秒安定稼働した起動や10分以上離れた起動、端末起動し直し後は連続回数をリセットする。履歴が利用できない場合は未完了の起動を保守的に数える。
+起動保護ファイルは各対象のprivate files内の`net.ryuya_dev.oneuilivecolors.guard`。クラッシュ保護で停止した場合は原因を直し、アプリの「クラッシュ保護を解除」でこのファイルだけを削除して、対象を再読み込みする。自動解除はしない。直前PIDに対応するApplicationExitInfoが`CRASH`、`NATIVE_CRASH`、`ANR`のいずれかの場合だけ連続回数を加算する。正常な手動再起動、終了理由が未確定の起動、90秒安定稼働した起動、10分以上離れた起動、端末起動し直し後は連続回数をリセットする。
 
 Launcherデータや壁紙画像の削除、既存root／Vectorの再設定は行わない。
 
@@ -71,3 +71,9 @@ Launcherデータや壁紙画像の削除、既存root／Vectorの再設定は�
 - Wallpaper and style: `MODULE_LOADED api=102`、`PREVIEW_HOOK_READY`、`PREVIEW_HOME_MIRROR_ATTACHED`。
 
 クラッシュ保護解除はSystemUIが使う`/data/user_de/0`も対象に修正し、保護解除後にSystemUIの各フックが再度初期化されることを確認した。端末の再起動は行っていない。
+
+## 0.5.1 起動保護の誤検知修正
+
+0.5.0では、短時間に行った手動の対象プロセス再読み込みについて、Androidの終了理由がまだ取得できない場合も未完了起動として加算していた。これによりLauncherとSystemUIが`blocked=true`となり、Vectorがモジュールを読み込んでいてもフックが意図どおり停止したことを実機で確認した。
+
+0.5.1では直前PIDと終了理由を照合し、明示的なクラッシュ系理由だけを加算するよう修正した。保護ファイルを解除後、LauncherとSystemUIを90秒以内に2回ずつ意図的に再読み込みし、双方が`blocked=false`、`attempts=1`のまま稼働することを確認した。再読込後のログではLauncherの色・ページ・ドロワーフック、SystemUIの標準音量・Sound AssistantフックがAPI 102で再初期化された。状態画面はLauncherとSystemUIから`稼働中`の応答を受信した。端末の再起動は行っていない。

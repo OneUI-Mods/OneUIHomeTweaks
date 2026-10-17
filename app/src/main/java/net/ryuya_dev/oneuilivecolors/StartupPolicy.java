@@ -15,7 +15,7 @@ final class StartupPolicy {
         || previousElapsed <= 0
         || elapsed < previousElapsed
         || elapsed - previousElapsed > 600000
-        || exit == Exit.INTENTIONAL) count = 0;
+        || exit != Exit.CRASH) count = 0;
     return Math.min(3, count + 1);
   }
 }

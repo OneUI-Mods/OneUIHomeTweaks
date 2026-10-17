@@ -26,14 +26,18 @@ final class CrashGuard {
     long now = System.currentTimeMillis(), elapsed = SystemClock.elapsedRealtime();
     int count = Integer.parseInt(guard.state.getProperty("attempts", "0"));
     long previous = Long.parseLong(guard.state.getProperty("started", "0"));
+    int previousPid = Integer.parseInt(guard.state.getProperty("pid", "0"));
     boolean healthy = Boolean.parseBoolean(guard.state.getProperty("healthy", "true"));
     if (!Boolean.parseBoolean(guard.state.getProperty("blocked", "false"))) {
       StartupPolicy.Exit lastExit = StartupPolicy.Exit.UNKNOWN;
       // Confirm real crash reason where Android provides it; don't count intentional restarts.
       try {
         ActivityManager am = context.getSystemService(ActivityManager.class);
-        for (ApplicationExitInfo exit : am.getHistoricalProcessExitReasons(null, 0, 8)) {
+        for (ApplicationExitInfo exit :
+            am.getHistoricalProcessExitReasons(
+                context.getPackageName(), previousPid > 0 ? previousPid : 0, 8)) {
           if (!context.getPackageName().equals(exit.getProcessName())
+              || (previousPid > 0 && exit.getPid() != previousPid)
               || exit.getTimestamp() < previous) continue;
           int reason = exit.getReason();
           lastExit =
@@ -59,6 +63,7 @@ final class CrashGuard {
     guard.state.setProperty("attempts", Integer.toString(count));
     guard.state.setProperty("started", Long.toString(now));
     guard.state.setProperty("elapsed", Long.toString(elapsed));
+    guard.state.setProperty("pid", Integer.toString(android.os.Process.myPid()));
     guard.state.setProperty("healthy", "false");
     guard.save();
     return guard;

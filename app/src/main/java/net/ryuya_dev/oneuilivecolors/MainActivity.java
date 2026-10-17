@@ -200,8 +200,12 @@ public final class MainActivity extends AppCompatActivity {
       String host = ConfigProvider.HOSTS[i];
       boolean on = prefs.getBoolean("enabled", true) && prefs.getBoolean(switches[i + 1], true);
       String state = report.getString(host + ".state", "");
-      if (report.getLong(host + ".elapsed", Long.MAX_VALUE) > SystemClock.elapsedRealtime()
-          || report.getLong(host + ".elapsed", 0) < statusRequest) state = "";
+      long reported = report.getLong(host + ".elapsed", 0);
+      // ACTIVE/OFF describe a live process and need a fresh response. Terminal diagnostics remain
+      // useful when that process deliberately installs no observers (especially CRASH_GUARD).
+      if (reported > SystemClock.elapsedRealtime()
+          || (reported < statusRequest && ("ACTIVE".equals(state) || "OFF".equals(state))))
+        state = "";
       int label =
           !on
               ? R.string.status_off
@@ -325,7 +329,13 @@ public final class MainActivity extends AppCompatActivity {
         () -> {
           boolean success = command(cmd.toString(), 20, false);
           runOnUiThread(
-              () -> snack(success ? R.string.guard_reset_done : R.string.guard_reset_failed));
+              () -> {
+                if (success) {
+                  getSharedPreferences("host_status", MODE_PRIVATE).edit().clear().apply();
+                  showStatus();
+                }
+                snack(success ? R.string.guard_reset_done : R.string.guard_reset_failed);
+              });
         });
   }
 
