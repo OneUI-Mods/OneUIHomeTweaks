@@ -40,6 +40,7 @@ public final class MainActivity extends AppCompatActivity {
     "preview",
     "recents_portrait",
     "recents_hide_bar",
+    "recents_live_tile",
     "clock_date_left",
     "diy_icon_grid"
   };
@@ -52,6 +53,7 @@ public final class MainActivity extends AppCompatActivity {
     R.id.preview,
     R.id.recents_portrait,
     R.id.recents_hide_bar,
+    R.id.recents_live_tile,
     R.id.clock_date_left,
     R.id.diy_icon_grid
   };
@@ -141,6 +143,7 @@ public final class MainActivity extends AppCompatActivity {
       R.id.diy_note_button,
       R.id.recents_portrait_info,
       R.id.recents_bar_info,
+      R.id.recents_live_info,
       R.id.clock_date_info,
       R.id.preview_info
     };
@@ -149,6 +152,7 @@ public final class MainActivity extends AppCompatActivity {
       R.string.diy_icon_grid,
       R.string.recents_portrait,
       R.string.recents_hide_bar,
+      R.string.recents_live_tile,
       R.string.clock_date_left,
       R.string.live_preview
     };
@@ -157,6 +161,7 @@ public final class MainActivity extends AppCompatActivity {
       R.string.diy_icon_grid_note,
       R.string.recents_portrait_note,
       R.string.recents_hide_bar_note,
+      R.string.recents_live_tile_note,
       R.string.clock_date_left_note,
       R.string.preview_note
     };
@@ -171,6 +176,8 @@ public final class MainActivity extends AppCompatActivity {
                       .setPositiveButton(R.string.close, null)
                       .show());
     }
+    findViewById(R.id.recents_live_section)
+        .setVisibility(BuildConfig.RECENTS_LIVE_TILE_EXPERIMENTAL ? View.VISIBLE : View.GONE);
     BottomNavigationView navigation = findViewById(R.id.navigation);
     int[] pageIds = {R.id.page_0, R.id.page_1, R.id.page_2, R.id.page_3};
     int[] navigationIds = {R.id.nav_home, R.id.nav_appearance, R.id.nav_status, R.id.nav_settings};
@@ -263,7 +270,7 @@ public final class MainActivity extends AppCompatActivity {
           recreate();
         });
     LinearLayout cards = findViewById(R.id.status_cards);
-    statusCards = new HookStatusCard[8];
+    statusCards = new HookStatusCard[BuildConfig.RECENTS_LIVE_TILE_EXPERIMENTAL ? 9 : 8];
     int[] titles = {
       R.string.scope_home,
       R.string.volume_theme,
@@ -272,9 +279,10 @@ public final class MainActivity extends AppCompatActivity {
       R.string.recents_hide_bar,
       R.string.mode_local,
       R.string.clock_date_left,
-      R.string.diy_icon_grid
+      R.string.diy_icon_grid,
+      R.string.recents_live_tile
     };
-    for (int i = 0; i < titles.length; i++) {
+    for (int i = 0; i < statusCards.length; i++) {
       statusCards[i] = new HookStatusCard(this, titles[i]);
       cards.addView(statusCards[i]);
     }
@@ -444,6 +452,34 @@ public final class MainActivity extends AppCompatActivity {
             recentsOn && !recentsState.isEmpty()
                 ? detail.substring(Math.max(0, detail.indexOf("recents=")))
                 : "");
+        if (statusCards.length > 8) {
+          boolean liveOn = on && prefs.getBoolean("recents_live_tile", false);
+          String liveState = state;
+          int liveLabel = label;
+          String liveDetail =
+              detail.contains("liveRecents=")
+                  ? detail.substring(detail.indexOf("liveRecents=")).split(";", 2)[0]
+                  : "";
+          if (!liveOn) {
+            liveState = "OFF";
+            liveLabel = R.string.status_off;
+          } else if ("ACTIVE".equals(state)) {
+            if (liveDetail.contains("unavailable")) {
+              liveState = "UNSUPPORTED";
+              liveLabel = R.string.status_unsupported;
+            } else if (liveDetail.contains("error:")) {
+              liveState = "ERROR";
+              liveLabel = R.string.status_error;
+            } else if (liveDetail.endsWith("=held")) liveLabel = R.string.status_active;
+            else if (liveDetail.endsWith("=ready") || liveDetail.endsWith("=gesture"))
+              liveLabel = R.string.status_ready;
+            else {
+              liveState = "";
+              liveLabel = R.string.status_unconfirmed;
+            }
+          }
+          statusCards[8].update(liveLabel, liveState, liveOn, liveOn ? liveDetail : "");
+        }
         boolean barOn = on && prefs.getBoolean("recents_hide_bar", false);
         String barState = state;
         int barLabel = label;

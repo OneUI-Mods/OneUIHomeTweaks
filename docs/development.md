@@ -90,8 +90,8 @@ adb logcat -s OneUiLiveColors:I '*:S'
 - [履歴の連続アニメーション調査（開発中・未解決）](recents-motion.md)
 
 
-## 履歴座標アダプターのローカル実験
+## 履歴の連続描画とライブカードのローカル実験
 
-`-PrecentsMotionTrace=true` は幾何ログのみ、`-PrecentsCoordinateExperimental=true` は未完成の入力・描画座標アダプターを登録する別のフラグです。**両方とも通常ビルドではfalse**です。実験版は公開リリースへ混入させないでください。実機試験は失敗しており、フラグを付けたビルドの成功は動作確認を意味しません。
+`-PrecentsMotionTrace=true` は測定ログ、`-PrecentsCoordinateExperimental=true` は共通座標系でのアプリ・カード遷移、`-PrecentsLiveTileExperimental=true` は最後のアプリの描画継続を登録します。**全て通常ビルドではfalse**です。後二つを組み合わせる場合は、所有セッションのhandoff barrierを通してSurface操作を引き継ぎます。
 
-所有セッション、実タスクID、remote source bounds、player basis、Root寸法とnative stylerを照合し、不明な構成は履歴の補正だけを解除します。最新のガードは実機未検証です。次の操作試験には署名・フラグを確認した通常APKを事前に用意し、端末操作が許可された時間内に戻してください。[失敗条件と残る作業](recents-motion.md)を参照してください。
+最新の実機結果・失敗した試作・未検証事項は[履歴の技術記録](recents-motion.md)に残しています。ビルド成功やフック登録だけを動作確認と扱わず、通常の署名済みAPKを用意してから検証してください。公開リリースへ実験フラグを混入させないでください。

@@ -31,6 +31,7 @@ final class RecentsLiveSurface {
       sceneData,
       bitmap,
       snapshotScale,
+      snapshotRotation,
       hasTaskId,
       realSnapshot,
       locked;
@@ -46,25 +47,58 @@ final class RecentsLiveSurface {
   private SurfaceControl appLeash, recentsLeash;
   private Rect source;
   private Matrix viewportToLeash;
+  private RecentsCardSpace.Space sourceSpace;
   private Object syncApplier;
-  private boolean updating, logged;
+
+  private enum Draw {
+    LIVE,
+    SNAPSHOT,
+    INVALID
+  }
+
+  private boolean updating, logged, visualSuspended;
   private String lastGeometry;
   private int viewportWidth, viewportHeight;
   private final ViewTreeObserver.OnPreDrawListener preDraw = this::validateScene;
 
   private boolean validateScene() {
     try {
-      if (root != null
-          && (scene == null
-              || !scene.isAttachedToWindow()
-              || scene.getRootView() != root
-              || root.getWidth() != viewportWidth
-              || root.getHeight() != viewportHeight
-              || !Boolean.TRUE.equals(hasTaskId.invoke(scene, expectedTaskId)))) unsupported.run();
+      if (root == null) return true;
+      if (!root.isAttachedToWindow()
+          || root.getWidth() != viewportWidth
+          || root.getHeight() != viewportHeight
+          || appLeash == null
+          || !appLeash.isValid()
+          || recentsLeash == null
+          || !recentsLeash.isValid()) {
+        unsupported.run();
+        return true;
+      }
+      if (scene == null
+          || !scene.isAttachedToWindow()
+          || !scene.isShown()
+          || scene.getRootView() != root
+          || !Boolean.TRUE.equals(hasTaskId.invoke(scene, expectedTaskId))) {
+        suspendVisual("RECENTS_LIVE_OFFSCREEN app continues drawing");
+        scene = find(root, expectedTaskId, 0);
+        if (scene != null) scene.invalidate();
+      }
     } catch (Throwable error) {
+      HookEntry.log("RECENTS_LIVE_VALIDATION_ERROR " + error);
       unsupported.run();
     }
     return true;
+  }
+
+  private void suspendVisual(String reason) throws Exception {
+    if (visualSuspended) return;
+    blur.restore();
+    Object tx = transaction.newInstance(), props = forSurface.invoke(tx, appLeash);
+    setAlpha.invoke(props, 0f);
+    schedule.invoke(syncApplier, tx);
+    visualSuspended = true;
+    lastGeometry = null;
+    HookEntry.log(reason);
   }
 
   private final Paint clear = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -90,6 +124,7 @@ final class RecentsLiveSurface {
         Class.forName("com.honeyspace.ui.common.taskScene.TaskSceneData", false, loader);
     bitmap = dataType.getMethod("getThumbnail");
     snapshotScale = dataType.getMethod("getScale");
+    snapshotRotation = dataType.getMethod("getRotation");
     realSnapshot = dataType.getMethod("isRealSnapshot");
     locked = dataType.getMethod("getAppLocked");
     Class<?> manager =
@@ -150,10 +185,12 @@ final class RecentsLiveSurface {
                 try {
                   if (p.args[1] != paints.invoke(scene)) return;
                   updating = true;
-                  if (!render(p.args)) {
+                  Draw result = render(p.args);
+                  if (result == Draw.INVALID) {
                     unsupported.run();
                     return;
                   }
+                  if (result == Draw.SNAPSHOT) return;
                   // The original path retains Samsung's rounded corners, tilt and style-specific
                   // clipping.
                   // Clear through the Recents window to its owned live app underneath.
@@ -192,25 +229,29 @@ final class RecentsLiveSurface {
     }
     if (closing == null) return false;
     source = new Rect((Rect) closing.getClass().getField("sourceContainerBounds").get(closing));
-    Object config = closing.getClass().getField("windowConfiguration").get(closing);
-    int rotation = (Integer) config.getClass().getMethod("getRotation").invoke(config);
-    var from =
-        new RecentsCardSpace.Space(
-            target.getWidth(), target.getHeight(), target.getDisplay().getRotation());
-    var to = new RecentsCardSpace.Space(source.width(), source.height(), rotation);
-    var expected = RecentsCardSpace.between(from, to);
     viewportToLeash = new Matrix((Matrix) playerBasis.invoke(nativePlayer));
     float[] basis = new float[9];
     viewportToLeash.getValues(basis);
-    double[] measured = {
-      expected.a(), expected.c(), expected.tx(), expected.b(), expected.d(), expected.ty(), 0, 0, 1
-    };
-    for (int i = 0; i < 9; i++) if (Math.abs(basis[i] - measured[i]) > .001) return false;
+    sourceSpace =
+        RecentsLeashSpace.resolve(
+            new RecentsCardSpace.Space(
+                target.getWidth(), target.getHeight(), target.getDisplay().getRotation()),
+            source.width(),
+            source.height(),
+            basis);
     if (source.left != 0 || source.top != 0) return false;
     appLeash = (SurfaceControl) closing.getClass().getField("leash").get(closing);
     recentsLeash = (SurfaceControl) r.getClass().getField("leash").get(r);
     scene = find(target, closingId, 0);
     if (scene == null || !appLeash.isValid() || !recentsLeash.isValid()) {
+      clear();
+      return false;
+    }
+    List<?> sourceData = (List<?>) sceneData.invoke(scene);
+    if (sourceData.size() != 1
+        || !Boolean.TRUE.equals(realSnapshot.invoke(sourceData.get(0)))
+        || Boolean.TRUE.equals(locked.invoke(sourceData.get(0)))
+        || !(bitmap.invoke(sourceData.get(0)) instanceof Bitmap)) {
       clear();
       return false;
     }
@@ -238,7 +279,7 @@ final class RecentsLiveSurface {
   }
 
   private View find(View v, int id, int depth) throws Exception {
-    if (depth > 32) return null;
+    if (depth > 32 || v.getVisibility() != View.VISIBLE) return null;
     if (taskType.isInstance(v) && (Integer) taskId.invoke(v) == id)
       return (View) taskScene.invoke(v);
     if (v instanceof ViewGroup g)
@@ -249,7 +290,7 @@ final class RecentsLiveSurface {
     return null;
   }
 
-  private boolean render(Object[] args) throws Exception {
+  private Draw render(Object[] args) throws Exception {
     List<?> values = (List<?>) args[1];
     if (!root.isAttachedToWindow()
         || !scene.isShown()
@@ -258,13 +299,13 @@ final class RecentsLiveSurface {
         || !recentsLeash.isValid()
         || values.size() != 1
         || !(values.get(0) instanceof Paint paint)
-        || paint.getShader() == null) return false;
+        || paint.getShader() == null) return Draw.INVALID;
     List<?> data = (List<?>) sceneData.invoke(scene);
     if (!(Boolean) hasTaskId.invoke(scene, expectedTaskId)
         || data.size() != 1
         || !Boolean.TRUE.equals(realSnapshot.invoke(data.get(0)))
         || Boolean.TRUE.equals(locked.invoke(data.get(0)))
-        || !(bitmap.invoke(data.get(0)) instanceof Bitmap image)) return false;
+        || !(bitmap.invoke(data.get(0)) instanceof Bitmap image)) return Draw.INVALID;
     float scale = ((Number) snapshotScale.invoke(data.get(0))).floatValue();
     Matrix shader = new Matrix();
     paint.getShader().getLocalMatrix(shader);
@@ -273,9 +314,21 @@ final class RecentsLiveSurface {
     float[] sh = new float[9], gl = new float[9];
     shader.getValues(sh);
     global.getValues(gl);
-    var transform =
-        RecentsLiveGeometry.compose(
-            source.width(), source.height(), image.getWidth(), image.getHeight(), scale, sh, gl);
+    RecentsMotionPath.Transform transform;
+    try {
+      transform =
+          RecentsLiveGeometry.compose(
+              sourceSpace,
+              image.getWidth(),
+              image.getHeight(),
+              (Integer) snapshotRotation.invoke(data.get(0)),
+              scale,
+              sh,
+              gl);
+    } catch (RecentsLiveGeometry.PerspectiveCard unsupportedGeometry) {
+      suspendVisual("RECENTS_LIVE_NATIVE_PERSPECTIVE app continues drawing");
+      return Draw.SNAPSHOT;
+    }
     Matrix output = new Matrix();
     output.setValues(
         new float[] {
@@ -290,15 +343,15 @@ final class RecentsLiveSurface {
           1
         });
     List<?> bounds = (List<?>) args[2], corners = (List<?>) args[3];
-    if (bounds.size() != 1 || corners.size() != 1) return false;
+    if (bounds.size() != 1 || corners.size() != 1) return Draw.INVALID;
     Path path =
         new Path(
             (Path)
                 tiltPath.invoke(scene, bounds.get(0), corners.get(0), args[4], tilt.invoke(scene)));
     String geometry =
         output.toString() + bounds.get(0) + java.util.Arrays.toString((float[]) corners.get(0));
-    if (!blur.exclude(scene, path, geometry)) return false;
-    if (geometry.equals(lastGeometry)) return true;
+    if (!blur.exclude(scene, path, geometry)) return Draw.INVALID;
+    if (geometry.equals(lastGeometry)) return Draw.LIVE;
     Object tx = transaction.newInstance();
     Object props = forSurface.invoke(tx, appLeash);
     Matrix leashMatrix = new Matrix();
@@ -312,14 +365,26 @@ final class RecentsLiveSurface {
     relativeLayer.invoke(raw, appLeash, recentsLeash, -1);
     schedule.invoke(syncApplier, tx);
     lastGeometry = geometry;
+    if (visualSuspended) {
+      visualSuspended = false;
+      HookEntry.log("RECENTS_LIVE_RESUMED native geometry available");
+    }
     if (!logged) {
       logged = true;
       HookEntry.log("RECENTS_LIVE_SURFACE_DRAW matrix=" + output);
     }
-    return true;
+    return Draw.LIVE;
   }
 
   void clear() {
+    if (visualSuspended && appLeash != null && appLeash.isValid()) {
+      try (SurfaceControl.Transaction tx = new SurfaceControl.Transaction()) {
+        tx.setAlpha(appLeash, 1f).apply();
+      } catch (Throwable error) {
+        HookEntry.log("RECENTS_LIVE_ALPHA_RESTORE_ERROR " + error);
+      }
+    }
+    visualSuspended = false;
     if (root != null && root.getViewTreeObserver().isAlive())
       root.getViewTreeObserver().removeOnPreDrawListener(preDraw);
     blur.clear();
@@ -328,6 +393,7 @@ final class RecentsLiveSurface {
     appLeash = recentsLeash = null;
     source = null;
     viewportToLeash = null;
+    sourceSpace = null;
     syncApplier = null;
     logged = false;
     lastGeometry = null;

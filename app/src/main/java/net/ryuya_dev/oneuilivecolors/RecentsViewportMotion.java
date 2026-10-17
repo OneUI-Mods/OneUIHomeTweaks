@@ -46,6 +46,9 @@ final class RecentsViewportMotion {
   private long previousFrame, startedFrame;
   private boolean stopped, handedOff, deferred, active;
   private final Choreographer.FrameCallback frame = this::frame;
+  private final android.os.Handler deadlines =
+      new android.os.Handler(android.os.Looper.getMainLooper());
+  private final Runnable deadline = this::deadline;
 
   RecentsViewportMotion(
       ClassLoader loader,
@@ -162,6 +165,7 @@ final class RecentsViewportMotion {
     setPose(start);
     active = true;
     Choreographer.getInstance().postFrameCallback(frame);
+    deadlines.postDelayed(deadline, 2200);
     HookEntry.log("RECENTS_VIEWPORT_MOTION_BEGIN initial=" + initial + " target=" + goal);
   }
 
@@ -273,6 +277,11 @@ final class RecentsViewportMotion {
           rect.bottom,
           rr[0] / relativeScale
         };
+  }
+
+  private void deadline() {
+    if (!stopped && !handedOff)
+      failure.accept(new IllegalStateException("Portrait handoff timed out without a frame"));
   }
 
   private void frame(long nanos) {
@@ -412,6 +421,7 @@ final class RecentsViewportMotion {
   void handoff() {
     handedOff = true;
     Choreographer.getInstance().removeFrameCallback(frame);
+    deadlines.removeCallbacks(deadline);
     HookEntry.log("RECENTS_VIEWPORT_MOTION_HANDOFF settled=" + settled());
   }
 
@@ -434,6 +444,7 @@ final class RecentsViewportMotion {
   void cancel() {
     stopped = true;
     active = false;
+    deadlines.removeCallbacks(deadline);
     Choreographer.getInstance().removeFrameCallback(frame);
     if (node != null) node.discardDisplayList();
     node = null;

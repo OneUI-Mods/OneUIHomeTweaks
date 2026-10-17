@@ -340,6 +340,7 @@ public final class HookEntry extends XposedModule {
     } catch (Throwable t) {
       log("RECENTS_BAR_UNSUPPORTED " + t);
     }
+    liveRecents.setStateListener(this::requestRefresh);
     if (BuildConfig.RECENTS_LIVE_TILE_EXPERIMENTAL)
       try {
         liveRecents.install(app, app.getApplicationInfo().sourceDir, launcherLoader);
@@ -444,6 +445,7 @@ public final class HookEntry extends XposedModule {
           pageMode = false,
           recentsPortrait = false,
           hideRecentsBar = false,
+          recentsLive = false,
           diyGridMode = false;
       try (Cursor cursor =
           context.getContentResolver().query(ConfigProvider.URI, null, null, null, null)) {
@@ -457,6 +459,8 @@ public final class HookEntry extends XposedModule {
             master && cursor.getInt(cursor.getColumnIndexOrThrow("recents_portrait")) != 0;
         hideRecentsBar =
             master && cursor.getInt(cursor.getColumnIndexOrThrow("recents_hide_bar")) != 0;
+        int liveColumn = cursor.getColumnIndex("recents_live_tile");
+        recentsLive = master && liveColumn >= 0 && cursor.getInt(liveColumn) != 0;
         diyGridMode = master && cursor.getInt(cursor.getColumnIndexOrThrow("diy_icon_grid")) != 0;
         drawerMode = cursor.getInt(cursor.getColumnIndexOrThrow("drawer"));
         label = cursor.getInt(cursor.getColumnIndexOrThrow("label"));
@@ -476,6 +480,7 @@ public final class HookEntry extends XposedModule {
       boolean currentPages = pageMode;
       boolean currentRecentsPortrait = recentsPortrait;
       boolean currentHideRecentsBar = hideRecentsBar;
+      boolean currentLiveRecents = recentsLive;
       boolean currentMaster = master;
       boolean currentDiyGrid = diyGridMode;
       Bundle gridRequest =
@@ -487,7 +492,8 @@ public final class HookEntry extends XposedModule {
             drawer.setMode(currentDrawerMode, apply);
             homeLabels.setEnabled(localLabels);
             recents.setEnabled(currentRecentsPortrait);
-            liveRecents.setEnabled(BuildConfig.RECENTS_LIVE_TILE_EXPERIMENTAL && currentMaster);
+            liveRecents.setEnabled(
+                BuildConfig.RECENTS_LIVE_TILE_EXPERIMENTAL && currentLiveRecents);
             recentsBar.setEnabled(currentHideRecentsBar);
             diyGrid.setEnabled(currentDiyGrid);
             gridSave.accept(context, gridRequest);
@@ -504,6 +510,8 @@ public final class HookEntry extends XposedModule {
                     + recents.diagnostic()
                     + "; recentsBar="
                     + recentsBar.diagnostic()
+                    + "; liveRecents="
+                    + liveRecents.diagnostic()
                     + "; diyGrid="
                     + diyGrid.diagnostic());
           });

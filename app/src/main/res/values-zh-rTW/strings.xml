@@ -98,4 +98,7 @@
   <string name="grid_save_failed">無法確認儲存完成。請先在主畫面檢查配置，再嘗試儲存。</string>
   <string name="app_theme">應用程式主題</string>
   <string name="dynamic_ui">使用桌布配色</string>
+  <string name="recents_live_tile">在最近使用的應用程式中持續繪製最後一個應用程式</string>
+  <string name="recents_live_tile_note">開啟最近使用的應用程式時，僅讓最後一個應用程式持續繪製。保留 Home Up 配置。透視動畫期間暫時使用原生快照，之後恢復即時顯示。受保護或不相容的工作採用標準行為。目前在 Android 16 / One UI 8.5 的手勢導覽中驗證此實驗功能。</string>
+  <string name="status_ready">已就緒</string>
 </resources>

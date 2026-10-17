@@ -74,7 +74,8 @@ final class RecentsLiveBlur {
     return true;
   }
 
-  void clear() {
+  void restore() {
+    if (previous == null) return;
     for (Backdrop b : backdrops)
       try {
         if (b.view().getBackground() == b.drawable()) {
@@ -84,7 +85,11 @@ final class RecentsLiveBlur {
       } catch (Throwable error) {
         HookEntry.log("RECENTS_LIVE_BLUR_RESTORE_ERROR " + error);
       }
-    backdrops.clear();
     previous = null;
+  }
+
+  void clear() {
+    restore();
+    backdrops.clear();
   }
 }

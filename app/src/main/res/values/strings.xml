@@ -98,4 +98,7 @@
   <string name="grid_save_failed">The save could not be confirmed. Check the layout on Home before trying again.</string>
   <string name="app_theme">App theme</string>
   <string name="dynamic_ui">Dynamic colors</string>
+  <string name="recents_live_tile">Keep the last app live in Recents</string>
+  <string name="recents_live_tile_note">Continues rendering only the last app while Recents is open. Keeps the Home Up layout. Perspective animations temporarily use native snapshots, then return to live rendering. Protected or incompatible tasks keep the standard behavior. This experimental build is tested on Android 16 / One UI 8.5 with gestures.</string>
+  <string name="status_ready">Ready</string>
 </resources>

@@ -52,7 +52,8 @@ public final class ConfigProvider extends ContentProvider {
               "recents_portrait",
               "recents_hide_bar",
               "clock_date_left",
-              "diy_icon_grid"
+              "diy_icon_grid",
+              "recents_live_tile"
             });
     c.addRow(
         new Object[] {
@@ -69,7 +70,8 @@ public final class ConfigProvider extends ContentProvider {
           p.getBoolean("recents_portrait", false) ? 1 : 0,
           p.getBoolean("recents_hide_bar", false) ? 1 : 0,
           p.getBoolean("clock_date_left", false) ? 1 : 0,
-          p.getBoolean("diy_icon_grid", false) ? 1 : 0
+          p.getBoolean("diy_icon_grid", false) ? 1 : 0,
+          p.getBoolean("recents_live_tile", false) ? 1 : 0
         });
     return c;
   }

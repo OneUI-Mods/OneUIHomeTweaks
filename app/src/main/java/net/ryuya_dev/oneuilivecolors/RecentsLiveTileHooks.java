@@ -65,6 +65,21 @@ final class RecentsLiveTileHooks {
         }
       };
   private String diagnostic = "unavailable";
+  private String error;
+  private Runnable stateChanged = () -> {};
+
+  void setStateListener(Runnable callback) {
+    stateChanged = callback;
+  }
+
+  private void setDiagnostic(String value) {
+    String next = error == null ? value : "error:" + error;
+    if (!next.equals(diagnostic)) {
+      diagnostic = next;
+      stateChanged.run();
+    }
+  }
+
   private final BroadcastReceiver screenOff =
       new BroadcastReceiver() {
         @Override
@@ -220,7 +235,24 @@ final class RecentsLiveTileHooks {
                 @Override
                 protected void afterHookedMethod(ModernHook.Param p) {
                   Object copy = p.getObjectExtra("liveRawEvent");
-                  if (copy instanceof android.view.MotionEvent e) e.recycle();
+                  if (copy instanceof android.view.MotionEvent e) {
+                    if (e.getActionMasked() == android.view.MotionEvent.ACTION_UP) {
+                      View view = (View) p.thisObject;
+                      for (Session ss : new ArrayList<>(sessions.values()))
+                        if (ss.held && view.getRootView() == ss.boundRoot)
+                          view.postDelayed(
+                              () -> {
+                                if (sessions.get(ss.manager()) == ss)
+                                  try {
+                                    inspect(ss);
+                                  } catch (Throwable error) {
+                                    HookEntry.log("RECENTS_LIVE_INSPECT_ERROR " + error);
+                                  }
+                              },
+                              750);
+                    }
+                    e.recycle();
+                  }
                 }
               }));
       hook(
@@ -236,13 +268,27 @@ final class RecentsLiveTileHooks {
           p -> {
             Session s = gestures.get(p.thisObject);
             if (s != null && willGo.getBoolean(s.gesture()) && nativeHold.getBoolean(s.gesture())) {
-              diagnostic = "held";
+              if (s.held) return;
+              setDiagnostic("held");
               s.held = true;
+              s.boundRoot = (View) recentTarget.invoke(systemController.invoke(s.manager()));
               HookEntry.log("RECENTS_LIVE_HELD native controller retained");
-              inspect(s);
-              View root = (View) recentTarget.invoke(systemController.invoke(s.manager()));
-              if (!surface.bind(s.manager(), root, s.taskId)) release("unsupported live binding");
-              else s.boundRoot = root;
+              if (RecentsHandoffGate.SHARED.await(
+                  s.manager(),
+                  success -> {
+                    if (sessions.get(s.manager()) != s || !enabled) return;
+                    if (!success) {
+                      release("viewport handoff unavailable");
+                      return;
+                    }
+                    try {
+                      activateSurface(s);
+                    } catch (Throwable error) {
+                      HookEntry.log("RECENTS_LIVE_HANDOFF_ERROR " + error);
+                      release("live handoff failed");
+                    }
+                  })) HookEntry.log("RECENTS_LIVE_WAIT_VIEWPORT owned handoff pending");
+              else activateSurface(s);
             }
           });
       hook(
@@ -269,13 +315,20 @@ final class RecentsLiveTileHooks {
       application.registerActivityLifecycleCallbacks(lifecycle);
       context.registerReceiver(
           screenOff, new IntentFilter(Intent.ACTION_SCREEN_OFF), Context.RECEIVER_NOT_EXPORTED);
-      diagnostic = "off";
-      HookEntry.log("RECENTS_LIVE_READY prototype native local/raw v12");
+      setDiagnostic("off");
+      HookEntry.log("RECENTS_LIVE_READY prototype configurable live tile v18");
     } catch (Throwable t) {
       uninstall();
       if (t instanceof Exception e) throw e;
       throw new IllegalStateException(t);
     }
+  }
+
+  private void activateSurface(Session s) throws Exception {
+    inspect(s);
+    View root = (View) recentTarget.invoke(systemController.invoke(s.manager()));
+    if (!surface.bind(s.manager(), root, s.taskId)) release("unsupported live binding");
+    else s.boundRoot = root;
   }
 
   private void releaseActivity(Activity a, String reason) {
@@ -325,7 +378,7 @@ final class RecentsLiveTileHooks {
     sessions.put(p.thisObject, s);
     gestures.put(owner, s);
     setHold.invoke(owner, true);
-    diagnostic = "gesture";
+    setDiagnostic("gesture");
     HookEntry.log("RECENTS_LIVE_BEGIN native transient recents");
   }
 
@@ -352,6 +405,29 @@ final class RecentsLiveTileHooks {
       View scene = (View) taskScene.invoke(v);
       int[] xy = new int[2];
       if (scene != null) scene.getLocationOnScreen(xy);
+      String metadata = "";
+      if (scene != null) {
+        List<?> data = (List<?>) scene.getClass().getMethod("getTaskSceneData").invoke(scene);
+        for (Object datum : data) {
+          Object bitmap = datum.getClass().getMethod("getThumbnail").invoke(datum);
+          metadata +=
+              " snapshot="
+                  + (bitmap instanceof android.graphics.Bitmap image
+                      ? image.getWidth() + "x" + image.getHeight()
+                      : "none")
+                  + " rotation="
+                  + datum.getClass().getMethod("getRotation").invoke(datum)
+                  + " real="
+                  + datum.getClass().getMethod("isRealSnapshot").invoke(datum)
+                  + " locked="
+                  + datum.getClass().getMethod("getAppLocked").invoke(datum);
+        }
+        metadata +=
+            " contextRotation="
+                + scene.getContext().getDisplay().getRotation()
+                + " rootRotation="
+                + scene.getRootView().getDisplay().getRotation();
+      }
       HookEntry.log(
           "RECENTS_LIVE_CARD id="
               + taskId.invoke(v)
@@ -362,7 +438,8 @@ final class RecentsLiveTileHooks {
               + " scene="
               + (scene == null
                   ? "null"
-                  : xy[0] + "," + xy[1] + " " + scene.getWidth() + "x" + scene.getHeight()));
+                  : xy[0] + "," + xy[1] + " " + scene.getWidth() + "x" + scene.getHeight())
+              + metadata);
       return;
     }
     if (v instanceof ViewGroup g)
@@ -374,14 +451,14 @@ final class RecentsLiveTileHooks {
     if (surface != null) surface.clear();
     gestures.remove(s.gesture());
     setHold.invoke(s.gesture(), s.originalHold());
-    diagnostic = enabled ? "ready" : "off";
+    setDiagnostic(enabled ? "ready" : "off");
     HookEntry.log("RECENTS_LIVE_END native invalidation");
   }
 
   private void release(String reason) {
     if (releasing) return;
     if (sessions.isEmpty()) {
-      diagnostic = enabled ? "ready" : "off";
+      setDiagnostic(enabled ? "ready" : "off");
       return;
     }
     releasing = true;
@@ -396,7 +473,7 @@ final class RecentsLiveTileHooks {
         }
       sessions.clear();
       gestures.clear();
-      diagnostic = enabled ? "ready" : "off";
+      setDiagnostic(enabled ? "ready" : "off");
       HookEntry.log("RECENTS_LIVE_RELEASE " + reason);
     } finally {
       releasing = false;
@@ -404,9 +481,14 @@ final class RecentsLiveTileHooks {
   }
 
   void setEnabled(boolean value) {
-    enabled = value && !failed && !hooks.isEmpty();
+    if (hooks.isEmpty()) {
+      enabled = false;
+      setDiagnostic("unavailable");
+      return;
+    }
+    enabled = value && !failed;
     if (!enabled) release("disabled");
-    else if (sessions.isEmpty()) diagnostic = "ready";
+    else if (sessions.isEmpty()) setDiagnostic("ready");
   }
 
   String diagnostic() {
@@ -456,8 +538,9 @@ final class RecentsLiveTileHooks {
                   action.run(p);
                 } catch (Throwable t) {
                   failed = true;
+                  error = t.getClass().getSimpleName();
                   uninstall();
-                  diagnostic = "error:" + t.getClass().getSimpleName();
+                  setDiagnostic("error:" + t.getClass().getSimpleName());
                   HookEntry.log("RECENTS_LIVE_DISABLED " + t);
                 }
               }

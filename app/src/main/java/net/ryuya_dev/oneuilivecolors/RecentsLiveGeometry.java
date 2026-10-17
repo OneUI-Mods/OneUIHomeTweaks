@@ -2,6 +2,12 @@ package net.ryuya_dev.oneuilivecolors;
 
 /** Composes measured snapshot pixels and native card geometry without changing its aspect/style. */
 final class RecentsLiveGeometry {
+  static final class PerspectiveCard extends IllegalArgumentException {
+    PerspectiveCard() {
+      super("Perspective card");
+    }
+  }
+
   static RecentsMotionPath.Transform compose(
       int width,
       int height,
@@ -54,7 +60,7 @@ final class RecentsLiveGeometry {
     if (m == null || m.length != 9) throw new IllegalArgumentException("Unknown matrix");
     for (float f : m)
       if (!Float.isFinite(f)) throw new IllegalArgumentException("Nonfinite matrix");
-    if (m[6] != 0 || m[7] != 0 || m[8] != 1) throw new IllegalArgumentException("Perspective card");
+    if (m[6] != 0 || m[7] != 0 || m[8] != 1) throw new PerspectiveCard();
     return new RecentsMotionPath.Transform(m[0], m[3], m[1], m[4], m[2], m[5]);
   }
 }

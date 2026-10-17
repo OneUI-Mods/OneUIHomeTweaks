@@ -44,7 +44,9 @@ final class RecentsViewportHooks {
       paints,
       data,
       thumbnail,
-      snapshotScale;
+      snapshotScale,
+      realSnapshot,
+      lockedSnapshot;
   private Method targetMode, apps, snapshotRotation, basisMethod, translucent;
   private Method infoMatrix, infoCrop, infoCorner, infoAlpha, setHold, finishRequest, nativeHandoff;
   private Field playerField, targetView, holdField;
@@ -55,6 +57,7 @@ final class RecentsViewportHooks {
 
   private static final class Session {
     final Object manager, gesture;
+    final RecentsHandoffGate.Ticket handoff;
     final ViewGroup overlayRoot;
     final int taskId;
     final long start = SystemClock.uptimeMillis();
@@ -76,6 +79,7 @@ final class RecentsViewportHooks {
     Session(Object manager, Object gesture, ViewGroup root, int taskId) {
       this.manager = manager;
       this.gesture = gesture;
+      handoff = RecentsHandoffGate.SHARED.start(manager);
       overlayRoot = root;
       this.taskId = taskId;
     }
@@ -96,8 +100,6 @@ final class RecentsViewportHooks {
 
   void install(String apk, ClassLoader loader) throws Exception {
     this.loader = loader;
-    if (BuildConfig.RECENTS_LIVE_TILE_EXPERIMENTAL)
-      throw new IllegalStateException("Viewport/live lifetime integration is pending");
     if (android.os.Build.VERSION.SDK_INT != 36)
       throw new IllegalStateException("Viewport controller requires renewed OS validation");
     Class<?> manager =
@@ -134,6 +136,8 @@ final class RecentsViewportHooks {
     Class<?> sceneData = type(loader, "com.honeyspace.ui.common.taskScene.TaskSceneData");
     thumbnail = sceneData.getMethod("getThumbnail");
     snapshotScale = sceneData.getMethod("getScale");
+    realSnapshot = sceneData.getMethod("isRealSnapshot");
+    lockedSnapshot = sceneData.getMethod("getAppLocked");
     snapshotRotation = sceneData.getMethod("getRotation");
     Class<?> targets = type(loader, "com.honeyspace.transition.remote.RemoteAnimationTargets");
     targetMode = targets.getMethod("getTargetMode");
@@ -297,9 +301,8 @@ final class RecentsViewportHooks {
                 protected void afterHookedMethod(ModernHook.Param p) {
                   if (!enabled || failed || Looper.myLooper() != Looper.getMainLooper()) return;
                   Session ss = sessions.get(p.thisObject);
-                  if (ss == null
-                      || ss.motion == null
-                      || Boolean.TRUE.equals(p.getObjectExtra("viewportDeferred"))) return;
+                  if (ss == null || Boolean.TRUE.equals(p.getObjectExtra("viewportDeferred")))
+                    return;
                   try {
                     if (p.hasThrowable())
                       rollback(ss, new IllegalStateException("Native handoff failed"));
@@ -307,8 +310,18 @@ final class RecentsViewportHooks {
                       traceCards(ss, "handoff");
                       for (long delay : new long[] {100, 400, 1000})
                         ss.overlayRoot.postDelayed(() -> traceCards(ss, "after" + delay), delay);
-                      ss.motion.handoff();
+                      if (ss.motion != null) ss.motion.handoff();
                       restoreHold(ss);
+                      if (BuildConfig.RECENTS_LIVE_TILE_EXPERIMENTAL) {
+                        ss.overlayRoot.postOnAnimation(
+                            () -> {
+                              if (sessions.get(ss.manager) == ss) {
+                                sessions.remove(ss.manager);
+                                ss.clear();
+                                RecentsHandoffGate.SHARED.complete(ss.handoff, true);
+                              }
+                            });
+                      } else RecentsHandoffGate.SHARED.complete(ss.handoff, true);
                     }
                   } catch (Throwable error) {
                     rollback(ss, error);
@@ -330,9 +343,10 @@ final class RecentsViewportHooks {
             if (ss != null) {
               restoreHold(ss);
               ss.clear();
+              RecentsHandoffGate.SHARED.discard(ss.handoff);
             }
           });
-      HookEntry.log("RECENTS_VIEWPORT_READY stage9 preserves incoming app pose");
+      HookEntry.log("RECENTS_VIEWPORT_READY stage15 viewport and live tile");
     } catch (Throwable error) {
       uninstall();
       if (error instanceof Exception e) throw e;
@@ -389,6 +403,7 @@ final class RecentsViewportHooks {
       if (c.getField("taskId").getInt(target) != s.taskId) {
         s.clear();
         sessions.remove(s.manager);
+        RecentsHandoffGate.SHARED.complete(s.handoff, false);
         return;
       }
       matches++;
@@ -397,6 +412,7 @@ final class RecentsViewportHooks {
     if (matches != 1 || s.source == null || s.source.left != 0 || s.source.top != 0) {
       s.clear();
       sessions.remove(s.manager);
+      RecentsHandoffGate.SHARED.complete(s.handoff, false);
       return;
     }
     s.player = playerField.get(s.manager);
@@ -404,6 +420,7 @@ final class RecentsViewportHooks {
     if (s.player == null || Boolean.TRUE.equals(translucent.invoke(s.player))) {
       sessions.remove(s.manager);
       s.clear();
+      RecentsHandoffGate.SHARED.complete(s.handoff, false);
       return;
     }
     for (Object item : (Object[]) apps.invoke(p.args[0]))
@@ -418,6 +435,7 @@ final class RecentsViewportHooks {
         || s.recentRoot.getHeight() < 1) {
       sessions.remove(s.manager);
       s.clear();
+      RecentsHandoffGate.SHARED.complete(s.handoff, false);
       return;
     }
     s.basis = new Matrix((Matrix) basisMethod.invoke(s.player));
@@ -481,6 +499,14 @@ final class RecentsViewportHooks {
           || foreground.size() != 1
           || !(foreground.get(0) instanceof Paint paint)
           || paint.getShader() == null) continue;
+      if (!Boolean.TRUE.equals(realSnapshot.invoke(snapshots.get(0)))
+          || Boolean.TRUE.equals(lockedSnapshot.invoke(snapshots.get(0)))) {
+        sessions.remove(s.manager);
+        s.clear();
+        RecentsHandoffGate.SHARED.complete(s.handoff, false);
+        HookEntry.log("RECENTS_VIEWPORT_NATIVE protected or non-real thumbnail");
+        continue;
+      }
       if (!(thumbnail.invoke(snapshots.get(0)) instanceof android.graphics.Bitmap image)) continue;
       Matrix shader = new Matrix(), global = new Matrix();
       paint.getShader().getLocalMatrix(shader);
@@ -653,6 +679,7 @@ final class RecentsViewportHooks {
     } finally {
       if (sessions.get(ss.manager) == ss) sessions.remove(ss.manager);
       ss.clear();
+      RecentsHandoffGate.SHARED.complete(ss.handoff, false);
     }
   }
 
