@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0
+
+- Migrate the module from legacy Xposed API 82 to modern libxposed API 102.
+- Register the entry point, fixed scope and protective exception mode through `META-INF/xposed`.
+- Use API 102 interceptor chains and executable deoptimization for every existing hook.
+- Require a modern API 102 framework; verified with Vector 2.2 on the documented SM-S948Q firmware.
+- Reset crash-protection files from both credential-protected and device-protected app storage so SystemUI can be recovered from the app.
+
 ## 0.4.1
 
 - Distribute the non-debuggable release build with a dedicated persistent signing key.

@@ -11,7 +11,6 @@ import android.view.ContextThemeWrapper;
 import android.view.View;
 import android.view.ViewParent;
 import android.widget.ImageView;
-import de.robv.android.xposed.*;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.*;
 import java.util.Set;
@@ -52,17 +51,17 @@ final class VolumeHooks {
     if (!Dialog.class.isAssignableFrom(window) || !Dialog.class.isAssignableFrom(expanded))
       throw new IllegalStateException("Volume window signature changed");
     recreate = panelClass.getDeclaredMethod("recreateVolumePanelForNewConfig");
-    Method deopt = XposedBridge.class.getMethod("deoptimizeMethod", Member.class);
     // Confirmed constructor callers must not retain inlined dependency lookups.
     for (Class<?> target : new Class<?>[] {window, expanded})
       for (Constructor<?> constructor : target.getDeclaredConstructors())
-        deopt.invoke(null, constructor);
+        if (!ModernHook.deoptimize(constructor))
+          throw new IllegalStateException("Failed to deoptimize volume constructor");
     DexEvidence.deoptimizeVolumeCalls(app.getApplicationInfo().sourceDir, loader);
-    XposedBridge.hookMethod(
+    ModernHook.hookMethod(
         dependency.getDeclaredMethod("get", Class.class),
-        new XC_MethodHook() {
+        new ModernHook.Callback() {
           @Override
-          protected void afterHookedMethod(MethodHookParam p) {
+          protected void afterHookedMethod(ModernHook.Param p) {
             if (failed
                 || mode == 0
                 || p.hasThrowable()
@@ -98,19 +97,19 @@ final class VolumeHooks {
             }
           }
         });
-    XposedBridge.hookAllConstructors(
+    ModernHook.hookAllConstructors(
         panelClass,
-        new XC_MethodHook() {
+        new ModernHook.Callback() {
           @Override
-          protected void afterHookedMethod(MethodHookParam p) {
+          protected void afterHookedMethod(ModernHook.Param p) {
             if (!p.hasThrowable()) panel = new WeakReference<>(p.thisObject);
           }
         });
-    XposedBridge.hookMethod(
+    ModernHook.hookMethod(
         blur.getDeclaredMethod("setRealTimeBlur", View.class, int.class, float.class, int.class),
-        new XC_MethodHook() {
+        new ModernHook.Callback() {
           @Override
-          protected void beforeHookedMethod(MethodHookParam p) {
+          protected void beforeHookedMethod(ModernHook.Param p) {
             if (failed || mode == 0 || !(p.args[0] instanceof View view) || !volumeView(view))
               return;
             try {
@@ -120,11 +119,11 @@ final class VolumeHooks {
             }
           }
         });
-    XposedBridge.hookMethod(
+    ModernHook.hookMethod(
         blur.getDeclaredMethod("setCapturedBlur", ImageView.class, int.class, Supplier.class),
-        new XC_MethodHook() {
+        new ModernHook.Callback() {
           @Override
-          protected void beforeHookedMethod(MethodHookParam p) {
+          protected void beforeHookedMethod(ModernHook.Param p) {
             if (failed || mode == 0 || !(p.args[0] instanceof View view) || !volumeView(view))
               return;
             try {
@@ -145,11 +144,11 @@ final class VolumeHooks {
             "volume_panel_title_color",
             "volume_panel_status_message_color",
             "volume_panel_fg_color");
-    XposedBridge.hookMethod(
+    ModernHook.hookMethod(
         colors.getDeclaredMethod("getSingleColorStateList", int.class, Context.class),
-        new XC_MethodHook() {
+        new ModernHook.Callback() {
           @Override
-          protected void afterHookedMethod(MethodHookParam p) {
+          protected void afterHookedMethod(ModernHook.Param p) {
             if (failed
                 || mode == 0
                 || p.hasThrowable()

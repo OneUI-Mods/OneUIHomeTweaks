@@ -2,7 +2,6 @@ package net.ryuya_dev.oneuilivecolors;
 
 import android.graphics.Color;
 import android.view.*;
-import de.robv.android.xposed.*;
 import java.lang.reflect.Method;
 import java.util.*;
 
@@ -18,11 +17,11 @@ final class DrawerBridge {
     Class<?> style = Class.forName("com.honeyspace.sdk.source.entity.ItemStyle", false, loader);
     setColor = icon.getMethod("setCustomLabelColor", Integer.class);
     getColor = icon.getMethod("getCustomLabelColor");
-    XposedBridge.hookAllConstructors(
+    ModernHook.hookAllConstructors(
         icon,
-        new XC_MethodHook() {
+        new ModernHook.Callback() {
           @Override
-          protected void afterHookedMethod(MethodHookParam p) {
+          protected void afterHookedMethod(ModernHook.Param p) {
             if (p.hasThrowable()) return;
             View view = (View) p.thisObject;
             views.put(view, new Saved());
@@ -38,11 +37,11 @@ final class DrawerBridge {
                 });
           }
         });
-    XposedBridge.hookMethod(
+    ModernHook.hookMethod(
         icon.getMethod("setItemStyle", style),
-        new XC_MethodHook() {
+        new ModernHook.Callback() {
           @Override
-          protected void afterHookedMethod(MethodHookParam p) {
+          protected void afterHookedMethod(ModernHook.Param p) {
             if (!p.hasThrowable()) apply((View) p.thisObject);
           }
         });

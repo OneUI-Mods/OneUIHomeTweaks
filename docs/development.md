@@ -12,6 +12,8 @@ JDK 21とAndroid SDK 36を用意し、Android Studioでプロジェクトを開�
 
 Gradle Wrapperを同梱しています。独自コードのパッケージ名はドメイン `ryuya-dev.net` をJavaの識別子に合わせた `net.ryuya_dev.oneuilivecolors` です。
 
+モジュールは`io.github.libxposed:api:102.0.0`をcompile-onlyで使用します。エントリ、固定スコープ、API要件は`app/src/main/resources/META-INF/xposed/`で登録し、legacy API 82のjarや`assets/xposed_init`は使用しません。
+
 ## 配布APKの署名
 
 配布にはdebug鍵を使わず、専用のrelease鍵を継続して使います。鍵がない通常のビルド・CIは `app/build/outputs/apk/release/app-release-unsigned.apk` を生成します。これは未署名の検証成果物で、そのままインストールする配布APKではありません。

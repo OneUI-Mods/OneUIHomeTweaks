@@ -2,7 +2,7 @@
 
 ## One UI Homeの色
 
-`GlobalSettingsDataSource`、`SettingsKey`、`WhiteBgColorUpdater`の型・戻り値を確認し、DEXから実際のSystem設定読み取りとContentObserverの型関係を調べる。難読化名`V`等を決め打ちしない。Vectorの`deoptimizeMethod(Member)`が利用できる場合だけ、実機でインライン化を確認した関連メソッドを限定してdeoptimizeする。
+`GlobalSettingsDataSource`、`SettingsKey`、`WhiteBgColorUpdater`の型・戻り値を確認し、DEXから実際のSystem設定読み取りとContentObserverの型関係を調べる。難読化名`V`等を決め打ちしない。libxposed API 102の`deoptimize(Executable)`が成功する場合だけ、実機でインライン化を確認した関連メソッドを限定してdeoptimizeする。
 
 `Settings.System.getString/getStringForUser`の結果を、`need_dark_font`と`need_dark_statusbar`、user 0、実際の呼び出しスタックがデータソース実装である場合だけ補う。保存値は変更せず、Launcherの既存Flow／文字色／ステータスバー処理を使う。`WallpaperColors.getColorHints()`の全体フックはしない。
 
@@ -46,4 +46,4 @@ SystemUI全体のResources、通知、クイック設定、他アプリのテー
 
 ## 安全に停止する条件
 
-SDK 36 / SM-S948Q / owner user / 対象メインプロセスに限定。SDK更新、型の不一致、曖昧なDEX証拠、Vector API不在、繰り返す設定読み取り失敗時は対応機能を停止する。Launcher更新に対する構造探索はあるが、将来の互換性を保証しない。Android 17 / One UI 9では新しい実機とバイナリから再調査する。
+SDK 36 / SM-S948Q / owner user / 対象メインプロセスに限定。SDK更新、型の不一致、曖昧なDEX証拠、libxposed API 102不在、繰り返す設定読み取り失敗時は対応機能を停止する。Launcher更新に対する構造探索はあるが、将来の互換性を保証しない。Android 17 / One UI 9では新しい実機とバイナリから再調査する。

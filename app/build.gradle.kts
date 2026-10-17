@@ -16,8 +16,8 @@ android {
         applicationId = "net.ryuya_dev.oneuilivecolors"
         minSdk = 31
         targetSdk = 36
-        versionCode = 5
-        versionName = "0.4.1"
+        versionCode = 6
+        versionName = "0.5.0"
     }
     signingConfigs {
         if (!distributionProperties.isEmpty) create("distribution") {
@@ -42,7 +42,7 @@ android {
     lint { abortOnError = true }
 }
 dependencies {
-    compileOnly(files("libs/xposed-api-82.jar"))
+    compileOnly("io.github.libxposed:api:102.0.0")
     implementation("org.smali:dexlib2:2.5.2")
     implementation("com.google.android.material:material:1.14.0")
     testImplementation("junit:junit:4.13.2")
@@ -68,13 +68,13 @@ val dependencyLicenses = tasks.register("generateDependencyLicenses") {
     doLast {
         val rows = rootProject.file("third_party/components.tsv").readLines().filter { it.isNotBlank() && !it.startsWith("#") }.map { it.split('\t') }
         val licensed = rows.map { it[0] }.toSet()
-        val actual = layout.buildDirectory.file("runtime-components.txt").get().asFile.readLines().filter { it.isNotBlank() }.toSet() + "de.robv.android.xposed:api:82"
+        val actual = layout.buildDirectory.file("runtime-components.txt").get().asFile.readLines().filter { it.isNotBlank() }.toSet() + "io.github.libxposed:api:102.0.0"
         check(actual == licensed) { "Review dependency licenses: missing=${actual-licensed}; obsolete=${licensed-actual}" }
         val out = generatedLicenses.get().asFile; out.mkdirs()
         rootProject.file("LICENSE").copyTo(out.resolve("APP_LICENSE.txt"),true)
         val notices = buildString {
             append("Bundled runtime dependencies (including transitive dependencies), plus compile-only Xposed API.\n\n")
-            append("AndroidX / Material: The Android Open Source Project and respective contributors.\nKotlin / coroutines / annotations: JetBrains and respective contributors.\nGuava / Error Prone / J2ObjC / JSpecify: Google and respective contributors.\nXposed API: rovo89 and contributors.\n\n")
+            append("AndroidX / Material: The Android Open Source Project and respective contributors.\nKotlin / coroutines / annotations: JetBrains and respective contributors.\nGuava / Error Prone / J2ObjC / JSpecify: Google and respective contributors.\nlibxposed API: libxposed contributors.\n\n")
             for (row in rows) append(row[0]+"\n"+row[1]+"\n"+row.getOrElse(3){""}+"\n\n")
             for (name in rows.map { it[2] }.distinct()) {
                 append("\n===== $name =====\n\n")

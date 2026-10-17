@@ -3,7 +3,6 @@ package net.ryuya_dev.oneuilivecolors;
 import android.app.WallpaperManager;
 import android.os.IBinder;
 import android.view.*;
-import de.robv.android.xposed.*;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
 import java.util.*;
@@ -41,23 +40,23 @@ final class PageBridge {
     visibleCount = workspace.getMethod("getVisibleCount");
     currentState = workspace.getDeclaredMethod("getCurrentState");
     currentState.setAccessible(true);
-    XC_MethodHook events =
-        new XC_MethodHook() {
+    ModernHook.Callback events =
+        new ModernHook.Callback() {
           @Override
-          protected void afterHookedMethod(MethodHookParam p) {
+          protected void afterHookedMethod(ModernHook.Param p) {
             if (!p.hasThrowable()) request((ViewGroup) p.thisObject);
           }
         };
-    List<XC_MethodHook.Unhook> installed = new ArrayList<>();
+    List<ModernHook.Handle> installed = new ArrayList<>();
     try {
       installed.add(
-          XposedBridge.hookMethod(
+          ModernHook.hookMethod(
               workspace.getDeclaredMethod("notifyScrollX", int.class, int.class, int.class),
               events));
       installed.add(
-          XposedBridge.hookMethod(workspace.getDeclaredMethod("onAttachedToWindow"), events));
+          ModernHook.hookMethod(workspace.getDeclaredMethod("onAttachedToWindow"), events));
       installed.add(
-          XposedBridge.hookMethod(workspace.getDeclaredMethod("onEndPageScrolling"), events));
+          ModernHook.hookMethod(workspace.getDeclaredMethod("onEndPageScrolling"), events));
     } catch (Throwable t) {
       for (var h : installed) h.unhook();
       throw t;
@@ -65,11 +64,11 @@ final class PageBridge {
     Class<?> base = Class.forName("com.honeyspace.ui.common.FastRecyclerView", false, loader);
     Class<?> plugin =
         Class.forName("com.honeyspace.common.plugin.PluginContextWrapper", false, loader);
-    XposedBridge.hookAllConstructors(
+    ModernHook.hookAllConstructors(
         plugin,
-        new XC_MethodHook() {
+        new ModernHook.Callback() {
           @Override
-          protected void afterHookedMethod(MethodHookParam p) {
+          protected void afterHookedMethod(ModernHook.Param p) {
             if (p.hasThrowable()
                 || freeGrid != null
                 || p.args.length != 3
@@ -91,11 +90,11 @@ final class PageBridge {
             }
           }
         });
-    XposedBridge.hookMethod(
+    ModernHook.hookMethod(
         plugin.getDeclaredMethod("getClassLoader"),
-        new XC_MethodHook() {
+        new ModernHook.Callback() {
           @Override
-          protected void afterHookedMethod(MethodHookParam p) {
+          protected void afterHookedMethod(ModernHook.Param p) {
             if (p.hasThrowable()
                 || freeGrid != null
                 || discovering
@@ -123,10 +122,10 @@ final class PageBridge {
           }
         });
     // Verified caller contains the actual virtual scroll callback; undo possible ART inlining.
-    java.lang.reflect.Method deopt =
-        XposedBridge.class.getMethod("deoptimizeMethod", java.lang.reflect.Member.class);
     for (Method method : base.getDeclaredMethods())
-      if ("swipeScrollToWithOverScroll".equals(method.getName())) deopt.invoke(null, method);
+      if ("swipeScrollToWithOverScroll".equals(method.getName())
+          && !ModernHook.deoptimize(method))
+        throw new IllegalStateException("Failed to deoptimize workspace scroll caller");
     HookEntry.log(
         "PAGE_HOOK_READY standard offsets; includes dynamically loaded Home Up discovery");
   }
@@ -139,23 +138,23 @@ final class PageBridge {
     currentState.setAccessible(true);
     indexedCellType = workspace.getDeclaredMethod("getCellType", int.class);
     indexedCellType.setAccessible(true);
-    List<XC_MethodHook.Unhook> installed = new ArrayList<>();
-    XC_MethodHook events =
-        new XC_MethodHook() {
+    List<ModernHook.Handle> installed = new ArrayList<>();
+    ModernHook.Callback events =
+        new ModernHook.Callback() {
           @Override
-          protected void afterHookedMethod(MethodHookParam p) {
+          protected void afterHookedMethod(ModernHook.Param p) {
             if (!p.hasThrowable()) request((ViewGroup) p.thisObject);
           }
         };
     try {
       installed.add(
-          XposedBridge.hookMethod(
+          ModernHook.hookMethod(
               workspace.getDeclaredMethod("notifyScrollX", int.class, int.class, int.class),
               events));
       installed.add(
-          XposedBridge.hookMethod(workspace.getDeclaredMethod("onAttachedToWindow"), events));
+          ModernHook.hookMethod(workspace.getDeclaredMethod("onAttachedToWindow"), events));
       installed.add(
-          XposedBridge.hookMethod(workspace.getDeclaredMethod("onEndPageScrolling"), events));
+          ModernHook.hookMethod(workspace.getDeclaredMethod("onEndPageScrolling"), events));
     } catch (Throwable t) {
       for (var h : installed) h.unhook();
       throw t;

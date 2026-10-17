@@ -1,6 +1,5 @@
 package net.ryuya_dev.oneuilivecolors;
 
-import de.robv.android.xposed.XposedBridge;
 import java.io.File;
 import java.lang.reflect.Member;
 import java.lang.reflect.Modifier;
@@ -45,8 +44,7 @@ final class DexEvidence {
       }
     if (members.isEmpty() || members.size() > 96)
       throw new IllegalStateException("Volume callsite deoptimization budget");
-    var deopt = XposedBridge.class.getMethod("deoptimizeMethod", Member.class);
-    for (Member m : members) deopt.invoke(null, m);
+    for (Member m : members) ModernHook.deoptimize((java.lang.reflect.Executable) m);
     HookEntry.log("VOLUME_DEX_VERIFIED callers=" + members.size());
   }
 
@@ -124,7 +122,6 @@ final class DexEvidence {
     if (!reads || !registers || !observer)
       throw new IllegalStateException("Missing settings read/observer DEX evidence");
     // API supplied by Vector. Fail closed if the running framework cannot undo inlining.
-    java.lang.reflect.Method deopt = XposedBridge.class.getMethod("deoptimizeMethod", Member.class);
     List<java.lang.reflect.Method> methods = new ArrayList<>();
     for (ClassDef c : related) {
       String name = c.getType().substring(1, c.getType().length() - 1).replace('/', '.');
@@ -135,7 +132,9 @@ final class DexEvidence {
       }
     }
     if (methods.size() > 96) throw new IllegalStateException("Deoptimization budget exceeded");
-    for (var method : methods) deopt.invoke(null, method);
+    for (var method : methods)
+      if (!ModernHook.deoptimize(method))
+        throw new IllegalStateException("Failed to deoptimize verified settings caller");
     HookEntry.log(
         "DEX_VERIFIED: settings read + observer; deoptimized "
             + methods.size()

@@ -7,8 +7,8 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.*;
 import android.provider.Settings;
-import de.robv.android.xposed.*;
-import de.robv.android.xposed.callbacks.XC_LoadPackage;
+import io.github.libxposed.api.XposedModule;
+import io.github.libxposed.api.XposedModuleInterface;
 import java.io.FileInputStream;
 import java.lang.ref.WeakReference;
 import java.security.MessageDigest;
@@ -16,7 +16,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** Scoped host entry point. No system_server or Zygote hooks. */
-public final class HookEntry implements IXposedHookLoadPackage {
+public final class HookEntry extends XposedModule {
   public static final String LAUNCHER = "com.sec.android.app.launcher";
   private static final String FINGERPRINT =
       "samsung/m3qjpnw/m3q:16/BP4A.251205.006/S948QOPS1AZHL_SJP1AZHL:user/release-keys";
@@ -28,7 +28,7 @@ public final class HookEntry implements IXposedHookLoadPackage {
   private final Map<String, Boolean> readerClasses = new ConcurrentHashMap<>();
   private volatile Snapshot snapshot = new Snapshot(null, null);
   private final List<Observed> observers = new ArrayList<>();
-  private final List<XC_MethodHook.Unhook> hooks = new ArrayList<>();
+  private final List<ModernHook.Handle> hooks = new ArrayList<>();
   private final Map<String, String> lastRead = new HashMap<>();
   private Handler main, worker;
   private Context context;
@@ -43,19 +43,43 @@ public final class HookEntry implements IXposedHookLoadPackage {
   private int failures;
   private WallpaperManager.OnColorsChangedListener listener;
   private String lastReport = "";
+  private String processName;
   private final Runnable refresh = this::refresh;
 
   @Override
-  public void handleLoadPackage(XC_LoadPackage.LoadPackageParam p) {
+  public void onModuleLoaded(XposedModuleInterface.ModuleLoadedParam param) {
+    ModernHook.attach(this);
+    processName = param.getProcessName();
+    log(
+        "MODULE_LOADED api="
+            + ModernHook.apiVersion()
+            + " framework="
+            + ModernHook.frameworkDescription()
+            + " process="
+            + processName);
+  }
+
+  @Override
+  public void onPackageReady(XposedModuleInterface.PackageReadyParam param) {
+    if (!param.isFirstPackage()) return;
+    handleLoadPackage(
+        new TargetPackage(
+            param.getPackageName(),
+            processName,
+            param.getApplicationInfo(),
+            param.getClassLoader()));
+  }
+
+  private void handleLoadPackage(TargetPackage p) {
     if (!p.packageName.equals(p.processName)
         || !Arrays.asList(ConfigProvider.HOSTS).contains(p.packageName)) return;
-    XposedHelpers.findAndHookMethod(
+    ModernHook.findAndHookMethod(
         Application.class,
         "attach",
         Context.class,
-        new XC_MethodHook() {
+        new ModernHook.Callback() {
           @Override
-          protected void beforeHookedMethod(MethodHookParam param) {
+          protected void beforeHookedMethod(ModernHook.Param param) {
             if (hostAttached
                 || !LAUNCHER.equals(p.packageName)
                 || Build.VERSION.SDK_INT != 36
@@ -78,7 +102,7 @@ public final class HookEntry implements IXposedHookLoadPackage {
           }
 
           @Override
-          protected void afterHookedMethod(MethodHookParam param) {
+          protected void afterHookedMethod(ModernHook.Param param) {
             if (param.hasThrowable()) return;
             Application app = (Application) param.thisObject;
             if (hostAttached || !p.packageName.equals(app.getPackageName())) return;
@@ -111,7 +135,7 @@ public final class HookEntry implements IXposedHookLoadPackage {
         });
   }
 
-  private void installLauncher(XC_LoadPackage.LoadPackageParam p, Application app) {
+  private void installLauncher(TargetPackage p, Application app) {
     if (!LAUNCHER.equals(p.packageName) || !LAUNCHER.equals(p.processName)) return;
     try {
       if (Build.VERSION.SDK_INT != 36
@@ -124,12 +148,12 @@ public final class HookEntry implements IXposedHookLoadPackage {
       }
       launcherLoader = p.classLoader;
       dataSource =
-          XposedHelpers.findClass(
+          ModernHook.findClass(
               "com.honeyspace.sdk.source.GlobalSettingsDataSource", launcherLoader);
       Class<?> key =
-          XposedHelpers.findClass("com.honeyspace.sdk.source.entity.SettingsKey", launcherLoader);
+          ModernHook.findClass("com.honeyspace.sdk.source.entity.SettingsKey", launcherLoader);
       Class<?> updater =
-          XposedHelpers.findClass(
+          ModernHook.findClass(
               "com.honeyspace.common.interfaces.WhiteBgColorUpdater", launcherLoader);
       if (!dataSource.isInterface()
           || !updater.isInterface()
@@ -144,10 +168,10 @@ public final class HookEntry implements IXposedHookLoadPackage {
         return;
       }
       DexEvidence.verifyAndDeoptimize(p.appInfo.sourceDir, launcherLoader);
-      XC_MethodHook reads =
-          new XC_MethodHook() {
+      ModernHook.Callback reads =
+          new ModernHook.Callback() {
             @Override
-            protected void afterHookedMethod(MethodHookParam param) {
+            protected void afterHookedMethod(ModernHook.Param param) {
               try {
                 if (failed || param.hasThrowable()) return;
                 String key = (String) param.args[1];
@@ -172,20 +196,20 @@ public final class HookEntry implements IXposedHookLoadPackage {
             }
           };
       hooks.add(
-          XposedHelpers.findAndHookMethod(
+          ModernHook.findAndHookMethod(
               Settings.System.class, "getString", ContentResolver.class, String.class, reads));
       hooks.add(
-          XposedHelpers.findAndHookMethod(
+          ModernHook.findAndHookMethod(
               Settings.System.class,
               "getStringForUser",
               ContentResolver.class,
               String.class,
               int.class,
               reads));
-      XC_MethodHook registrations =
-          new XC_MethodHook() {
+      ModernHook.Callback registrations =
+          new ModernHook.Callback() {
             @Override
-            protected void afterHookedMethod(MethodHookParam param) {
+            protected void afterHookedMethod(ModernHook.Param param) {
               try {
                 if (failed || param.hasThrowable()) return;
                 Uri uri = (Uri) param.args[0];
@@ -210,7 +234,7 @@ public final class HookEntry implements IXposedHookLoadPackage {
             }
           };
       hooks.add(
-          XposedHelpers.findAndHookMethod(
+          ModernHook.findAndHookMethod(
               ContentResolver.class,
               "registerContentObserver",
               Uri.class,
@@ -218,7 +242,7 @@ public final class HookEntry implements IXposedHookLoadPackage {
               ContentObserver.class,
               registrations));
       hooks.add(
-          XposedHelpers.findAndHookMethod(
+          ModernHook.findAndHookMethod(
               ContentResolver.class,
               "registerContentObserver",
               Uri.class,
@@ -227,13 +251,13 @@ public final class HookEntry implements IXposedHookLoadPackage {
               int.class,
               registrations));
       hooks.add(
-          XposedHelpers.findAndHookMethod(
+          ModernHook.findAndHookMethod(
               ContentResolver.class,
               "unregisterContentObserver",
               ContentObserver.class,
-              new XC_MethodHook() {
+              new ModernHook.Callback() {
                 @Override
-                protected void afterHookedMethod(MethodHookParam param) {
+                protected void afterHookedMethod(ModernHook.Param param) {
                   if (param.hasThrowable()) return;
                   synchronized (observers) {
                     observers.removeIf(o -> o.ref.get() == null || o.ref.get() == param.args[0]);
@@ -259,8 +283,8 @@ public final class HookEntry implements IXposedHookLoadPackage {
               + (exact
                   ? "verified APK"
                   : "updated APK; structural checks passed; consumer read verification required")
-              + "; legacy Xposed API="
-              + XposedBridge.getXposedVersion());
+              + "; modern Xposed API="
+              + ModernHook.apiVersion());
     } catch (Throwable t) {
       for (var hook : hooks) {
         try {
@@ -493,7 +517,7 @@ public final class HookEntry implements IXposedHookLoadPackage {
 
   static void log(String message) {
     android.util.Log.i("OneUiLiveColors", message);
-    XposedBridge.log("OneUiLiveColors: " + message);
+    ModernHook.log(message);
   }
 
   private static String sha256(String path) throws Exception {
@@ -524,6 +548,24 @@ public final class HookEntry implements IXposedHookLoadPackage {
     Snapshot(Integer font, Integer status) {
       this.font = font;
       this.status = status;
+    }
+  }
+
+  private static final class TargetPackage {
+    final String packageName;
+    final String processName;
+    final android.content.pm.ApplicationInfo appInfo;
+    final ClassLoader classLoader;
+
+    TargetPackage(
+        String packageName,
+        String processName,
+        android.content.pm.ApplicationInfo appInfo,
+        ClassLoader classLoader) {
+      this.packageName = packageName;
+      this.processName = processName;
+      this.appInfo = appInfo;
+      this.classLoader = classLoader;
     }
   }
 }

@@ -24,7 +24,7 @@ Samsungのライブ壁紙を使うときに、ホームの文字色やページ�
 ## 必要な環境
 
 - 対応するSamsung One UI端末。現時点の実機確認はSM-S948Q / Android 16のみです。
-- 動作中のVectorなどのXposed環境。実機確認はVector 2.2で行っています。
+- modern libxposed API 102に対応したXposed環境。実機確認はVector 2.2で行っています。legacy API 82環境では読み込まれません。
 - ライブ壁紙。特定の壁紙アプリ専用の処理はありません。
 - 対象プロセスの再読み込み・起動保護の解除には、既存のroot環境が必要です。
 

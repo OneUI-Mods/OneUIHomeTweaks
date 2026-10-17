@@ -6,7 +6,6 @@ import android.content.res.Configuration;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
-import de.robv.android.xposed.*;
 import java.io.File;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.*;
@@ -27,7 +26,7 @@ final class VolumeStarHooks {
           "ON_BACKGROUND", "volume_star_on_background_color");
   private final Set<ClassLoader> seen = Collections.newSetFromMap(new IdentityHashMap<>());
   private final ThreadLocal<Integer> blurDepth = ThreadLocal.withInitial(() -> 0);
-  private final List<XC_MethodHook.Unhook> installed = new ArrayList<>();
+  private final List<ModernHook.Handle> installed = new ArrayList<>();
   private volatile int mode;
   private int lightPreset, darkPreset;
   private boolean failed;
@@ -52,12 +51,13 @@ final class VolumeStarHooks {
             false,
             hostLoader);
     Method load = handler.getDeclaredMethod("handleLoadPlugin", ComponentName.class);
-    XposedBridge.class.getMethod("deoptimizeMethod", Member.class).invoke(null, load);
-    XposedBridge.hookMethod(
+    if (!ModernHook.deoptimize(load))
+      throw new IllegalStateException("Failed to deoptimize plugin loader");
+    ModernHook.hookMethod(
         constructor,
-        new XC_MethodHook() {
+        new ModernHook.Callback() {
           @Override
-          protected void afterHookedMethod(MethodHookParam p) {
+          protected void afterHookedMethod(ModernHook.Param p) {
             if (p.hasThrowable()
                 || !(p.args[0] instanceof Context ctx)
                 || !PACKAGE.equals(ctx.getPackageName())
@@ -167,25 +167,26 @@ final class VolumeStarHooks {
     }
     if (callers.isEmpty() || callers.size() > 192)
       throw new IllegalStateException("VolumeStar deoptimization budget");
-    Method deopt = XposedBridge.class.getMethod("deoptimizeMethod", Member.class);
-    for (Member m : callers) deopt.invoke(null, m);
+    for (Member m : callers)
+      if (!ModernHook.deoptimize((java.lang.reflect.Executable) m))
+        throw new IllegalStateException("Failed to deoptimize VolumeStar caller");
 
     if (barConstructor != null)
       installed.add(
-          XposedBridge.hookMethod(
+          ModernHook.hookMethod(
               barConstructor,
-              new XC_MethodHook() {
+              new ModernHook.Callback() {
                 @Override
-                protected void beforeHookedMethod(MethodHookParam p) {
+                protected void beforeHookedMethod(ModernHook.Param p) {
                   if (!failed && mode != 0) p.args[1] = mode == 2;
                 }
               }));
     installed.add(
-        XposedBridge.hookMethod(
+        ModernHook.hookMethod(
             color,
-            new XC_MethodHook() {
+            new ModernHook.Callback() {
               @Override
-              protected void afterHookedMethod(MethodHookParam p) {
+              protected void afterHookedMethod(ModernHook.Param p) {
                 if (failed || mode == 0 || p.hasThrowable()) return;
                 try {
                   String key = ((Enum<?>) p.args[0]).name();
@@ -221,11 +222,11 @@ final class VolumeStarHooks {
         Class<?>[] parameters = m.getParameterTypes();
         if (parameters.length == 0 || !View.class.isAssignableFrom(parameters[0])) continue;
         installed.add(
-            XposedBridge.hookMethod(
+            ModernHook.hookMethod(
                 m,
-                new XC_MethodHook() {
+                new ModernHook.Callback() {
                   @Override
-                  protected void beforeHookedMethod(MethodHookParam p) {
+                  protected void beforeHookedMethod(ModernHook.Param p) {
                     View view = (View) p.args[0];
                     if (failed
                         || mode == 0
@@ -237,7 +238,7 @@ final class VolumeStarHooks {
                   }
 
                   @Override
-                  protected void afterHookedMethod(MethodHookParam p) {
+                  protected void afterHookedMethod(ModernHook.Param p) {
                     if (Boolean.TRUE.equals(p.getObjectExtra("oneUiVolumeBlur")))
                       blurDepth.set(Math.max(0, blurDepth.get() - 1));
                   }
@@ -246,11 +247,11 @@ final class VolumeStarHooks {
     }
     Class<?> builder = Class.forName("android.view.SemBlurInfo$Builder");
     installed.add(
-        XposedBridge.hookMethod(
+        ModernHook.hookMethod(
             builder.getDeclaredMethod("setColorCurvePreset", int.class),
-            new XC_MethodHook() {
+            new ModernHook.Callback() {
               @Override
-              protected void beforeHookedMethod(MethodHookParam p) {
+              protected void beforeHookedMethod(ModernHook.Param p) {
                 if (failed || mode == 0 || blurDepth.get() == 0) return;
                 p.args[0] = mode == 1 ? lightPreset : darkPreset;
                 String report = "VOLUMESTAR_BLUR mode=" + mode + " preset=" + p.args[0];
@@ -261,11 +262,11 @@ final class VolumeStarHooks {
               }
             }));
     installed.add(
-        XposedBridge.hookMethod(
+        ModernHook.hookMethod(
             init,
-            new XC_MethodHook() {
+            new ModernHook.Callback() {
               @Override
-              protected void afterHookedMethod(MethodHookParam p) {
+              protected void afterHookedMethod(ModernHook.Param p) {
                 if (!p.hasThrowable()) plugin = new WeakReference<>(p.thisObject);
               }
             }));

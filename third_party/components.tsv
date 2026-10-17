@@ -60,4 +60,4 @@ org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.6.4	Apache-2.0	Apache-2.0.tx
 org.jetbrains:annotations:13.0	Apache-2.0	Apache-2.0.txt	http://www.jetbrains.org
 org.jspecify:jspecify:1.0.0	Apache-2.0	Apache-2.0.txt	http://jspecify.org/
 org.smali:dexlib2:2.5.2	BSD-3-Clause	dexlib2-LICENSE.txt	https://github.com/JesusFreke/smali/tree/v2.5.2
-de.robv.android.xposed:api:82	Apache-2.0	Apache-2.0.txt	https://api.xposed.info/
+io.github.libxposed:api:102.0.0	Apache-2.0	Apache-2.0.txt	https://github.com/JingMatrix/libxposed-api

@@ -59,3 +59,15 @@ Launcherデータや壁紙画像の削除、既存root／Vectorの再設定は�
 専用RSA 4096鍵で署名したreleaseビルドを作成し、`apksigner verify`が成功。APKと実機の`pkgFlags`にDEBUGGABLEがないことを確認した。実機のdebug版を削除してrelease版を導入し、アプリ自身の保存モードとVectorの3スコープを復元。release版の設定画面の起動と状態応答を確認した。フック実装は外観を検証した0.4.0と同じであり、署名変更によるSystemUIの再読み込みはこの移行では行っていない。
 
 既にdebug版を導入している一般利用者は、アプリの設定を控えてからアンインストールし、release版をインストールしてVectorを再設定する。以後は同じ配布鍵で上書き更新する。
+
+## 0.5.0 modern API 102移行の確認
+
+専用鍵で署名した0.5.0 release版を0.4.1へ上書きし、保存設定とVectorの3スコープが維持された。APK内の登録は`META-INF/xposed/java_init.list`、`scope.list`、`module.prop`のみで、`minApiVersion=102`と`targetApiVersion=102`を確認した。API 82 jar、legacyクラス参照、`assets/xposed_init`は含まれない。
+
+対象プロセスを個別に起動し直し、Vector 2.2のmodernローダーで次を確認した。
+
+- Launcher: `MODULE_LOADED api=102`、`DEX_VERIFIED`、`PAGE_HOOK_READY`、`DRAWER_HOOK_READY`、`READ`、`DISPATCH`。
+- SystemUI: `MODULE_LOADED api=102`、`VOLUME_HOOK_READY`、`VOLUMESTAR_HOOK_READY`、`VOLUMESTAR_COLOR`。
+- Wallpaper and style: `MODULE_LOADED api=102`、`PREVIEW_HOOK_READY`、`PREVIEW_HOME_MIRROR_ATTACHED`。
+
+クラッシュ保護解除はSystemUIが使う`/data/user_de/0`も対象に修正し、保護解除後にSystemUIの各フックが再度初期化されることを確認した。端末の再起動は行っていない。

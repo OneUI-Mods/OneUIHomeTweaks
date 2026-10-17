@@ -17,7 +17,7 @@ OS更新後にこの環境を再取得できなくなるため、検証対象と
 | Sound Assistant | `com.samsung.android.soundassistant` 8.5.00.2 / code 850000002 |
 | SystemUI | `com.android.systemui` 16 / code 36 |
 | MultiPicture | `jp.kamesan.android.multiple_picture_wallpaper_2` 5.17 / code 75 / targetSdk 36 |
-| Vector | 2.2 / build 3080 / runtime API 102（legacy API使用可を実機確認） |
+| Vector | 2.2 / build 3080 / runtime API 102（0.4.1まではlegacy互換、0.5.0からmodern API 102） |
 | 既存Zygisk実装 | OnyxZygisk v1.09 / code 399 |
 | root確認 | `su -c id` が uid=0、SELinux context `u:r:ksu:s0` |
 | ユーザー / display | user 0 / display 0 |
@@ -94,9 +94,10 @@ NAVIBAR   fontColor=0
 ## 実行確認と限界
 
 - 初回実装はARTインライン化のため通知登録の捕捉を確認できず、表示も未変更だった。
-- DEXの型関係で設定データソースと関連クラスを探し、Vectorの`deoptimizeMethod(Member)`で関連4クラス・12メソッドだけをdeoptimizeしたところ、`OBSERVE`2件、`READ need_dark_font 0 -> 1`、`DISPATCH local observers=2`を確認した。
+- DEXの型関係で設定データソースと関連クラスを探し、当初はVectorのlegacy互換`deoptimizeMethod(Member)`、0.5.0ではlibxposed API 102の`deoptimize(Executable)`で関連4クラス・12メソッドだけをdeoptimizeした。どちらでも`OBSERVE`2件、`READ need_dark_font 0 -> 1`、`DISPATCH local observers=2`を確認した。
 - モードの保存変更がLauncherのプロセス再起動なしでSTATE/READ/通知を更新することもログで確認した。
 - 上記補完後もシステム設定の保存値は0のまま。修正はLauncherプロセス内だけ。
+- 2026-10-17に0.5.0 release版を同じ署名で上書きし、VectorのmodernローダーからAPI 102としてLauncher、SystemUI、DressRoomへ読み込まれることを確認した。色・ページ・ドロワー、標準音量・VolumeStar、現在ホーム壁紙のプレビューがそれぞれ初期化され、fatal crashがないことをログで確認した。
 - 新しいLauncherバージョン、Android 17 / One UI 9の実機検証はしていない。Android 17以降では意図的に無効。
 - 標準色通知が来ない画像変更や、壁紙が不正確なhintを返す場合に、画面の明暗を保証する機能ではない。Semキャッシュ自体は修復しない。プレビューは後続の限定フックで実描画のミラーに変更した（[追加経路](hooks.md)）。
 
@@ -106,7 +107,7 @@ NAVIBAR   fontColor=0
 - [WallpaperColors](https://developer.android.com/reference/android/app/WallpaperColors)
 - [WallpaperManager](https://developer.android.com/reference/android/app/WallpaperManager)
 - [Vector](https://github.com/JingMatrix/Vector)
-- [Vector legacy API deoptimization](https://github.com/JingMatrix/Vector/blob/master/legacy/src/main/java/de/robv/android/xposed/XposedBridge.java)
+- [libxposed API 102 deoptimization](https://github.com/JingMatrix/libxposed-api/blob/master/api/src/main/java/io/github/libxposed/api/XposedInterface.java)
 
 外部に公開されている旧Samsung frameworkの解析例は初期調査の参考にしたが、実機確認をそれで代用していない。
 

@@ -312,13 +312,15 @@ public final class MainActivity extends AppCompatActivity {
 
   private void resetProtection() {
     StringBuilder cmd = new StringBuilder("rm -f");
-    for (String host : ConfigProvider.HOSTS)
-      for (String suffix : new String[] {"", ".bak", ".new"})
-        cmd.append(" /data/user/0/")
-            .append(host)
-            .append("/files/")
-            .append(CrashGuard.FILE)
-            .append(suffix);
+    for (String root : new String[] {"/data/user/0/", "/data/user_de/0/"})
+      for (String host : ConfigProvider.HOSTS)
+        for (String suffix : new String[] {"", ".bak", ".new"})
+          cmd.append(' ')
+              .append(root)
+              .append(host)
+              .append("/files/")
+              .append(CrashGuard.FILE)
+              .append(suffix);
     commands.execute(
         () -> {
           boolean success = command(cmd.toString(), 20, false);

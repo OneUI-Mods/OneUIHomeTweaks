@@ -7,7 +7,6 @@ import android.graphics.Rect;
 import android.net.Uri;
 import android.os.*;
 import android.view.*;
-import de.robv.android.xposed.*;
 import java.io.File;
 import java.lang.reflect.*;
 import java.util.*;
@@ -64,11 +63,11 @@ final class PreviewHooks {
     if (mirrorWallpaper.getReturnType() != SurfaceControl.class)
       throw new IllegalStateException("Wallpaper mirror contract changed");
     parentSurface = SurfaceView.class.getMethod("getRenderingSurfaceControl");
-    XposedBridge.hookAllConstructors(
+    ModernHook.hookAllConstructors(
         previewClass,
-        new XC_MethodHook() {
+        new ModernHook.Callback() {
           @Override
-          protected void afterHookedMethod(MethodHookParam p) {
+          protected void afterHookedMethod(ModernHook.Param p) {
             if (!p.hasThrowable()) {
               SurfaceView view = (SurfaceView) p.thisObject;
               if (!views.containsKey(view)) {
@@ -82,33 +81,33 @@ final class PreviewHooks {
             }
           }
         });
-    XC_MethodHook update =
-        new XC_MethodHook() {
+    ModernHook.Callback update =
+        new ModernHook.Callback() {
           @Override
-          protected void afterHookedMethod(MethodHookParam p) {
+          protected void afterHookedMethod(ModernHook.Param p) {
             if (!p.hasThrowable()) safeStart((SurfaceView) p.thisObject);
           }
         };
-    XposedBridge.hookMethod(previewClass.getMethod("surfaceCreated", SurfaceHolder.class), update);
-    XposedBridge.hookMethod(
+    ModernHook.hookMethod(previewClass.getMethod("surfaceCreated", SurfaceHolder.class), update);
+    ModernHook.hookMethod(
         previewClass.getMethod(
             "surfaceChanged", SurfaceHolder.class, int.class, int.class, int.class),
         update);
-    XposedBridge.hookMethod(
+    ModernHook.hookMethod(
         previewClass.getMethod("surfaceDestroyed", SurfaceHolder.class),
-        new XC_MethodHook() {
+        new ModernHook.Callback() {
           @Override
-          protected void beforeHookedMethod(MethodHookParam p) {
+          protected void beforeHookedMethod(ModernHook.Param p) {
             stop((SurfaceView) p.thisObject);
           }
         });
-    XposedHelpers.findAndHookMethod(
+    ModernHook.findAndHookMethod(
         SurfaceView.class,
         "setChildSurfacePackage",
         SurfaceControlViewHost.SurfacePackage.class,
-        new XC_MethodHook() {
+        new ModernHook.Callback() {
           @Override
-          protected void afterHookedMethod(MethodHookParam p) {
+          protected void afterHookedMethod(ModernHook.Param p) {
             if (previewClass.isInstance(p.thisObject) && !p.hasThrowable())
               try {
                 layers((SurfaceView) p.thisObject);
