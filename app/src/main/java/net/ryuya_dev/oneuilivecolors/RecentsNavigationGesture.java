@@ -1,6 +1,6 @@
 package net.ryuya_dev.oneuilivecolors;
 
-/** Window-local navigation for a portrait Recents window over a retained landscape controller. */
+/** Window-local navigation for a portrait Recents window over a retained controller. */
 final class RecentsNavigationGesture {
   static final int HOME = 3, BACK = 4;
 

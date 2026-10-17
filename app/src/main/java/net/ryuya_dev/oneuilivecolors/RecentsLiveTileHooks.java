@@ -452,7 +452,7 @@ final class RecentsLiveTileHooks {
       context.registerReceiver(
           screenOff, new IntentFilter(Intent.ACTION_SCREEN_OFF), Context.RECEIVER_NOT_EXPORTED);
       setDiagnostic("off");
-      HookEntry.log("RECENTS_LIVE_READY window home-back navigation 0.10");
+      HookEntry.log("RECENTS_LIVE_READY window navigation all sources 0.10");
     } catch (Throwable t) {
       uninstall();
       if (t instanceof Exception e) throw e;
@@ -463,8 +463,7 @@ final class RecentsLiveTileHooks {
   private void activateSurface(Session s) throws Exception {
     if (BuildConfig.RECENTS_MOTION_TRACE) inspect(s);
     View root = (View) recentTarget.invoke(systemController.invoke(s.manager()));
-    Point physical = (Point) proxySize.get(inputProxy.get(s.manager()));
-    if (root != null && physical.x > physical.y && root.getWidth() < root.getHeight()) {
+    if (root != null && root.getWidth() < root.getHeight()) {
       int bottom = navigationBottom(root);
       if (bottom <= 0 || bottom >= root.getHeight() * .1f) {
         fallback("portrait navigation region unavailable");
