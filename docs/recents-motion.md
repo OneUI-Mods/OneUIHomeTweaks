@@ -1,6 +1,6 @@
 # Portrait Recents: motion adapter investigation
 
-Status: **0.10.0 release candidate**. The common-viewport controller and independently optional live rendering are now part of normal builds; the latter defaults OFF. They have been exercised with the documented Launcher/Home Up pair, including Task Changer ON and OFF and a real hardware-video Surface. Perspective cards temporarily use native snapshots while the app keeps drawing. This is a device-specific implementation, not a guarantee for every app, layout or interruption. The dated sections below preserve earlier failures and superseded prototypes.
+Status: **0.10.0 pre-release implementation**. The common-viewport controller and independently optional live rendering are now part of normal builds; the latter defaults OFF. They have been exercised with the documented Launcher/Home Up pair, including Task Changer ON and OFF and a real hardware-video Surface. Perspective cards temporarily use native snapshots while the app keeps drawing. This is a device-specific implementation, not a guarantee for every app, layout or interruption. The dated sections below preserve earlier failures and superseded prototypes.
 
 ## Preserved device baseline
 
@@ -255,3 +255,8 @@ Six pure regression tests cover both Back edges, Home's native cancel area, repe
 
 
 A portrait-source live session subsequently showed the same missing edge Back behavior. Window-local navigation is therefore enabled for **every owned portrait live window**, not only landscape sources. The earlier physical-orientation condition was removed. Native source dimensions/matrices remain unchanged, and sessions still require validated real navigation insets and an existing main-display native injector.
+
+
+### Final normal-build matrix
+
+The completed checks include Task Changer OFF with the right-edge Back gesture, Task Changer ON with portrait-source Back, cancelled and accepted portrait-window Home gestures, and the live option OFF/ON through the actual Material UI. Back returned to the probe; accepted Home returned to LauncherActivity; each exit left zero owned effects. The cancelled Home swipe retained one live effect and Recents. The final settings were restored to Task Changer ON and live preference ON on the test device; new installations still default to live OFF. [Verification summary and remaining limits](testing.md#2026-10-18-0100-release候補の確認) documents the scope without claiming every app or navigation configuration is verified.

@@ -10,6 +10,7 @@
 - Replace the mismatched landscape/portrait card transition with a common viewport for the app Surface and native portrait card list; preserve Home Up ordering and fix window-local insets that shifted the selected card at handoff.
 - Add an independent, default-OFF experimental option to keep the last app drawing in Recents. Retain only its owned native controller, map the live Surface to the native card and isolate wallpaper blur below it.
 - Preserve native snapshots during perspective animations and for protected/incompatible tasks; restore native state on launch, Home, cancellation, Recents exit and disable.
+- Restore Home and Back gestures in the owned portrait live window, cancel invalid/multi-pointer navigation, and release retained controllers on external foreground-task changes.
 - Include graphical ready/active/unsupported states and localized controls. Limit the new renderer to SDK 36, the main fullscreen display and verified gesture modes; no SystemUI or app-lifecycle hooks are added.
 - Remove abandoned coordinate adapters and private build switches. Detailed card traces remain opt-in and disabled in distributed APKs.
 
