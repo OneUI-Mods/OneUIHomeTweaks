@@ -30,6 +30,129 @@ final class DiyGridBridge {
   private Runnable changed = () -> {};
   private final Runnable render = this::renderNow;
 
+  record PreparedSave(Context context, Object owner, GridSavePlan plan) {}
+
+  PreparedSave prepareSave() throws ReflectiveOperationException {
+    ViewGroup root = workspace.get();
+    if (!onMain()
+        || !ready
+        || !enabled
+        || failed
+        || editing
+        || root == null
+        || !root.isAttachedToWindow()) throw new IllegalStateException("Grid not ready");
+    collect(root);
+    Set<State> owners = Collections.newSetFromMap(new IdentityHashMap<>());
+    for (var entry : layouts.entrySet())
+      if (entry.getKey().isAttachedToWindow() && entry.getValue().valid()) {
+        if (number(entry.getKey(), "getSelectedItemsCount") != 0)
+          throw new IllegalStateException("Editor selection active");
+        owners.add(entry.getValue());
+      }
+    if (owners.size() != 1) throw new IllegalStateException("Ambiguous home model");
+    State state = owners.iterator().next();
+    state.capture();
+    state.dirty = true;
+    state.plan();
+    Object vm = state.vm.get();
+    if (vm == null) throw new IllegalStateException("Home model unavailable");
+    Class<?> info =
+        Class.forName(
+            "com.honeyspace.ui.honeypots.freegrid.domain.model.FreeEditInfo",
+            false,
+            vm.getClass().getClassLoader());
+    info.getDeclaredConstructor(
+        int.class,
+        Integer.class,
+        Integer.class,
+        Integer.class,
+        Integer.class,
+        Integer.class,
+        Float.class,
+        Float.class,
+        Integer.class,
+        boolean.class);
+    vm.getClass()
+        .getDeclaredMethod("updateFreeGridProperty", List.class, boolean.class, boolean.class);
+    List<GridSavePlan.Entry> entries = new ArrayList<>();
+    for (var reference : state.models.values()) {
+      Object model = reference.get();
+      if (model == null || !eligible(model) || Boolean.TRUE.equals(call(model, "getLand")))
+        throw new IllegalStateException("Incomplete model snapshot");
+      int id = number(model, "getId");
+      GridSnapPlan.Slot slot = state.positions.get(id);
+      if (slot == null) throw new IllegalStateException("Page cannot fit normal grid");
+      Object original = call(model, "getToFreeEditInfo");
+      if (Boolean.TRUE.equals(call(original, "getDelete")))
+        throw new IllegalStateException("Hidden item cannot be saved");
+      entries.add(
+          new GridSavePlan.Entry(
+              id,
+              number(model, "getPageId"),
+              number(model, "getPortX"),
+              number(model, "getPortY"),
+              slot.x(),
+              slot.y(),
+              state.grid
+                  + ":"
+                  + state.cell
+                  + ":"
+                  + state.source(model)
+                  + ":"
+                  + call(model, "getScale")
+                  + ":"
+                  + call(model, "getAngle")));
+    }
+    return new PreparedSave(root.getContext(), vm, new GridSavePlan(entries));
+  }
+
+  void applySave(PreparedSave prepared, boolean rollback) throws ReflectiveOperationException {
+    if (!onMain()) throw new IllegalStateException("Main thread only");
+    Object owner = prepared.owner();
+    Class<?> info =
+        Class.forName(
+            "com.honeyspace.ui.honeypots.freegrid.domain.model.FreeEditInfo",
+            false,
+            owner.getClass().getClassLoader());
+    Constructor<?> constructor =
+        info.getDeclaredConstructor(
+            int.class,
+            Integer.class,
+            Integer.class,
+            Integer.class,
+            Integer.class,
+            Integer.class,
+            Float.class,
+            Float.class,
+            Integer.class,
+            boolean.class);
+    List<Object> updates = new ArrayList<>();
+    for (GridSavePlan.Entry entry : prepared.plan().entries())
+      if (entry.changed())
+        updates.add(
+            constructor.newInstance(
+                entry.id(),
+                null,
+                rollback ? entry.oldX() : entry.x(),
+                rollback ? entry.oldY() : entry.y(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                false));
+    // Only x/y are supplied. Native history and repository persistence own every write.
+    call(
+        owner,
+        "updateFreeGridProperty",
+        new Class<?>[] {List.class, boolean.class, boolean.class},
+        updates,
+        false,
+        true);
+    for (State state : states.values()) if (state.vm.get() == owner) state.dirty = true;
+    queueRender();
+  }
+
   void setChanged(Runnable listener) {
     changed = listener;
   }

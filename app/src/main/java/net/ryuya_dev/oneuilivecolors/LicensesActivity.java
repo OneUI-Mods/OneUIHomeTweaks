@@ -6,14 +6,13 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.*;
 import com.google.android.material.appbar.MaterialToolbar;
-import com.google.android.material.color.DynamicColors;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 
 public final class LicensesActivity extends AppCompatActivity {
   @Override
   public void onCreate(Bundle saved) {
-    DynamicColors.applyToActivityIfAvailable(this);
+    AppUiTheme.apply(this);
     super.onCreate(saved);
     WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
     LinearLayout root = new LinearLayout(this);

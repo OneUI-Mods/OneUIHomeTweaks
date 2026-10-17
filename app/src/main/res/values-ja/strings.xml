@@ -86,4 +86,16 @@
   <string name="diy_icon_grid">DIY Homeのアイコンを通常グリッドに整列</string>
   <string name="diy_icon_grid_note">DIY Homeを有効なまま、アプリアイコンとフォルダを通常ホームのグリッドに揃え、編集時の移動もセル単位にします。ウィジェットとステッカーは自由配置のままです。OFFで保存中の自由配置を表示します。編集の取り消しではありません。縦画面のみ対応。初期設定はOFFです。</string>
   <string name="status_waiting_note">今回の確認への応答を待っています。対象アプリが未起動、設定の取得待ち、読み込み失敗などの場合があります。クラッシュ保護による停止とは別の状態です。</string>
+  <string name="save_grid_positions">整列した配置を保存</string>
+  <string name="grid_save_note">アプリとフォルダの位置を全ページに保存します。保存後はrootやフックがなくても配置が残ります。ウィジェット・サイズ・回転は変更しません。</string>
+  <string name="grid_save_confirm">%1$d個のアプリ・フォルダ（%2$dページ）の位置を保存します。\n\n整列フックをOFFにしても、この配置を維持します。確認中に配置が変わった場合は保存を中止します。</string>
+  <string name="grid_save_commit">配置を保存</string>
+  <string name="grid_save_done">%1$d個の位置を保存しました。整列フックをOFFにしても、この配置が表示されます。</string>
+  <string name="grid_save_wait">ホームの配置を確認しています…</string>
+  <string name="grid_save_nochanges">すでに整列した位置で保存されています。</string>
+  <string name="grid_save_unavailable">整列を有効にしてホーム画面を一度表示し、編集を終了してから再試行してください。One UI Homeのフックも必要です。</string>
+  <string name="grid_save_changed">確認中に配置が変わりました。書き込みは中止しました。もう一度プレビューを確認してください。</string>
+  <string name="grid_save_failed">保存完了を確認できませんでした。ホームで配置を確認し、必要に応じてもう一度お試しください。</string>
+  <string name="app_theme">アプリのテーマ</string>
+  <string name="dynamic_ui">壁紙の色をアプリに使う</string>
 </resources>

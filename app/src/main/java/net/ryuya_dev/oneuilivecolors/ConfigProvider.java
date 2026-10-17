@@ -76,6 +76,13 @@ public final class ConfigProvider extends ContentProvider {
 
   @Override
   public Bundle call(String method, String arg, Bundle extras) {
+    if ("take_grid_request".equals(method) || "grid_result".equals(method)) {
+      if (!"com.sec.android.app.launcher".equals(hostCaller()))
+        throw new SecurityException("Launcher only");
+      return "take_grid_request".equals(method)
+          ? GridSaveStore.take(getContext())
+          : GridSaveStore.result(getContext(), extras);
+    }
     if (!"report_status".equals(method) || extras == null)
       throw new IllegalArgumentException("Unsupported call");
     String host = hostCaller();

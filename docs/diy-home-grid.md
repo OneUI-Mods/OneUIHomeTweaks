@@ -1,4 +1,4 @@
-# DIY Homeのアイコン整列（0.9.0）
+# DIY Homeのアイコン整列（0.9.0 / 0.10.0）
 
 ## 目的と対象
 
@@ -63,12 +63,26 @@ ON/OFF自体では保存済み配置を更新しない。利用者が対象を�
 
 実機検証範囲は上記に限定する。バックアップしたDB・設定、Samsung APK、逆コンパイル結果、個人のホーム画像は公開リポジトリや配布物に含めない。
 
+## 明示的な永続保存（0.10.0）
+
+「整列した配置を保存」は、整列ON/OFFとは独立した操作。まず現在の全ページのモデル・座標・形状・グリッドから計画を作り、変更件数と対象ページ数を表示する。確認後にも同じ計画であることをSHA-256 fingerprintとモデル所有者の実体で確かめる。配置やグリッドが変化していれば保存せず、プレビューのやり直しを求める。編集中、対象の取得失敗、容量不足では保存しない。
+
+保存は実機で確認した `FreeEditInfo(int,Integer,Integer,Integer,Integer,Integer,Float,Float,Integer,boolean)` と `FreeGridViewModel.updateFreeGridProperty(List,boolean,boolean)` を使う。idと新しいx/yだけを指定し、ページ・サイズ・倍率・回転・重なり順はnull、削除はfalseとする。純正の履歴とリポジトリ保存を通し、DBへ直接UPDATEしない。適用時の例外では純正APIで座標の復元を試み、保存確認が取れない場合は成功と表示しない。
+
+`OneUI.db.item` は読み取り専用で開き、保存前にid/type/container_id/position_x/position_yの一致を確認し、保存後に新座標を確認する。確認は利用者の保存操作に伴う最大4回の短い再試行に限り、常時ポーリングしない。
+
+コマンドは管理アプリの非公開領域に保存し、nonce・同一boot・20秒の期限・一度だけの取り出しで管理する。ContentProviderは実際の呼び出しUIDがOne UI Homeの場合だけ、取り出しと結果の受信を許す。一般アプリやブロードキャストから保存を実行できない。
+
+実機では46件（アプリ15、フォルダ26、ショートカット2、ディープショートカット3）の保存を確認した。保存前後で変化した `item` の列はposition_x/position_yのみ。ほかのitem列、item_group、multi_display_position、inversion_grid_positionに差分はなかった。その後の再プレビューは変更0件となり、整列フックをOFFにしても保存後の配置を表示できた。確認後は整列ONへ戻した。root自体の解除や端末再起動は実施していない。
+
+バックアップしたDBは非公開の検証資料として保持し、リポジトリへは含めない。保存を取り消す場合は純正のDIY編集履歴の範囲で「元に戻す」を使う。フックOFFやアプリのアンインストールは永続保存の取り消しにはならない。
+
 ## ログと復旧
 
 ```sh
 adb logcat -s OneUiLiveColors
 ```
 
-DIY_GRID loading / active / off、DIY_GRID_DEX_VERIFIED、DIY_GRID_EDIT、DIY_GRID_PAGE_UNAVAILABLE、DIY_GRID_DISABLEDで状況を追える。移動ログはジェスチャー先頭の少数回に限定する。
+GRID_SAVE preview / saved / error、DIY_GRID loading / active / off、DIY_GRID_DEX_VERIFIED、DIY_GRID_EDIT、DIY_GRID_PAGE_UNAVAILABLE、DIY_GRID_DISABLEDで状況を追える。移動ログはジェスチャー先頭の少数回に限定する。
 
 問題がある場合は整列スイッチをOFFにする。フック自体の例外停止後に再試行する場合は、原因を解消してからアプリ内でOne UI Homeを再読み込みする。通常のスイッチ変更ではプロセス再読み込みも端末再起動も不要。

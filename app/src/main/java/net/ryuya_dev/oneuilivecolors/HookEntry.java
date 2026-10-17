@@ -35,6 +35,7 @@ public final class HookEntry extends XposedModule {
   private WallpaperManager wm;
   private final PageBridge pages = new PageBridge();
   private final DiyGridBridge diyGrid = new DiyGridBridge();
+  private final GridSaveCoordinator gridSave = new GridSaveCoordinator(diyGrid);
   private final DrawerBridge drawer = new DrawerBridge();
   private final HomeLabelBridge homeLabels = new HomeLabelBridge();
   private final RecentsHooks recents = new RecentsHooks();
@@ -468,6 +469,8 @@ public final class HookEntry extends XposedModule {
       boolean currentHideRecentsBar = hideRecentsBar;
       boolean currentMaster = master;
       boolean currentDiyGrid = diyGridMode;
+      Bundle gridRequest =
+          context.getContentResolver().call(ConfigProvider.URI, "take_grid_request", null, null);
       boolean localLabels = apply && label == ColorPolicy.LOCAL;
       main.post(
           () -> {
@@ -477,6 +480,7 @@ public final class HookEntry extends XposedModule {
             recents.setEnabled(currentRecentsPortrait);
             recentsBar.setEnabled(currentHideRecentsBar);
             diyGrid.setEnabled(currentDiyGrid);
+            gridSave.accept(context, gridRequest);
             HostStatus.report(
                 context,
                 currentMaster ? "ACTIVE" : "OFF",

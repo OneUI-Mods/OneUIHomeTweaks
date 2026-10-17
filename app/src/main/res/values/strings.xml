@@ -86,4 +86,16 @@
   <string name="diy_icon_grid">Standard grid for DIY Home icons</string>
   <string name="diy_icon_grid_note">Keeps DIY Home enabled, aligns app icons and folders to the normal home grid, and snaps editing moves to cells. Widgets and stickers remain freely placed. Off displays the saved free positions; it does not undo edits. Portrait only; off by default.</string>
   <string name="status_waiting_note">Waiting for a response to this check. The target may be closed, waiting for settings, or unable to load the hook. This does not indicate that crash protection has stopped it.</string>
+  <string name="save_grid_positions">Save aligned layout</string>
+  <string name="grid_save_note">Save app and folder positions on every home page. The positions remain without root or hooks. Widgets, sizes and rotation stay unchanged.</string>
+  <string name="grid_save_confirm">Save positions for %1$d apps and folders on %2$d pages?\n\nThese positions remain when the grid hook is off. Saving is cancelled if the layout changes during confirmation.</string>
+  <string name="grid_save_commit">Save layout</string>
+  <string name="grid_save_done">Saved %1$d positions. This layout remains visible when the grid hook is off.</string>
+  <string name="grid_save_wait">Checking the home layout…</string>
+  <string name="grid_save_nochanges">The aligned positions are already saved.</string>
+  <string name="grid_save_unavailable">Enable alignment, visit the home screen, finish editing, and try again. The One UI Home hook must be active.</string>
+  <string name="grid_save_changed">The layout changed during confirmation. No positions were written. Preview the layout again.</string>
+  <string name="grid_save_failed">The save could not be confirmed. Check the layout on Home before trying again.</string>
+  <string name="app_theme">App theme</string>
+  <string name="dynamic_ui">Dynamic colors</string>
 </resources>

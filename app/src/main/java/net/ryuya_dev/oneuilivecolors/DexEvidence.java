@@ -12,6 +12,69 @@ import org.jf.dexlib2.iface.reference.MethodReference;
 
 /** Finds the real callers by DEX type relationships; no obfuscated name assumptions. */
 final class DexEvidence {
+  static void verifyRecentsMotion(String apk, ClassLoader loader) throws Exception {
+    String player = "Lcom/honeyspace/transition/anim/floating/PlayerImpl;";
+    String manager = "Lcom/honeyspace/gesture/recentsanimation/RecentsAnimationManager;";
+    String info = "Lcom/honeyspace/transition/anim/floating/utils/UpdateInfo;";
+    boolean setup = false, moving = false, matrix = false, construct = false;
+    Set<java.lang.reflect.Method> callers = new HashSet<>();
+    var dex = DexFileFactory.loadDexContainer(new File(apk), Opcodes.getDefault());
+    for (String entry : dex.getDexEntryNames())
+      for (ClassDef c : dex.getEntry(entry).getDexFile().getClasses()) {
+        if (!Set.of(
+                player,
+                manager,
+                "Lcom/honeyspace/transition/anim/floating/utils/RemoteTargetUpdaterKt;")
+            .contains(c.getType())) continue;
+        Set<String> deopt = new HashSet<>();
+        for (var method : c.getMethods()) {
+          if (method.getImplementation() == null) continue;
+          for (var instruction : method.getImplementation().getInstructions()) {
+            if (!(instruction instanceof ReferenceInstruction r)
+                || !(r.getReference() instanceof MethodReference ref)) continue;
+            if (c.getType().equals(manager)
+                && method.getName().equals("createFloatingPlayer")
+                && ref.getName().equals("setup")
+                && ref.getDefiningClass()
+                    .equals("Lcom/honeyspace/transition/anim/floating/Player;")) setup = true;
+            if (c.getType().equals(manager)
+                && ref.getName().equals("moving")
+                && ref.getParameterTypes()
+                    .toString()
+                    .equals("[Landroid/graphics/RectF;, F, F, F]")) {
+              moving = true;
+              deopt.add(method.getName());
+            }
+            if (c.getType().equals(player)
+                && ref.getDefiningClass().equals(info)
+                && ref.getName().equals("<init>")
+                && method.getName().equals("makeUpdateInfo")) construct = true;
+            if (ref.getDefiningClass().equals(player) && ref.getName().equals("makeUpdateInfo"))
+              deopt.add(method.getName());
+            if (ref.getDefiningClass().equals(manager)
+                && ref.getName().equals("createFloatingPlayer")) deopt.add(method.getName());
+            if (ref.getDefiningClass().equals(info) && ref.getName().equals("asMatrix"))
+              matrix = true;
+          }
+        }
+        if (!deopt.isEmpty()) {
+          Class<?> actual =
+              Class.forName(
+                  c.getType().substring(1, c.getType().length() - 1).replace('/', '.'),
+                  false,
+                  loader);
+          for (var method : actual.getDeclaredMethods())
+            if (deopt.contains(method.getName())) callers.add(method);
+        }
+      }
+    if (!setup || !moving || !matrix || !construct || callers.isEmpty() || callers.size() > 24)
+      throw new IllegalStateException("Recents motion DEX path changed");
+    for (var caller : callers)
+      if (!ModernHook.deoptimize(caller))
+        throw new IllegalStateException("Cannot measure Recents motion caller");
+    HookEntry.log("RECENTS_MOTION_DEX_VERIFIED callers=" + callers.size());
+  }
+
   static void deoptimizeDiyPositions(String apk, ClassLoader loader) throws Exception {
     Set<java.lang.reflect.Executable> callers = new HashSet<>();
     var dex = DexFileFactory.loadDexContainer(new File(apk), Opcodes.getDefault());

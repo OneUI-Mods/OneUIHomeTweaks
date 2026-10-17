@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.10.0 (unreleased)
+
+- Add explicit persistence of aligned app, shortcut and folder positions through the native DIY editor, with a preview of affected items/pages and a confirmation step.
+- Reject stale layout previews and confirm the resulting coordinates using a read-only database query; leave widgets, scale and rotation unchanged.
+- Redesign the four-tab Material 3 manager with grouped settings, detail dialogs, immediate color choices, a theme selector and optional dynamic colors.
+- Distinguish pending hook responses from crash protection; reject diagnostics from an earlier device boot.
+- Allow volume theme configuration to recover after temporary provider errors and first unlock.
+- Investigate the native gesture overlay separately from RecentsActivity. Seamless portrait transitions remain under device testing; no visibility masking or draw blocking is used.
+
 ## 0.9.0
 
 - Add an optional normal-grid layout for DIY Home app icons, shortcuts and folders, including existing placements.

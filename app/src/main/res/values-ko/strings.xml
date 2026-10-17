@@ -86,4 +86,16 @@
   <string name="diy_icon_grid">DIY Home 아이콘을 기본 격자에 정렬</string>
   <string name="diy_icon_grid_note">DIY Home을 유지하면서 앱 아이콘과 폴더를 기본 홈 격자에 맞추고 편집 중 이동도 셀 단위로 맞춥니다. 위젯과 스티커는 자유 배치를 유지합니다. 끄면 저장된 자유 위치를 표시하며 편집을 취소하지는 않습니다. 세로 화면 전용이며 기본값은 꺼짐입니다.</string>
   <string name="status_waiting_note">이번 확인 요청에 대한 응답을 기다리고 있습니다. 대상 앱이 닫혀 있거나 설정을 기다리거나 후크를 불러오지 못했을 수 있습니다. 충돌 보호로 중지된 상태와는 다릅니다.</string>
+  <string name="save_grid_positions">정렬된 배치 저장</string>
+  <string name="grid_save_note">모든 홈 페이지의 앱과 폴더 위치를 저장합니다. 루트나 후크 없이도 위치가 유지됩니다. 위젯, 크기, 회전은 변경하지 않습니다.</string>
+  <string name="grid_save_confirm">%2$d페이지의 앱과 폴더 %1$d개 위치를 저장할까요?\n\n격자 후크를 꺼도 이 배치가 유지됩니다. 확인 중 배치가 변경되면 저장하지 않습니다.</string>
+  <string name="grid_save_commit">배치 저장</string>
+  <string name="grid_save_done">위치 %1$d개를 저장했습니다. 격자 후크를 꺼도 이 배치가 유지됩니다.</string>
+  <string name="grid_save_wait">홈 배치를 확인하는 중…</string>
+  <string name="grid_save_nochanges">정렬된 위치가 이미 저장되어 있습니다.</string>
+  <string name="grid_save_unavailable">정렬을 켜고 홈 화면을 한 번 표시한 뒤 편집을 끝내고 다시 시도하세요. One UI Home 후크가 활성화되어야 합니다.</string>
+  <string name="grid_save_changed">확인 중 배치가 변경되어 저장하지 않았습니다. 미리보기를 다시 확인하세요.</string>
+  <string name="grid_save_failed">저장 완료를 확인할 수 없습니다. 홈에서 배치를 확인한 뒤 다시 시도하세요.</string>
+  <string name="app_theme">앱 테마</string>
+  <string name="dynamic_ui">배경화면 색상 사용</string>
 </resources>

@@ -12,12 +12,15 @@ val distributionProperties = Properties().apply {
 android {
     namespace = "net.ryuya_dev.oneuilivecolors"
     compileSdk = 36
+    buildFeatures { buildConfig = true }
     defaultConfig {
         applicationId = "net.ryuya_dev.oneuilivecolors"
         minSdk = 31
         targetSdk = 36
         versionCode = 13
-        versionName = "0.9.1"
+        versionName = "0.10.0"
+        // Observational geometry logging is opt-in for local investigation, never default release behavior.
+        buildConfigField("boolean", "RECENTS_MOTION_TRACE", providers.gradleProperty("recentsMotionTrace").map { (it == "true").toString() }.getOrElse("false"))
     }
     signingConfigs {
         if (!distributionProperties.isEmpty) create("distribution") {

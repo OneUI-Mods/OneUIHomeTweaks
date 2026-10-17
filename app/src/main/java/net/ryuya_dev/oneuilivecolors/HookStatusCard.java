@@ -15,12 +15,11 @@ final class HookStatusCard extends MaterialCardView {
 
   HookStatusCard(Context context, int title) {
     super(context);
-    setRadius(dp(20));
+    setRadius(dp(28));
     setStrokeWidth(0);
     setCardElevation(0);
     setCardBackgroundColor(
-        MaterialColors.getColor(
-            this, com.google.android.material.R.attr.colorSurfaceContainerHigh));
+        MaterialColors.getColor(this, com.google.android.material.R.attr.colorSurfaceContainerLow));
     LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
     params.topMargin = dp(12);
     setLayoutParams(params);
@@ -92,7 +91,7 @@ final class HookStatusCard extends MaterialCardView {
             : info.contains("hints=null") && !info.contains("localLabels=active")
                 ? R.string.status_no_colors
                 : "ACTIVE".equals(state) ? R.string.status_response : R.string.status_open_details);
-    detail.setVisibility(info.isEmpty() && !waiting ? GONE : VISIBLE);
+    detail.setVisibility((info.isEmpty() && !waiting) || "ACTIVE".equals(state) ? GONE : VISIBLE);
     setClickable(!info.isEmpty());
     setFocusable(!info.isEmpty());
     setOnClickListener(

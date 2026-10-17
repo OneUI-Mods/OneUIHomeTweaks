@@ -16,9 +16,10 @@ final class RecentsHooks {
   private final Map<Activity, Integer> nativeRequests = new WeakHashMap<>();
   private final List<ModernHook.Handle> handles = new ArrayList<>();
   private final ThreadLocal<Boolean> restoring = ThreadLocal.withInitial(() -> false);
+  private final RecentsMotionTrace motion = new RecentsMotionTrace();
   private Class<?> recentsClass;
-  private boolean enabled;
-  private boolean failed;
+  private volatile boolean enabled;
+  private volatile boolean failed;
   private String diagnostic = "unavailable";
 
   void install(String apk, ClassLoader loader) throws Exception {
@@ -73,9 +74,11 @@ final class RecentsHooks {
                     apply((Activity) p.thisObject);
                 }
               }));
+      if (BuildConfig.RECENTS_MOTION_TRACE) motion.install(apk, loader);
       diagnostic = "off";
       HookEntry.log("RECENTS_HOOK_READY Activity-local portrait policy");
     } catch (Throwable e) {
+      motion.uninstall();
       for (var handle : handles) handle.unhook();
       handles.clear();
       if (e instanceof Exception exception) throw exception;
@@ -87,6 +90,7 @@ final class RecentsHooks {
     if (Looper.myLooper() != Looper.getMainLooper())
       throw new IllegalStateException("Recents policy requires main thread");
     enabled = value && !failed && recentsClass != null && !handles.isEmpty();
+    motion.setEnabled(enabled);
     for (Activity a : new ArrayList<>(nativeRequests.keySet())) apply(a);
     if (!failed && !handles.isEmpty()) diagnostic = enabled ? "portrait" : "off";
   }
@@ -124,25 +128,30 @@ final class RecentsHooks {
       }
       HookEntry.log("RECENTS_ORIENTATION " + (force ? "portrait" : "native=" + original));
     } catch (Throwable e) {
-      failed = true;
-      enabled = false;
-      diagnostic = "error:" + e.getClass().getSimpleName();
-      for (var handle : handles) {
-        try {
-          handle.unhook();
-        } catch (Throwable ignored) {
-        }
-      }
-      handles.clear();
-      // Removing hooks restores future native requests. Restore any request already overridden.
-      for (var entry : new ArrayList<>(nativeRequests.entrySet())) {
-        try {
-          if (!entry.getKey().isDestroyed())
-            entry.getKey().setRequestedOrientation(entry.getValue());
-        } catch (Throwable ignored) {
-        }
-      }
-      HookEntry.log("RECENTS_DISABLED " + e);
+      disable(e);
     }
+  }
+
+  private void disable(Throwable e) {
+    if (failed) return;
+    failed = true;
+    enabled = false;
+    motion.uninstall();
+    diagnostic = "error:" + e.getClass().getSimpleName();
+    for (var handle : handles) {
+      try {
+        handle.unhook();
+      } catch (Throwable ignored) {
+      }
+    }
+    handles.clear();
+    // Removing hooks restores future native requests. Restore any request already overridden.
+    for (var entry : new ArrayList<>(nativeRequests.entrySet())) {
+      try {
+        if (!entry.getKey().isDestroyed()) entry.getKey().setRequestedOrientation(entry.getValue());
+      } catch (Throwable ignored) {
+      }
+    }
+    HookEntry.log("RECENTS_DISABLED " + e);
   }
 }

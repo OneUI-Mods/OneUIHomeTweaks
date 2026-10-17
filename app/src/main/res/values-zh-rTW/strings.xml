@@ -86,4 +86,16 @@
   <string name="diy_icon_grid">DIY Home 圖示使用標準網格</string>
   <string name="diy_icon_grid_note">保持 DIY Home 啟用，將應用程式圖示和資料夾對齊至一般主畫面網格，編輯移動時也會吸附至網格。小工具和貼紙仍可自由放置。關閉後顯示已儲存的自由位置，不會復原編輯。僅支援直向螢幕，預設關閉。</string>
   <string name="status_waiting_note">正在等待本次檢查的回應。目標應用程式可能尚未啟動、正在等待設定或未能載入掛鉤。這不代表已被當機保護停止。</string>
+  <string name="save_grid_positions">儲存對齊後的配置</string>
+  <string name="grid_save_note">儲存所有主畫面頁面的應用程式和資料夾位置。沒有root或掛鉤時也會保留。不會變更小工具、大小或旋轉。</string>
+  <string name="grid_save_confirm">儲存%2$d頁中%1$d個應用程式和資料夾的位置？\n\n關閉網格掛鉤後仍會保留。確認期間配置變動時將取消儲存。</string>
+  <string name="grid_save_commit">儲存配置</string>
+  <string name="grid_save_done">已儲存%1$d個位置。關閉網格掛鉤後仍會顯示此配置。</string>
+  <string name="grid_save_wait">正在檢查主畫面配置…</string>
+  <string name="grid_save_nochanges">對齊後的位置已儲存。</string>
+  <string name="grid_save_unavailable">請啟用對齊，顯示一次主畫面並結束編輯後再試。需要啟用One UI Home掛鉤。</string>
+  <string name="grid_save_changed">確認期間配置已變動，已取消寫入。請重新預覽。</string>
+  <string name="grid_save_failed">無法確認儲存完成。請先在主畫面檢查配置，再嘗試儲存。</string>
+  <string name="app_theme">應用程式主題</string>
+  <string name="dynamic_ui">使用桌布配色</string>
 </resources>

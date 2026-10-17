@@ -14,7 +14,6 @@ import androidx.core.os.LocaleListCompat;
 import androidx.core.view.*;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.button.MaterialButton;
-import com.google.android.material.color.DynamicColors;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.snackbar.Snackbar;
@@ -28,6 +27,7 @@ public final class MainActivity extends AppCompatActivity {
   private SharedPreferences prefs;
   private HookStatusCard[] statusCards;
   private long statusRequest;
+  private GridSaveUi gridSave;
   private final int[] modes = new int[3];
   private final int[] modeIds = {R.id.label_mode, R.id.drawer_mode, R.id.volume_mode};
   private final String[] keys = {"label", "drawer", "volume"};
@@ -60,12 +60,13 @@ public final class MainActivity extends AppCompatActivity {
         @Override
         public void onChange(boolean self, Uri uri) {
           showStatus();
+          if (gridSave != null) gridSave.result();
         }
       };
 
   @Override
   public void onCreate(Bundle state) {
-    DynamicColors.applyToActivityIfAvailable(this);
+    AppUiTheme.apply(this);
     super.onCreate(state);
     WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
     setContentView(R.layout.activity_main);
@@ -112,7 +113,12 @@ public final class MainActivity extends AppCompatActivity {
       MaterialAutoCompleteTextView selector = findViewById(modeIds[i]);
       selector.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, labels));
       selector.setText(labels[modes[i]], false);
-      selector.setOnItemClickListener((p, v, position, id) -> modes[index] = position);
+      selector.setOnItemClickListener(
+          (p, v, position, id) -> {
+            modes[index] = position;
+            prefs.edit().putInt(keys[index], position).apply();
+            notifyConfig();
+          });
     }
     for (int i = 0; i < switches.length; i++) {
       final String key = switches[i];
@@ -130,16 +136,41 @@ public final class MainActivity extends AppCompatActivity {
             notifyConfig();
           });
     }
-    View.OnClickListener save =
-        v -> {
-          var edit = prefs.edit();
-          for (int i = 0; i < keys.length; i++) edit.putInt(keys[i], modes[i]);
-          edit.apply();
-          notifyConfig();
-          snack(R.string.saved);
-        };
-    findViewById(R.id.save).setOnClickListener(save);
-    findViewById(R.id.save_appearance).setOnClickListener(save);
+    int[] infoViews = {
+      R.id.local_note_button,
+      R.id.diy_note_button,
+      R.id.recents_portrait_info,
+      R.id.recents_bar_info,
+      R.id.clock_date_info,
+      R.id.preview_info
+    };
+    int[] infoTitles = {
+      R.string.home_labels,
+      R.string.diy_icon_grid,
+      R.string.recents_portrait,
+      R.string.recents_hide_bar,
+      R.string.clock_date_left,
+      R.string.live_preview
+    };
+    int[] infoMessages = {
+      R.string.local_labels_note,
+      R.string.diy_icon_grid_note,
+      R.string.recents_portrait_note,
+      R.string.recents_hide_bar_note,
+      R.string.clock_date_left_note,
+      R.string.preview_note
+    };
+    for (int i = 0; i < infoViews.length; i++) {
+      final int title = infoTitles[i], message = infoMessages[i];
+      findViewById(infoViews[i])
+          .setOnClickListener(
+              v ->
+                  new MaterialAlertDialogBuilder(this)
+                      .setTitle(title)
+                      .setMessage(message)
+                      .setPositiveButton(R.string.close, null)
+                      .show());
+    }
     BottomNavigationView navigation = findViewById(R.id.navigation);
     int[] pageIds = {R.id.page_0, R.id.page_1, R.id.page_2, R.id.page_3};
     int[] navigationIds = {R.id.nav_home, R.id.nav_appearance, R.id.nav_status, R.id.nav_settings};
@@ -195,6 +226,42 @@ public final class MainActivity extends AppCompatActivity {
     findViewById(R.id.licenses)
         .setOnClickListener(v -> startActivity(new Intent(this, LicensesActivity.class)));
     getContentResolver().registerContentObserver(ConfigProvider.STATUS_URI, false, reports);
+    gridSave = new GridSaveUi(this);
+    var uiPrefs = getSharedPreferences("app_ui", MODE_PRIVATE);
+    findViewById(R.id.app_theme)
+        .setOnClickListener(
+            v -> {
+              int[] themeModes = {
+                AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM,
+                AppCompatDelegate.MODE_NIGHT_NO,
+                AppCompatDelegate.MODE_NIGHT_YES
+              };
+              int current = uiPrefs.getInt("night", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+              int chosen = current == themeModes[1] ? 1 : current == themeModes[2] ? 2 : 0;
+              new MaterialAlertDialogBuilder(this)
+                  .setTitle(R.string.app_theme)
+                  .setSingleChoiceItems(
+                      new String[] {
+                        getString(R.string.volume_system),
+                        getString(R.string.volume_light),
+                        getString(R.string.volume_dark)
+                      },
+                      chosen,
+                      (d, w) -> {
+                        uiPrefs.edit().putInt("night", themeModes[w]).apply();
+                        d.dismiss();
+                        AppCompatDelegate.setDefaultNightMode(themeModes[w]);
+                      })
+                  .setNegativeButton(android.R.string.cancel, null)
+                  .show();
+            });
+    MaterialSwitch dynamic = findViewById(R.id.dynamic_ui);
+    dynamic.setChecked(uiPrefs.getBoolean("dynamic", false));
+    dynamic.setOnCheckedChangeListener(
+        (b, on) -> {
+          uiPrefs.edit().putBoolean("dynamic", on).apply();
+          recreate();
+        });
     LinearLayout cards = findViewById(R.id.status_cards);
     statusCards = new HookStatusCard[8];
     int[] titles = {
@@ -225,6 +292,7 @@ public final class MainActivity extends AppCompatActivity {
 
   private void showStatus() {
     if (isDestroyed() || statusCards == null) return;
+    if (gridSave != null) gridSave.availability();
     var report = getSharedPreferences("host_status", MODE_PRIVATE);
     boolean dateOn =
         prefs.getBoolean("enabled", true)
@@ -543,6 +611,7 @@ public final class MainActivity extends AppCompatActivity {
 
   @Override
   protected void onDestroy() {
+    if (gridSave != null) gridSave.destroy();
     getContentResolver().unregisterContentObserver(reports);
     commands.shutdown();
     super.onDestroy();

@@ -86,4 +86,16 @@
   <string name="diy_icon_grid">DIY Home 图标使用标准网格</string>
   <string name="diy_icon_grid_note">保持 DIY Home 启用，将应用图标和文件夹对齐到普通主屏幕网格，编辑移动时也按网格吸附。小组件和贴纸仍可自由放置。关闭后显示已保存的自由位置，不会撤销编辑。仅支持竖屏，默认关闭。</string>
   <string name="status_waiting_note">正在等待本次检查的响应。目标应用可能未启动、正在等待设置或未能加载挂钩。这不代表已被崩溃保护停止。</string>
+  <string name="save_grid_positions">保存对齐后的布局</string>
+  <string name="grid_save_note">保存所有主屏幕页面的应用和文件夹位置。没有root或挂钩时也会保留。不会更改小组件、大小或旋转。</string>
+  <string name="grid_save_confirm">保存%2$d页中%1$d个应用和文件夹的位置？\n\n关闭网格挂钩后仍会保留。确认期间布局变化时将取消保存。</string>
+  <string name="grid_save_commit">保存布局</string>
+  <string name="grid_save_done">已保存%1$d个位置。关闭网格挂钩后仍会显示此布局。</string>
+  <string name="grid_save_wait">正在检查主屏幕布局…</string>
+  <string name="grid_save_nochanges">对齐后的位置已保存。</string>
+  <string name="grid_save_unavailable">请启用对齐，显示一次主屏幕并结束编辑后重试。需要启用One UI Home挂钩。</string>
+  <string name="grid_save_changed">确认期间布局发生变化，已取消写入。请重新预览。</string>
+  <string name="grid_save_failed">无法确认保存完成。请先在主屏幕检查布局，再尝试保存。</string>
+  <string name="app_theme">应用主题</string>
+  <string name="dynamic_ui">使用壁纸配色</string>
 </resources>

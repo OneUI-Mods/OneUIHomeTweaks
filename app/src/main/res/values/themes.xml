@@ -1,12 +1,17 @@
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
     <style name="Theme.OneUiLiveColors" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="colorPrimary">#52652D</item>
+        <item name="colorPrimary">#5755D9</item>
         <item name="colorOnPrimary">#FFFFFF</item>
-        <item name="colorPrimaryContainer">#D5EBAB</item>
-        <item name="colorOnPrimaryContainer">#141F00</item>
+        <item name="colorPrimaryContainer">#E4DFFF</item>
+        <item name="colorOnPrimaryContainer">#19105A</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowLightNavigationBar">true</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="colorSecondary">#006C68</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorSecondaryContainer">#9FF2E9</item>
+        <item name="colorOnSecondaryContainer">#00201E</item>
     </style>
 </resources>

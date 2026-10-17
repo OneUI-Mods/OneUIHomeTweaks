@@ -86,3 +86,5 @@ adb logcat -s OneUiLiveColors:I '*:S'
 ## DIY Homeのグリッド整列
 
 対象メソッド、座標の扱い、編集時の吸着と実機検証の範囲は[DIY Homeの技術記録](diy-home-grid.md)を参照してください。SamsungのAPK・逆コンパイル結果・ホームDB・壁紙画像は私用の調査資料で、公開ソースや配布APKには含めません。
+
+- [履歴の連続アニメーション調査（開発中・未解決）](recents-motion.md)
