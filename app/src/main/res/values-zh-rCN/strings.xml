@@ -79,4 +79,6 @@
   <string name="recents_hide_bar_note">仅隐藏最近任务画面的手势条。不影响三键导航，并保留系统始终隐藏的设置。</string>
   <string name="recents_bar_buttons">按钮导航：未应用隐藏。</string>
   <string name="recents_bar_system">遵循系统显示设置，不额外隐藏。</string>
+  <string name="mode_local">按位置自动（名称背景）</string>
+  <string name="local_labels_note">仅根据每个应用名称和底部Finder文字周围的背景，分别选择黑色或白色。在显示主屏幕、切换页面、更改布局或收到壁纸颜色通知时重新判断。无通知的图像更改可能等待下次事件。不会修改状态栏颜色。</string>
 </resources>

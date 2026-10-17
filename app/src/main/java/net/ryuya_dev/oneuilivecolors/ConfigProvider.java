@@ -54,8 +54,8 @@ public final class ConfigProvider extends ContentProvider {
             });
     c.addRow(
         new Object[] {
-          p.getInt("label", ColorPolicy.BLACK),
-          p.getInt("status", ColorPolicy.WHITE),
+          p.getInt("label", ColorPolicy.LOCAL),
+          ColorPolicy.OFF,
           p.getBoolean("enabled", true) ? 1 : 0,
           p.getBoolean("pages", true) ? 1 : 0,
           p.getInt("drawer", ColorPolicy.AUTO),

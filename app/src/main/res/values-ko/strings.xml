@@ -79,4 +79,6 @@
   <string name="recents_hide_bar_note">최근 앱 화면에서만 제스처 바를 숨깁니다. 3버튼 탐색에는 적용하지 않으며 시스템의 항상 숨김 설정을 유지합니다.</string>
   <string name="recents_bar_buttons">버튼 탐색에서는 숨기지 않습니다.</string>
   <string name="recents_bar_system">시스템 표시 설정을 따르며 추가로 숨기지 않습니다.</string>
+  <string name="mode_local">위치별 자동 (이름 뒤 배경)</string>
+  <string name="local_labels_note">각 앱 이름과 하단 Finder 텍스트 주변만 확인하여 검정 또는 흰색을 개별 선택합니다. 홈 표시, 페이지 이동, 배치 변경, 배경화면 색상 알림 시 다시 판단합니다. 알림 없는 이미지 변경은 다음 이벤트까지 반영되지 않을 수 있습니다. 상태 표시줄 색상은 변경하지 않습니다.</string>
 </resources>

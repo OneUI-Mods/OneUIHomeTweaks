@@ -35,6 +35,7 @@ public final class HookEntry extends XposedModule {
   private WallpaperManager wm;
   private final PageBridge pages = new PageBridge();
   private final DrawerBridge drawer = new DrawerBridge();
+  private final HomeLabelBridge homeLabels = new HomeLabelBridge();
   private final RecentsHooks recents = new RecentsHooks();
   private final RecentsBar recentsBar = new RecentsBar();
   private boolean initialized;
@@ -179,7 +180,7 @@ public final class HookEntry extends XposedModule {
               try {
                 if (failed || param.hasThrowable()) return;
                 String key = (String) param.args[1];
-                if (!FONT.equals(key) && !STATUS.equals(key)) return;
+                if (!FONT.equals(key)) return;
                 if (param.args.length == 3 && (int) param.args[2] != 0) return;
                 // Revalidate the actual consumer, even after obfuscation changes.
                 if (!isSamsungDataSourceRead()) return;
@@ -217,10 +218,7 @@ public final class HookEntry extends XposedModule {
               try {
                 if (failed || param.hasThrowable()) return;
                 Uri uri = (Uri) param.args[0];
-                String key =
-                    Settings.System.getUriFor(FONT).equals(uri)
-                        ? FONT
-                        : Settings.System.getUriFor(STATUS).equals(uri) ? STATUS : null;
+                String key = Settings.System.getUriFor(FONT).equals(uri) ? FONT : null;
                 if (key == null) return;
                 if (param.args.length == 4 && (int) param.args[3] != 0 && (int) param.args[3] != -2)
                   return;
@@ -344,6 +342,11 @@ public final class HookEntry extends XposedModule {
     thread.start();
     worker = new Handler(thread.getLooper());
     wm = WallpaperManager.getInstance(app);
+    try {
+      homeLabels.install(app, launcherLoader, worker, this::requestRefresh);
+    } catch (Throwable t) {
+      log("LOCAL_LABEL_UNSUPPORTED " + t);
+    }
     listener =
         (colors, which) -> {
           if (ColorPolicy.isMainHomeEvent(which)) {
@@ -352,6 +355,7 @@ public final class HookEntry extends XposedModule {
                     + which
                     + " hints="
                     + (colors == null ? "null" : colors.getColorHints()));
+            main.post(homeLabels::invalidate);
             requestRefresh();
           }
         };
@@ -381,6 +385,7 @@ public final class HookEntry extends XposedModule {
           @Override
           public void onActivityResumed(Activity a) {
             pages.setHomeWindow(a);
+            homeLabels.setHome(a);
             requestRefresh();
           }
 
@@ -391,7 +396,9 @@ public final class HookEntry extends XposedModule {
           public void onActivityStarted(Activity a) {}
 
           @Override
-          public void onActivityPaused(Activity a) {}
+          public void onActivityPaused(Activity a) {
+            homeLabels.paused(a);
+          }
 
           @Override
           public void onActivityStopped(Activity a) {}
@@ -400,7 +407,9 @@ public final class HookEntry extends XposedModule {
           public void onActivitySaveInstanceState(Activity a, Bundle b) {}
 
           @Override
-          public void onActivityDestroyed(Activity a) {}
+          public void onActivityDestroyed(Activity a) {
+            homeLabels.destroyed(a);
+          }
         });
     initialized = true;
     requestRefresh();
@@ -432,7 +441,8 @@ public final class HookEntry extends XposedModule {
             master && cursor.getInt(cursor.getColumnIndexOrThrow("recents_hide_bar")) != 0;
         drawerMode = cursor.getInt(cursor.getColumnIndexOrThrow("drawer"));
         label = cursor.getInt(cursor.getColumnIndexOrThrow("label"));
-        status = cursor.getInt(cursor.getColumnIndexOrThrow("status"));
+        // Status bar belongs to the user's separate module; never override it.
+        status = ColorPolicy.OFF;
       }
       WallpaperInfo info = wm.getWallpaperInfo();
       boolean target = info != null;
@@ -448,10 +458,12 @@ public final class HookEntry extends XposedModule {
       boolean currentRecentsPortrait = recentsPortrait;
       boolean currentHideRecentsBar = hideRecentsBar;
       boolean currentMaster = master;
+      boolean localLabels = apply && label == ColorPolicy.LOCAL;
       main.post(
           () -> {
             pages.setEnabled(apply && currentPages);
             drawer.setMode(currentDrawerMode, apply);
+            homeLabels.setEnabled(localLabels);
             recents.setEnabled(currentRecentsPortrait);
             recentsBar.setEnabled(currentHideRecentsBar);
             HostStatus.report(
@@ -461,6 +473,8 @@ public final class HookEntry extends XposedModule {
                     + (target ? "live" : "static")
                     + "; hints="
                     + hints
+                    + "; localLabels="
+                    + homeLabels.diagnostic()
                     + "; recents="
                     + recents.diagnostic()
                     + "; recentsBar="
@@ -491,6 +505,7 @@ public final class HookEntry extends XposedModule {
       failures = 0;
     } catch (Throwable t) {
       publish(new Snapshot(null, null));
+      main.post(() -> homeLabels.setEnabled(false));
       log(
           "REFRESH_ERROR, native behavior restored: "
               + t.getClass().getSimpleName()
@@ -540,6 +555,7 @@ public final class HookEntry extends XposedModule {
           () -> {
             pages.setEnabled(false);
             drawer.setMode(ColorPolicy.OFF, false);
+            homeLabels.setEnabled(false);
             recents.setEnabled(false);
             recentsBar.setEnabled(false);
           });

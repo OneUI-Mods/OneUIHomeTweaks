@@ -28,11 +28,9 @@ public final class MainActivity extends AppCompatActivity {
   private SharedPreferences prefs;
   private HookStatusCard[] statusCards;
   private long statusRequest;
-  private final int[] modes = new int[4];
-  private final int[] modeIds = {
-    R.id.label_mode, R.id.status_mode, R.id.drawer_mode, R.id.volume_mode
-  };
-  private final String[] keys = {"label", "status", "drawer", "volume"};
+  private final int[] modes = new int[3];
+  private final int[] modeIds = {R.id.label_mode, R.id.drawer_mode, R.id.volume_mode};
+  private final String[] keys = {"label", "drawer", "volume"};
   private final String[] switches = {
     "enabled",
     "home_enabled",
@@ -88,19 +86,23 @@ public final class MainActivity extends AppCompatActivity {
     for (int i = 0; i < modeIds.length; i++) {
       final int index = i;
       String[] labels =
-          i == 3
+          i == 2
               ? new String[] {
                 getString(R.string.volume_system),
                 getString(R.string.volume_light),
                 getString(R.string.volume_dark)
               }
               : new String[] {
-                getString(i == 2 ? R.string.mode_native_auto : R.string.mode_auto),
+                getString(i == 1 ? R.string.mode_native_auto : R.string.mode_auto),
                 getString(R.string.mode_black),
                 getString(R.string.mode_white),
                 getString(R.string.mode_off)
               };
-      int fallback = i == 0 ? ColorPolicy.BLACK : i == 1 ? ColorPolicy.WHITE : 0;
+      if (i == 0) {
+        labels = java.util.Arrays.copyOf(labels, 5);
+        labels[ColorPolicy.LOCAL] = getString(R.string.mode_local);
+      }
+      int fallback = i == 0 ? ColorPolicy.LOCAL : 0;
       modes[i] = prefs.getInt(keys[i], fallback);
       if (modes[i] < 0 || modes[i] >= labels.length) modes[i] = 0;
       MaterialAutoCompleteTextView selector = findViewById(modeIds[i]);
@@ -185,13 +187,14 @@ public final class MainActivity extends AppCompatActivity {
         .setOnClickListener(v -> startActivity(new Intent(this, LicensesActivity.class)));
     getContentResolver().registerContentObserver(ConfigProvider.STATUS_URI, false, reports);
     LinearLayout cards = findViewById(R.id.status_cards);
-    statusCards = new HookStatusCard[5];
+    statusCards = new HookStatusCard[6];
     int[] titles = {
       R.string.scope_home,
       R.string.scope_volume,
       R.string.scope_preview,
       R.string.recents_portrait,
-      R.string.recents_hide_bar
+      R.string.recents_hide_bar,
+      R.string.mode_local
     };
     for (int i = 0; i < titles.length; i++) {
       statusCards[i] = new HookStatusCard(this, titles[i]);
@@ -237,6 +240,34 @@ public final class MainActivity extends AppCompatActivity {
           label, state, on, on && !state.isEmpty() ? report.getString(host + ".detail", "") : "");
       if (i == 0) {
         String detail = report.getString(host + ".detail", "");
+        boolean localOn = on && prefs.getInt("label", ColorPolicy.LOCAL) == ColorPolicy.LOCAL;
+        String localState = !localOn ? "OFF" : state;
+        int localLabel = !localOn ? R.string.status_off : label;
+        if (localOn && "ACTIVE".equals(state)) {
+          if (detail.contains("localLabels=error:")) {
+            localState = "ERROR";
+            localLabel = R.string.status_error;
+          } else if (detail.contains("localLabels=unavailable")) {
+            localState = "UNSUPPORTED";
+            localLabel = R.string.status_unsupported;
+          } else if (detail.contains("wallpaper=static")) {
+            localState = "OFF";
+            localLabel = R.string.status_unused;
+          } else if (detail.contains("localLabels=geometry-skipped")) {
+            localState = "UNSUPPORTED";
+            localLabel = R.string.status_unsupported;
+          } else if (!detail.contains("localLabels=active")) {
+            localState = "";
+            localLabel = R.string.status_unconfirmed;
+          }
+        }
+        statusCards[5].update(
+            localLabel,
+            localState,
+            localOn,
+            localOn && !localState.isEmpty()
+                ? detail.substring(Math.max(0, detail.indexOf("localLabels="))).split(";", 2)[0]
+                : "");
         boolean recentsOn = on && prefs.getBoolean("recents_portrait", false);
         String recentsState = state;
         int recentsLabel = label;

@@ -4,9 +4,29 @@
 
 `GlobalSettingsDataSource`、`SettingsKey`、`WhiteBgColorUpdater`の型・戻り値を確認し、DEXから実際のSystem設定読み取りとContentObserverの型関係を調べる。難読化名`V`等を決め打ちしない。libxposed API 102の`deoptimize(Executable)`が成功する場合だけ、実機でインライン化を確認した関連メソッドを限定してdeoptimizeする。
 
-`Settings.System.getString/getStringForUser`の結果を、`need_dark_font`と`need_dark_statusbar`、user 0、実際の呼び出しスタックがデータソース実装である場合だけ補う。保存値は変更せず、Launcherの既存Flow／文字色／ステータスバー処理を使う。`WallpaperColors.getColorHints()`の全体フックはしない。
+`Settings.System.getString/getStringForUser`の結果を、`need_dark_font`、user 0、実際の呼び出しスタックがデータソース実装である場合だけ補う。保存値は変更せず、Launcherの既存Flow／文字色処理を使う。`WallpaperColors.getColorHints()`の全体フックはしない。
 
 SamsungのSemキャッシュを書き換えると他の画面へ影響するため、今回の修正は利用側の限定ブリッジを採用した。静止画では結果を補わない。特定のライブ壁紙のパッケージ名を条件にせず、標準WallpaperInfoが示すライブ壁紙と標準色APIを使う。壁紙アプリ自身をフックせず、private設定を読む処理も製品に含めない。
+
+## ホームラベルの場所別自動配色（0.7.0）
+
+`IconViewImpl`が`TextView`を継承し、`getCustomLabelColor(): Integer` / `setCustomLabelColor(Integer): void`が実際の表示色を設定することを実APKで確認した。ホームの実Activityと同じViewツリーを走査し、workspace / Home Up freegrid / hotseatの祖先を持つアイコンだけに適用する。ドロワー・開いたフォルダー内・Dressroom内の仮ホーム・Recentsには適用しない。
+
+実frameworkの`IWindowManager.screenshotWallpaper(): Bitmap`と、WMS→WallpaperControllerの実装を確認した。WMSは既存の`READ_FRAME_BUFFER`権限を要求し、WallpaperControllerは現在可視の壁紙Surfaceだけを`captureLayers`する。Launcherにはこの権限が元から付与済みで、追加の権限付与・root実行・画面全体のキャプチャは行わない。実機の画像と主画面は共に1440×3120だった。画像寸法が一致しない場合にスクロール・クロップを推測せず、機能を適用しない。
+
+TextViewの実Layoutの各行、compound drawableを含むtotal padding、親の変換行列から文字の表示範囲を求める。壁紙を最大高さ1024pxに縮小し、各ラベルの範囲のsRGB相対輝度から黒・白のコントラストを求める。各候補の下位20%側のコントラストを比較し、12%の切替余裕で境界の点滅を抑える。複雑な背景の全画素で可読性を保証するものではない。
+
+標準のlocal wallpaper colors APIも調査した。実Engineの既定実装は64px規模のPixelCopyとページ座標・ページ単位キャッシュを使う。動的なページ別描画の現在位置と細かいラベル範囲を確実に対応させるため、今回は実画面寸法を検証できる壁紙専用キャプチャを採用した。壁紙アプリへの追加フックはない。
+
+ホームのresume/focus、レイアウト・スクロール、標準の壁紙色通知に反応する。イベント後180/400/750/1200/1800/2600msの有限回だけ採取し、スクロール継続中は古い処理を世代番号で破棄する。常設タイマー・バックグラウンドのポーリングはない。通知されない画像切替や2600msを超える遷移は次のイベントまで追従しない場合がある。主画面・縦向き・全画面・非ロック・ホームフォーカス時だけ処理する。
+
+ラベルごとの元のcustom色を記録し、無効化・ホーム以外への再利用・未知の座標・キャプチャエラー時は、モジュールが最後に設定した値だけを元に戻す。他者が後から設定したcustom色は上書きして復旧しない。Bitmapは一時メモリ内だけで処理・recycleし、保存・外部送信しない。ページが画面外に出ただけではcustom色を解除せず、同じページへ戻るときの標準色のフラッシュを避ける。壁紙が一時的に非表示でBitmapがnullになる場合も直前の色を保つ。変更色は、同じ局所画素列が連続2回安定し、色候補が一致してから適用する。
+
+下部のファインダーは`PageIndicatorView.updateFinderButton(IndicatorSearchLayoutBinding)`と`StrokeTextView`の実装を確認した。リソース名`finderTextView`、TextView型、実際のPageIndicatorView祖先を併せて確認し、同じホーム内のその文字だけを対象とする。Home Upの別ローダーで同名のTextViewを使用する場合もView型・ID・祖先で絞る。StrokeTextViewはLayout全体ではなくcompoundPaddingLeftとbaselineで直接描画するため、Paintの実字形範囲を使う。文字と子アイコンは描画せず、検索ボックスの祖先背景Drawableだけを局所Bitmapに描き、壁紙の対象画素へ合成する。読み取りの対象は文字範囲と周囲2dp/1dpだけで、画面全体の平均色を計算しない。
+
+ファインダーの標準色更新を確認した`TextView.setTextColor(int)`だけをLauncher内でフックし、追跡済みのそのViewに限り直前の適用色を保持する。標準からの新しい要求は復旧用に記録する。実際の呼び出し元updateFinderButtonを型検証して限定deoptimizeする。設定解除時は元のColorStateListに戻す。検索アイコンやステータスバーには適用しない。RTLでのファインダーの字形範囲は未検証のため追加配色を行わない。
+
+ステータスバーはユーザーが別モジュールで管理するため、0.7.0から`need_dark_statusbar`の読み取り結果を補完しない。設定UIからも色指定を除いた。保存済みの旧`status`値は移行時に適用せず、OS保存値や他モジュールの設定は変更しない。
 
 ## ページ通知
 

@@ -79,4 +79,6 @@
   <string name="recents_hide_bar_note">Hide the gesture handle only on the recent apps screen. Three-button navigation is unaffected. The system’s always-hidden setting is preserved.</string>
   <string name="recents_bar_buttons">Button navigation: no hiding applied.</string>
   <string name="recents_bar_system">Following system visibility; no local override.</string>
+  <string name="mode_local">Automatic (behind each label)</string>
+  <string name="local_labels_note">Home labels and Finder each use only the area around their text to choose black or white. Rechecks after home/page/layout events and wallpaper color notifications. Silent image changes may wait until the next event. Status bar colors are managed outside this module.</string>
 </resources>

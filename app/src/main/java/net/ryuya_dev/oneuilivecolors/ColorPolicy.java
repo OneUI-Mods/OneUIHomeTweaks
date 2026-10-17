@@ -2,7 +2,7 @@ package net.ryuya_dev.oneuilivecolors;
 
 /** Pure policy: unknown colors and unsupported context always use the original value. */
 public final class ColorPolicy {
-  public static final int AUTO = 0, BLACK = 1, WHITE = 2, OFF = 3;
+  public static final int AUTO = 0, BLACK = 1, WHITE = 2, OFF = 3, LOCAL = 4;
 
   private ColorPolicy() {}
 

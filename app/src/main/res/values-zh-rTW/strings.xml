@@ -79,4 +79,6 @@
   <string name="recents_hide_bar_note">僅隱藏最近使用畫面的手勢列。不影響三鍵導覽，並保留系統一律隱藏的設定。</string>
   <string name="recents_bar_buttons">按鈕導覽：未套用隱藏。</string>
   <string name="recents_bar_system">遵循系統顯示設定，不額外隱藏。</string>
+  <string name="mode_local">依位置自動（名稱背景）</string>
+  <string name="local_labels_note">僅根據各應用程式名稱與底部Finder文字周圍的背景，分別選擇黑色或白色。在顯示主畫面、切換頁面、變更配置或收到桌布色彩通知時重新判斷。沒有通知的圖片變更可能等待下次事件。不會修改狀態列色彩。</string>
 </resources>
