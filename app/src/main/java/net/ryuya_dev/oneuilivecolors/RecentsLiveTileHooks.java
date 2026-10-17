@@ -104,8 +104,7 @@ final class RecentsLiveTileHooks {
     final boolean originalHold;
     boolean held;
     long heldAt;
-    long navigationDown;
-    float navigationX, navigationY;
+    RecentsNavigationGesture navigation;
     Object navigationInjector;
     int taskId;
     View boundRoot;
@@ -311,10 +310,15 @@ final class RecentsLiveTileHooks {
                       try {
                         android.view.MotionEvent original = (android.view.MotionEvent) p.args[0];
                         android.view.MotionEvent copy = RecentsLocalMotion.rebase(v, original);
-                        if (navigationHome(ss, v, copy == null ? original : copy)) {
-                          if (copy == null) copy = android.view.MotionEvent.obtain(original);
-                          copy.setAction(android.view.MotionEvent.ACTION_CANCEL);
+                        var navigation = navigation(ss, v, copy == null ? original : copy);
+                        if (navigation.consume()) p.setResult(true);
+                        if (navigation.command() != 0) {
+                          if (!navigation.consume()) {
+                            if (copy == null) copy = android.view.MotionEvent.obtain(original);
+                            copy.setAction(android.view.MotionEvent.ACTION_CANCEL);
+                          }
                           p.setObjectExtra("liveNavigationHome", ss);
+                          p.setObjectExtra("liveNavigationKey", navigation.command());
                         }
                         if (copy != null) {
                           p.setObjectExtra("liveRawEvent", copy);
@@ -347,15 +351,20 @@ final class RecentsLiveTileHooks {
                         () -> {
                           if (sessions.get(s.manager()) != s || !s.held) return;
                           Object injector = s.navigationInjector;
-                          release("portrait navigation home");
+                          int key = (Integer) p.getObjectExtra("liveNavigationKey");
+                          Activity activity = foregroundRecents;
+                          release(
+                              key == KeyEvent.KEYCODE_HOME
+                                  ? "portrait navigation home"
+                                  : "portrait navigation back");
                           try {
-                            injectKey.invoke(
-                                injector,
-                                KeyEvent.KEYCODE_HOME,
-                                android.os.Process.myUid() / 100000,
-                                0);
+                            if (key == KeyEvent.KEYCODE_BACK && activity != null)
+                              back.invoke(activity);
+                            else
+                              injectKey.invoke(
+                                  injector, key, android.os.Process.myUid() / 100000, 0);
                           } catch (Throwable error) {
-                            HookEntry.log("RECENTS_LIVE_HOME_ERROR " + error);
+                            HookEntry.log("RECENTS_LIVE_NAVIGATION_ERROR " + error);
                           }
                         });
                   }
@@ -443,7 +452,7 @@ final class RecentsLiveTileHooks {
       context.registerReceiver(
           screenOff, new IntentFilter(Intent.ACTION_SCREEN_OFF), Context.RECEIVER_NOT_EXPORTED);
       setDiagnostic("off");
-      HookEntry.log("RECENTS_LIVE_READY native-input navigation 0.10");
+      HookEntry.log("RECENTS_LIVE_READY window home-back navigation 0.10");
     } catch (Throwable t) {
       uninstall();
       if (t instanceof Exception e) throw e;
@@ -459,6 +468,23 @@ final class RecentsLiveTileHooks {
       int bottom = navigationBottom(root);
       if (bottom <= 0 || bottom >= root.getHeight() * .1f) {
         fallback("portrait navigation region unavailable");
+        return;
+      }
+      WindowInsets windowInsets = root.getRootWindowInsets();
+      android.graphics.Insets edges =
+          windowInsets.getInsetsIgnoringVisibility(WindowInsets.Type.systemGestures());
+      HookEntry.log("RECENTS_LIVE_NAVIGATION_REGIONS " + edges + " bottom=" + bottom);
+      try {
+        s.navigation =
+            new RecentsNavigationGesture(
+                root.getWidth(),
+                root.getHeight(),
+                edges.left,
+                edges.right,
+                bottom,
+                ViewConfiguration.get(root.getContext()).getScaledTouchSlop());
+      } catch (IllegalArgumentException unsupported) {
+        fallback("portrait back region unavailable");
         return;
       }
       s.navigationInjector = mainKeyInjector;
@@ -480,51 +506,15 @@ final class RecentsLiveTileHooks {
             .bottom;
   }
 
-  /**
-   * Native RecentsScreenInputConsumer uses the physical display's gesture region, which stays
-   * landscape while the remote controller is held. Recognize only the portrait window's bottom
-   * strip, then use the same native Home command and cancel the list's touch stream.
-   */
-  private boolean navigationHome(Session s, View view, android.view.MotionEvent event)
-      throws Exception {
-    Point physical = (Point) proxySize.get(inputProxy.get(s.manager()));
-    if (physical.x <= physical.y || s.boundRoot.getWidth() >= s.boundRoot.getHeight()) return false;
-    if (event.getPointerCount() != 1
-        || event.getActionMasked() == android.view.MotionEvent.ACTION_CANCEL) {
-      s.navigationDown = 0;
-      return false;
-    }
+  private RecentsNavigationGesture.Decision navigation(
+      Session s, View view, android.view.MotionEvent event) throws Exception {
+    if (s.navigation == null) return RecentsNavigationGesture.NONE;
     float[] xy = {event.getX(), event.getY()};
     android.graphics.Matrix matrix = new android.graphics.Matrix();
     view.transformMatrixToGlobal(matrix);
     matrix.mapPoints(xy);
-    int height = s.boundRoot.getHeight(), width = s.boundRoot.getWidth();
-    if (event.getActionMasked() == android.view.MotionEvent.ACTION_DOWN) {
-      s.navigationDown = 0;
-      int bottom = navigationBottom(s.boundRoot);
-      if (bottom <= 0 || bottom >= height * .1f || s.navigationInjector == null)
-        throw new IllegalStateException("Portrait navigation region changed");
-      if (bottom > 0
-          && bottom < height * .1f
-          && xy[1] >= height - bottom
-          && xy[1] <= height
-          && xy[0] >= width * .04f
-          && xy[0] <= width * .96f) {
-        s.navigationDown = event.getDownTime();
-        s.navigationX = xy[0];
-        s.navigationY = xy[1];
-      }
-      HookEntry.log(
-          "RECENTS_LIVE_NAVIGATION bottom=" + bottom + " armed=" + (s.navigationDown != 0));
-    }
-    if (event.getActionMasked() != android.view.MotionEvent.ACTION_UP) return false;
-    boolean owned = s.navigationDown != 0 && s.navigationDown == event.getDownTime();
-    s.navigationDown = 0;
-    float dy = s.navigationY - xy[1];
-    return owned
-        && xy[1] < height * .9f
-        && dy > ViewConfiguration.get(view.getContext()).getScaledTouchSlop()
-        && Math.abs(xy[0] - s.navigationX) < dy;
+    return s.navigation.event(
+        event.getDownTime(), event.getActionMasked(), event.getPointerCount(), xy[0], xy[1]);
   }
 
   private void releaseActivity(Activity a, String reason) {

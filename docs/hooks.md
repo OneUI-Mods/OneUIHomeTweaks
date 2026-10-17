@@ -120,3 +120,6 @@ SystemUIメインプロセス・メイン画面・確認済みビルドBP4A.2512
 
 
 横向きのcontroller保持中だけ、縦向きウィンドウの実ナビゲーションinsetsに基づく下端スワイプを既存の`KeyInjector`へ渡します。`GestureInputHandler`のdisplay 0のDOWNから既存の所有者を取得し、難読化されたDIの名前には依存しません。前提を確認できない場合は保持を終了して標準へ戻します。[経路と実機結果](recents-motion.md#portrait-navigation-while-the-controller-is-retained)を参照。
+
+
+同じ縦向きウィンドウの`systemGestures` insetsから左右の戻る領域も取得します。戻るの追跡中はカード一覧へのタッチを止め、指を離した時点で標準の戻る処理へ渡します。キャンセル・複数指・古い入力は操作を発火させません。追加の予測型戻るプレビューは実装していません。

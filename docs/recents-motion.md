@@ -245,3 +245,10 @@ Holding the landscape controller leaves the physical display and native gesture-
 In the subsequent native-input candidate, a real injected bottom swipe returned to `LauncherActivity`, removed the effect Surface and logged `portrait navigation home`. Native keyboard BACK and external task launches have separate release paths as documented above. This does not validate every predictive-back or taskbar configuration.
 
 The unused old `RecentsGestureCoordinates` adapter and its eight tests were removed during cleanup; the final current pure-test total is **76**. Historical counts above describe the earlier source states.
+
+
+### Edge Back gestures
+
+The retained landscape session also ignored a portrait-window edge swipe. `RecentsNavigationGesture` now identifies left/right Back regions from that window's `systemGestures` insets and owns the Back touch stream so the card list does not scroll underneath it. In the measured window the insets were left 87, top 174, right 175, bottom 94; dimensions are read at runtime, not hardcoded. After an accepted inward swipe is released, the same verified native Recents Back behavior is invoked. A left-edge device trial returned to the fullscreen probe and left zero owned effects.
+
+Six pure regression tests cover both Back edges, Home's native cancel area, repeated/stale UP events, reversed/diagonal gestures, cancellation, missing regions and multi-pointer interruption. A cancelled multi-pointer Back stream remains consumed until its terminal event, without issuing navigation or delivering an orphan pointer stream to the card list. The current total is **82 unit tests**, all passing with release Lint. The bridge performs native navigation at finger release; it does not implement an additional predictive-back preview animation.
