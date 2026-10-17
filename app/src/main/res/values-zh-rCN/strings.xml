@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_name">One UI Live Colors</string>
-  <string name="module_description">按应用调整 One UI 壁纸配色、应用名称、页面通知和音量面板。</string>
+  <string name="app_name">One UI Home Tweaks</string>
+  <string name="module_description">自定义 One UI Home 应用名称、最近任务方向、壁纸联动和音量面板。</string>
   <string name="master">启用所有钩子</string>
   <string name="master_note">关闭后恢复系统行为，保留各项设置。</string>
   <string name="home_labels">主屏幕应用名称</string>
@@ -53,7 +53,7 @@
   <string name="clear_guard_note">通过 root 仅删除本模块的保护文件。检查原因后再重新启动目标进程。</string>
   <string name="guard_reset_done">已重置崩溃保护。重新启动目标进程后重试。</string>
   <string name="guard_reset_failed">无法重置保护。请检查 root 权限。</string>
-  <string name="help_text">作用域：应用名称及页面通知选择 One UI Home；音量面板选择 System UI；动态预览选择壁纸和风格。\n\n基准环境：SM-S948Q、Android 16、One UI Home 17.5.03.27、Vector 2.2。结构不兼容时停用。Android 17 及以后版本需要重新调查。\n\n主屏幕自动配色遵循壁纸提供的深色文字提示。无法检测不发送颜色通知的图片更换。\n\n多次启动不稳定时可停用模块。无法防止 Vector 内部或应用连接前发生的错误。</string>
+  <string name="help_text">作用域：应用名称、最近任务竖屏及页面通知选择 One UI Home；音量面板选择 System UI；动态预览选择壁纸和风格。\n\n基准环境：SM-S948Q、Android 16、One UI Home 17.5.03.27、Vector 2.2。结构不兼容时停用。Android 17 及以后版本需要重新调查。\n\n主屏幕自动配色遵循壁纸提供的深色文字提示。无法检测不发送颜色通知的图片更换。\n\n多次启动不稳定时可停用模块。无法防止 Vector 内部或应用连接前发生的错误。</string>
   <string name="status_details">详细信息</string>
   <string name="scope_home">One UI Home</string>
   <string name="scope_volume">System UI（音量）</string>
@@ -73,4 +73,10 @@
   <string name="tab_appearance">外观</string>
   <string name="tab_status">状态</string>
   <string name="tab_settings">设置</string>
+  <string name="recents_portrait">最近任务固定为竖屏</string>
+  <string name="recents_portrait_note">从横屏应用进入时，最近任务保持竖屏。不会更改应用本身的方向。多窗口和外接屏幕不适用。</string>
+  <string name="recents_hide_bar">在最近任务中隐藏主页条</string>
+  <string name="recents_hide_bar_note">仅隐藏最近任务画面的手势条。不影响三键导航，并保留系统始终隐藏的设置。</string>
+  <string name="recents_bar_buttons">按钮导航：未应用隐藏。</string>
+  <string name="recents_bar_system">遵循系统显示设置，不额外隐藏。</string>
 </resources>

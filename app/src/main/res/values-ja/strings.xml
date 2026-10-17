@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_name">One UI Live Colors</string>
-  <string name="module_description">One UIの壁紙色・文字色・ページ通知・音量UIを対象別に補正します。</string>
+  <string name="app_name">One UI Home Tweaks</string>
+  <string name="module_description">One UI Homeの文字色・アプリ履歴の向き・壁紙連携と音量パネルをカスタマイズします。</string>
   <string name="master">すべてのフックを有効にする</string>
   <string name="master_note">オフにすると標準動作に戻ります。個別の設定値は保持します。</string>
   <string name="home_labels">ホームのアプリ名</string>
@@ -53,7 +53,7 @@
   <string name="clear_guard_note">rootでこのモジュールの保護ファイルだけを削除します。原因を確認してから、停止したプロセスを起動し直してください。</string>
   <string name="guard_reset_done">保護を解除しました。対象プロセスを起動し直すと再試行します。</string>
   <string name="guard_reset_failed">保護を解除できませんでした。root権限を確認してください。</string>
-  <string name="help_text">必要なスコープ：文字色・ページ通知はOne UI Home、音量パネルはSystem UI、プレビューは壁紙とスタイルです。\n\n確認環境：SM-S948Q、Android 16、One UI Home 17.5.03.27、Vector 2.2。構造が確認できない機能は適用しません。Android 17以降は再調査が必要です。\n\nホームの自動色は壁紙の黒文字ヒントに従います。色通知がない画像変更は検出できません。\n\n連続した不安定な起動ではフックを停止します。Vector自体の障害や、アプリが接続される前の障害を防ぐ機能ではありません。</string>
+  <string name="help_text">必要なスコープ：文字色・履歴の縦向き固定・ページ通知はOne UI Home、音量パネルはSystem UI、プレビューは壁紙とスタイルです。\n\n確認環境：SM-S948Q、Android 16、One UI Home 17.5.03.27、Vector 2.2。構造が確認できない機能は適用しません。Android 17以降は再調査が必要です。\n\nホームの自動色は壁紙の黒文字ヒントに従います。色通知がない画像変更は検出できません。\n\n連続した不安定な起動ではフックを停止します。Vector自体の障害や、アプリが接続される前の障害を防ぐ機能ではありません。</string>
   <string name="status_details">詳細</string>
   <string name="scope_home">One UI Home</string>
   <string name="scope_volume">System UI（音量）</string>
@@ -73,4 +73,10 @@
   <string name="tab_appearance">表示</string>
   <string name="tab_status">状態</string>
   <string name="tab_settings">設定</string>
+  <string name="recents_portrait">アプリ履歴を縦向きに固定</string>
+  <string name="recents_portrait_note">横向きアプリから開いても履歴画面を縦向きにします。アプリ自体の向きは変えません。マルチウィンドウと外部画面は対象外です。</string>
+  <string name="recents_hide_bar">履歴画面のホームバーを非表示</string>
+  <string name="recents_hide_bar_note">履歴画面だけジェスチャーのホームバーを隠します。3ボタン操作には適用せず、OSの常時非表示設定も維持します。</string>
+  <string name="recents_bar_buttons">ボタン操作のため、非表示処理は適用していません。</string>
+  <string name="recents_bar_system">OSの表示設定に従い、履歴画面への追加の非表示処理は行っていません。</string>
 </resources>

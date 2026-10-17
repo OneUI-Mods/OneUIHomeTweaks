@@ -22,6 +22,24 @@ SamsungのSemキャッシュを書き換えると他の画面へ影響するた�
 
 `IconViewImpl.getCustomLabelColor/setCustomLabelColor(Integer)`と`setItemStyle(ItemStyle)`を確認。ドロワーの祖先Viewを持つアイコンだけにSamsungのカスタム色APIを適用し、解除時は記録した元の値へ戻す。自動では既存動作を維持する。
 
+## アプリ履歴の縦向き固定
+
+実機LauncherのManifestで`com.android.quickstep.RecentsActivity`を確認した。初期の`screenOrientation`は`UNSPECIFIED`（-1）。DEXでは`TaskListViewModel`が`OverviewEventHandler.getCurrentActivity()`を通じて現在のActivityに`setRequestedOrientation(14)`（LOCKED）を要求し、別の回転管理処理がUSER（2）も要求する。このため、横向きアプリから入ると横向きの履歴が保持される。
+
+`RecentsActivity.onCreate(Bundle)`・`onResume()`の前と、Launcher内の`Activity.setRequestedOrientation(int)`に限定したフックを置く。実際のActivityが検証済みRecentsActivityであり、display 0・全画面の場合だけPORTRAIT（1）へ補正する。アプリタスクや通常のホームActivityは対象外。元の要求をActivity単位で記録し、機能・対象・全体スイッチの解除時に元へ戻す。
+
+Activity継承、ライフサイクルの戻り値・引数、向き要求メソッドの宣言元を実行時に検証する。呼び出し元は実APKのDEX参照から探索して限定deoptimizeし、実機では9メソッドだった。難読化された`C7.c`等の名前には依存しない。検証失敗は履歴機能だけを停止する。
+
+## 履歴画面だけホームバーを非表示
+
+実機`NavigationModeSource`はAndroidの`config_navBarInteractionMode`を読み、0=3ボタン、1=2ボタン、2=標準ジェスチャー、3=Samsungジェスチャーに変換する。`NavigationBarVisibilityCheckerImpl`はさらに`navigation_bar_gesture_hint`、NavStarのフラグ、`policy_control`等を参照して標準の表示状態を決めている。
+
+この機能は検証済みRecentsActivityの`WindowInsetsController`だけに`hide(navigationBars())`を要求する。リソース値が2/3、OSのヒント表示が1、主画面・全画面の場合のみ適用する。0/1・不明な値・常時非表示設定では追加の非表示処理をしない。OS設定の書き込みやSystemUIへの新しいフックはない。
+
+実frameworkで確認した`WindowInsetsController.getRequestedVisibleTypes()`と`InsetsController.show/hide(int)`の契約を実行時検証し、変更前のナビバー表示要求とsystem bars behaviorを記録する。ウィンドウ接続前のPendingInsetsControllerから実controllerへ切り替わっても、同じActivityの元の表示要求を引き継ぎ、モジュール自身の非表示要求を元の設定として誤保存しない。標準の後続show/hide要求も、そのRecents用controllerだけで記録する。解除時は元の要求とbehaviorへ戻し、OS側のヒント非表示を再表示しない。statusBarsのビットは変更しない。
+
+この端末ではナビバーを隠すと没入表示の判定によりホームスワイプも停止した。`SystemGestureUseCase.isAllowGestureIgnoringBarVisibility()`を、今回の機能でバーを隠したRecentsActivityがフォーカスを持ち、ロックされておらず、ジェスチャー方式の場合だけ補う。`RecentsAnimationState.canStartWithNavHidden()`等の実装と4つの呼び出し元を検証してdeoptimizeする。バー表示以外のホーム・履歴の禁止条件は標準処理に任せ、通常アプリ・通知画面・ロック画面へは適用しない。操作方式・OS設定の変更はContentObserverとActivityの構成変更で検出し、ポーリングはしない。
+
 ## 音量UI
 
 実機の`VolumeDependency.get(Class)`、`VolumePanelImpl.recreateVolumePanelForNewConfig()`、`view.standard.VolumePanelWindow`のDialog型を確認。標準音量ダイアログ構築中のContext取得だけを対象に、局所的なnight mode構成を渡す。設定が変わったときはSamsung自身の再構築メソッドを使う。

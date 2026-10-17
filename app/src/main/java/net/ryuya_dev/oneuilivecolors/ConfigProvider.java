@@ -48,7 +48,9 @@ public final class ConfigProvider extends ContentProvider {
               "preview",
               "home_enabled",
               "systemui_enabled",
-              "preview_enabled"
+              "preview_enabled",
+              "recents_portrait",
+              "recents_hide_bar"
             });
     c.addRow(
         new Object[] {
@@ -61,7 +63,9 @@ public final class ConfigProvider extends ContentProvider {
           p.getBoolean("preview", false) ? 1 : 0,
           p.getBoolean("home_enabled", true) ? 1 : 0,
           p.getBoolean("systemui_enabled", true) ? 1 : 0,
-          p.getBoolean("preview_enabled", true) ? 1 : 0
+          p.getBoolean("preview_enabled", true) ? 1 : 0,
+          p.getBoolean("recents_portrait", false) ? 1 : 0,
+          p.getBoolean("recents_hide_bar", false) ? 1 : 0
         });
     return c;
   }

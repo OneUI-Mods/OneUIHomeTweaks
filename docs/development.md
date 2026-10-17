@@ -1,5 +1,7 @@
 # 開発者向けガイド
 
+表示名は0.6.0からOne UI Home Tweaks（旧One UI Live Colors）。更新互換性のためapplication ID、provider authority、署名鍵、ログタグと開発フォルダは継続する。Gradleのプロジェクト名と配布APK名は新名称を使う。
+
 利用者向けの機能説明・導入手順は[README](../README.md)を参照してください。
 
 ## ビルド

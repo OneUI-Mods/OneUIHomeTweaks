@@ -18,5 +18,5 @@ jobs:
       - run: ./gradlew :app:assembleRelease :app:testDebugUnitTest :app:lintRelease
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: OneUiLiveColors-release-unsigned
+          name: OneUiHomeTweaks-release-unsigned
           path: app/build/outputs/apk/release/app-release-unsigned.apk

@@ -35,6 +35,8 @@ public final class HookEntry extends XposedModule {
   private WallpaperManager wm;
   private final PageBridge pages = new PageBridge();
   private final DrawerBridge drawer = new DrawerBridge();
+  private final RecentsHooks recents = new RecentsHooks();
+  private final RecentsBar recentsBar = new RecentsBar();
   private boolean initialized;
   private boolean hostAttached;
   private boolean earlyPages;
@@ -322,6 +324,16 @@ public final class HookEntry extends XposedModule {
   private void initialize(Application app) throws Exception {
     if (initialized) return;
     context = app;
+    try {
+      recents.install(app.getApplicationInfo().sourceDir, launcherLoader);
+    } catch (Throwable t) {
+      log("RECENTS_UNSUPPORTED " + t);
+    }
+    try {
+      recentsBar.install(app, launcherLoader);
+    } catch (Throwable t) {
+      log("RECENTS_BAR_UNSUPPORTED " + t);
+    }
     // Samsung's actual WhichChecker and public constants were verified on this device.
     Class<?> wc = Class.forName("com.samsung.android.wallpaper.utils.WhichChecker");
     if (!Integer.valueOf(1).equals(wc.getMethod("getType", int.class).invoke(null, 5))
@@ -405,7 +417,7 @@ public final class HookEntry extends XposedModule {
     if (failed) return;
     try {
       int label = ColorPolicy.OFF, status = ColorPolicy.OFF, drawerMode = ColorPolicy.AUTO;
-      boolean master = false, pageMode = false;
+      boolean master = false, pageMode = false, recentsPortrait = false, hideRecentsBar = false;
       try (Cursor cursor =
           context.getContentResolver().query(ConfigProvider.URI, null, null, null, null)) {
         if (cursor == null || !cursor.moveToFirst())
@@ -414,6 +426,10 @@ public final class HookEntry extends XposedModule {
             cursor.getInt(cursor.getColumnIndexOrThrow("enabled")) != 0
                 && cursor.getInt(cursor.getColumnIndexOrThrow("home_enabled")) != 0;
         pageMode = cursor.getInt(cursor.getColumnIndexOrThrow("pages")) != 0;
+        recentsPortrait =
+            master && cursor.getInt(cursor.getColumnIndexOrThrow("recents_portrait")) != 0;
+        hideRecentsBar =
+            master && cursor.getInt(cursor.getColumnIndexOrThrow("recents_hide_bar")) != 0;
         drawerMode = cursor.getInt(cursor.getColumnIndexOrThrow("drawer"));
         label = cursor.getInt(cursor.getColumnIndexOrThrow("label"));
         status = cursor.getInt(cursor.getColumnIndexOrThrow("status"));
@@ -429,10 +445,26 @@ public final class HookEntry extends XposedModule {
       boolean apply = master && target;
       int currentDrawerMode = drawerMode;
       boolean currentPages = pageMode;
+      boolean currentRecentsPortrait = recentsPortrait;
+      boolean currentHideRecentsBar = hideRecentsBar;
+      boolean currentMaster = master;
       main.post(
           () -> {
             pages.setEnabled(apply && currentPages);
             drawer.setMode(currentDrawerMode, apply);
+            recents.setEnabled(currentRecentsPortrait);
+            recentsBar.setEnabled(currentHideRecentsBar);
+            HostStatus.report(
+                context,
+                currentMaster ? "ACTIVE" : "OFF",
+                "Launcher bridge; wallpaper="
+                    + (target ? "live" : "static")
+                    + "; hints="
+                    + hints
+                    + "; recents="
+                    + recents.diagnostic()
+                    + "; recentsBar="
+                    + recentsBar.diagnostic());
           });
       Snapshot next =
           new Snapshot(
@@ -456,10 +488,6 @@ public final class HookEntry extends XposedModule {
         lastReport = report;
       }
       publish(next);
-      HostStatus.report(
-          context,
-          master ? "ACTIVE" : "OFF",
-          "Launcher color bridge; wallpaper=" + (target ? "live" : "static") + "; hints=" + hints);
       failures = 0;
     } catch (Throwable t) {
       publish(new Snapshot(null, null));
@@ -512,6 +540,8 @@ public final class HookEntry extends XposedModule {
           () -> {
             pages.setEnabled(false);
             drawer.setMode(ColorPolicy.OFF, false);
+            recents.setEnabled(false);
+            recentsBar.setEnabled(false);
           });
     publish(new Snapshot(null, null));
     log("DISABLED " + stage + ": " + t);

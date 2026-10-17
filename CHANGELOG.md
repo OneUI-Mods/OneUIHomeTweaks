@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.0
+
+- Rename the app to One UI Home Tweaks and replace the wallpaper icon with a home/customization icon.
+- Preserve the application ID, signing key, existing settings and Vector scopes for in-place updates.
+- Add an optional portrait-only recent apps screen, including transitions from landscape apps.
+- Limit orientation overrides to the verified RecentsActivity on the main fullscreen display.
+- Restore native requests when disabled; respect global and One UI Home switches.
+- Add a gesture-only home bar hiding option for recents; preserve three-button navigation and system-wide hint visibility.
+- Add separate graphical recents hook states and localized settings in all five UI languages.
+
 ## 0.5.1
 
 - Prevent deliberate or unclassified target-process reloads from being counted as hook crashes.

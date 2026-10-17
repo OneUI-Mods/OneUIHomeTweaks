@@ -34,7 +34,14 @@ public final class MainActivity extends AppCompatActivity {
   };
   private final String[] keys = {"label", "status", "drawer", "volume"};
   private final String[] switches = {
-    "enabled", "home_enabled", "systemui_enabled", "preview_enabled", "pages", "preview"
+    "enabled",
+    "home_enabled",
+    "systemui_enabled",
+    "preview_enabled",
+    "pages",
+    "preview",
+    "recents_portrait",
+    "recents_hide_bar"
   };
   private final int[] switchIds = {
     R.id.master,
@@ -42,7 +49,9 @@ public final class MainActivity extends AppCompatActivity {
     R.id.systemui_enabled,
     R.id.preview_enabled,
     R.id.pages,
-    R.id.preview
+    R.id.preview,
+    R.id.recents_portrait,
+    R.id.recents_hide_bar
   };
   private final ContentObserver reports =
       new ContentObserver(new Handler(Looper.getMainLooper())) {
@@ -102,7 +111,8 @@ public final class MainActivity extends AppCompatActivity {
     for (int i = 0; i < switches.length; i++) {
       final String key = switches[i];
       MaterialSwitch control = findViewById(switchIds[i]);
-      control.setChecked(prefs.getBoolean(key, !key.equals("preview")));
+      control.setChecked(
+          prefs.getBoolean(key, !key.equals("preview") && !key.startsWith("recents_")));
       control.setOnCheckedChangeListener(
           (button, checked) -> {
             prefs.edit().putBoolean(key, checked).apply();
@@ -175,9 +185,15 @@ public final class MainActivity extends AppCompatActivity {
         .setOnClickListener(v -> startActivity(new Intent(this, LicensesActivity.class)));
     getContentResolver().registerContentObserver(ConfigProvider.STATUS_URI, false, reports);
     LinearLayout cards = findViewById(R.id.status_cards);
-    statusCards = new HookStatusCard[3];
-    int[] titles = {R.string.scope_home, R.string.scope_volume, R.string.scope_preview};
-    for (int i = 0; i < 3; i++) {
+    statusCards = new HookStatusCard[5];
+    int[] titles = {
+      R.string.scope_home,
+      R.string.scope_volume,
+      R.string.scope_preview,
+      R.string.recents_portrait,
+      R.string.recents_hide_bar
+    };
+    for (int i = 0; i < titles.length; i++) {
       statusCards[i] = new HookStatusCard(this, titles[i]);
       cards.addView(statusCards[i]);
     }
@@ -219,6 +235,68 @@ public final class MainActivity extends AppCompatActivity {
               };
       statusCards[i].update(
           label, state, on, on && !state.isEmpty() ? report.getString(host + ".detail", "") : "");
+      if (i == 0) {
+        String detail = report.getString(host + ".detail", "");
+        boolean recentsOn = on && prefs.getBoolean("recents_portrait", false);
+        String recentsState = state;
+        int recentsLabel = label;
+        if (!recentsOn) {
+          recentsState = "OFF";
+          recentsLabel = R.string.status_off;
+        } else if ("ACTIVE".equals(state)) {
+          if (detail.contains("recents=unavailable")) {
+            recentsState = "UNSUPPORTED";
+            recentsLabel = R.string.status_unsupported;
+          } else if (detail.contains("recents=error:")) {
+            recentsState = "ERROR";
+            recentsLabel = R.string.status_error;
+          } else if (!detail.contains("recents=portrait")) {
+            recentsState = "";
+            recentsLabel = R.string.status_unconfirmed;
+          }
+        }
+        statusCards[3].update(
+            recentsLabel,
+            recentsState,
+            recentsOn,
+            recentsOn && !recentsState.isEmpty()
+                ? detail.substring(Math.max(0, detail.indexOf("recents=")))
+                : "");
+        boolean barOn = on && prefs.getBoolean("recents_hide_bar", false);
+        String barState = state;
+        int barLabel = label;
+        if (!barOn) {
+          barState = "OFF";
+          barLabel = R.string.status_off;
+        } else if ("ACTIVE".equals(state)) {
+          if (detail.contains("recentsBar=unavailable")) {
+            barState = "UNSUPPORTED";
+            barLabel = R.string.status_unsupported;
+          } else if (detail.contains("recentsBar=error:")) {
+            barState = "ERROR";
+            barLabel = R.string.status_error;
+          } else if (detail.contains("recentsBar=buttons-skipped")
+              || detail.contains("recentsBar=system")) {
+            barState = "OFF";
+            barLabel = R.string.status_unused;
+          } else if (!detail.contains("recentsBar=ready")
+              && !detail.contains("recentsBar=hidden")) {
+            barState = "";
+            barLabel = R.string.status_unconfirmed;
+          }
+        }
+        statusCards[4].update(
+            barLabel,
+            barState,
+            barOn,
+            barOn && !barState.isEmpty()
+                ? detail.contains("recentsBar=buttons-skipped")
+                    ? getString(R.string.recents_bar_buttons)
+                    : detail.contains("recentsBar=system")
+                        ? getString(R.string.recents_bar_system)
+                        : detail.substring(Math.max(0, detail.indexOf("recentsBar=")))
+                : "");
+      }
     }
   }
 
