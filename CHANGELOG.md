@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.0
+
+- Add an optional normal-grid layout for DIY Home app icons, shortcuts and folders, including existing placements.
+- Snap native DIY editing moves and drop coordinates to the nearest available cells; preserve subpixel pointer movement and native edit frames.
+- Keep DIY Home enabled and preserve widget/sticker positions, scale, rotation and native edit history.
+- Read the normal grid and per-item padding from Home Up instead of hardcoding screen dimensions.
+- Keep layout projection separate from persistence; toggling alone leaves saved coordinates unchanged. User edits still use native persistence.
+- Add a Material 3 switch and separate graphical status in all five UI languages.
+- Fall back to native placement for unsupported geometry, preview/secondary displays, landscape, RTL, capacity overflow or hook failures.
+
 ## 0.8.0
 
 - Add an optional date-before-time layout for the native status-bar clock.

@@ -84,5 +84,5 @@
   <string name="clock_date_left">Date before the status-bar clock</string>
   <string name="clock_date_left_note">Moves the displayed date to the left of the time. Date visibility and format follow system and QuickStar settings. Off by default.</string>
   <string name="diy_icon_grid">Standard grid for DIY Home icons</string>
-  <string name="diy_icon_grid_note">Keeps DIY Home enabled and aligns app icons and folders to the normal home grid. Widgets and stickers stay freely placed. Turning this off restores the original free positions. Portrait only; off by default.</string>
+  <string name="diy_icon_grid_note">Keeps DIY Home enabled, aligns app icons and folders to the normal home grid, and snaps editing moves to cells. Widgets and stickers remain freely placed. Off displays the saved free positions; it does not undo edits. Portrait only; off by default.</string>
 </resources>

@@ -8,6 +8,41 @@ final class GridSnapPlan {
 
   record Slot(int column, int row, int x, int y, Item source) {}
 
+  /** A user move reserves every other icon's current slot, including large folders. */
+  static Slot move(
+      int columns, int rows, int width, int height, Item item, Collection<Slot> occupiedSlots) {
+    if (columns < 1
+        || rows < 1
+        || columns > 20
+        || rows > 20
+        || width <= 0
+        || height <= 0
+        || item.spanX < 1
+        || item.spanY < 1
+        || item.spanX > columns
+        || item.spanY > rows) return null;
+    boolean[][] occupied = new boolean[rows][columns];
+    for (Slot other : occupiedSlots) {
+      if (other.source.id == item.id) continue;
+      if (!free(occupied, other.column, other.row, other.source)) return null;
+      occupy(occupied, other);
+    }
+    Slot best = null;
+    double distance = Double.POSITIVE_INFINITY;
+    for (int row = 0; row <= rows - item.spanY; row++)
+      for (int column = 0; column <= columns - item.spanX; column++) {
+        if (!free(occupied, column, row, item)) continue;
+        Slot candidate = slot(item, column, row, width, height);
+        double dx = (double) candidate.x - item.x, dy = (double) candidate.y - item.y;
+        double next = dx * dx + dy * dy;
+        if (next < distance) {
+          distance = next;
+          best = candidate;
+        }
+      }
+    return best;
+  }
+
   static Map<Integer, Slot> build(
       int columns,
       int rows,

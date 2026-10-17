@@ -84,5 +84,5 @@
   <string name="clock_date_left">날짜를 시계 왼쪽에 표시</string>
   <string name="clock_date_left_note">상태 표시줄에 표시된 날짜를 시간 왼쪽으로 이동합니다. 날짜 표시 여부와 형식은 시스템 및 QuickStar 설정을 따릅니다. 기본값은 꺼짐입니다.</string>
   <string name="diy_icon_grid">DIY Home 아이콘을 기본 격자에 정렬</string>
-  <string name="diy_icon_grid_note">DIY Home을 유지하면서 앱과 폴더를 기본 홈 격자에 맞춥니다. 위젯과 스티커는 자유롭게 배치됩니다. 끄면 원래 위치로 돌아갑니다. 세로 화면 전용이며 기본값은 꺼짐입니다.</string>
+  <string name="diy_icon_grid_note">DIY Home을 유지하면서 앱 아이콘과 폴더를 기본 홈 격자에 맞추고 편집 중 이동도 셀 단위로 맞춥니다. 위젯과 스티커는 자유 배치를 유지합니다. 끄면 저장된 자유 위치를 표시하며 편집을 취소하지는 않습니다. 세로 화면 전용이며 기본값은 꺼짐입니다.</string>
 </resources>

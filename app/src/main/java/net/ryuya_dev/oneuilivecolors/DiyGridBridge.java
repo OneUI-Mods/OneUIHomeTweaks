@@ -3,6 +3,7 @@ package net.ryuya_dev.oneuilivecolors;
 import android.content.Context;
 import android.content.res.Configuration;
 import android.graphics.Point;
+import android.graphics.PointF;
 import android.os.*;
 import android.view.*;
 import java.lang.ref.WeakReference;
@@ -16,6 +17,9 @@ final class DiyGridBridge {
   private final Map<Object, State> states = new WeakHashMap<>();
   private final Map<ViewGroup, State> layouts = new WeakHashMap<>();
   private final Map<String, Method> methods = new HashMap<>();
+  private final Map<Object, PointF> moveRemainders = new WeakHashMap<>();
+  private boolean editing;
+  private int editLogCount;
   private WeakReference<ViewGroup> workspace = new WeakReference<>(null);
   private Class<?> layoutType, modelType;
   private final Set<Class<?>> iconTypes = new HashSet<>();
@@ -37,6 +41,7 @@ final class DiyGridBridge {
   void setEnabled(boolean on) {
     if (failed || enabled == on) return;
     enabled = on;
+    moveRemainders.clear();
     if (on) {
       ensureReady();
       if (ready) queueRender();
@@ -103,6 +108,11 @@ final class DiyGridBridge {
                         loader);
                 Class<?> params =
                     Class.forName(layout.getName() + "$FreeGridLayoutParams", false, loader);
+                Class<?> searchable =
+                    Class.forName("com.honeyspace.sdk.transition.SearchableView", false, loader);
+                Method viewItemId = searchable.getDeclaredMethod("getItemId");
+                if (viewItemId.getReturnType() != int.class)
+                  throw new UnsupportedOperationException("DIY view identity changed");
                 if (!ViewGroup.class.isAssignableFrom(layout)
                     || !ViewGroup.LayoutParams.class.isAssignableFrom(params))
                   throw new UnsupportedOperationException("DIY layout types changed");
@@ -115,9 +125,195 @@ final class DiyGridBridge {
                 model.getDeclaredMethod("getPortY");
                 for (String name : new String[] {"App", "Folder", "Shortcut", "DeepShortcut"})
                   iconTypes.add(Class.forName(model.getName() + "$" + name, false, loader));
+                Class<?> sticker =
+                    Class.forName("com.honeyspace.ui.honeypots.sticker.StickerView", false, loader);
+                Class<?> frame =
+                    Class.forName(
+                        "com.honeyspace.ui.honeypots.sticker.FrameControlStickerView",
+                        false,
+                        loader);
+                // Resolve the complete edit contract before installing any editing hook.
+                Method prepare = layout.getDeclaredMethod("prepareSyncPosition", frame);
+                Method sync = layout.getDeclaredMethod("syncPosition", frame);
+                Method translate =
+                    layout.getDeclaredMethod(
+                        "translateTarget", sticker, float.class, float.class, boolean.class);
+                Method drop =
+                    vm.getDeclaredMethod(
+                        "updateToDropPoint", model, Point.class, int.class, Point.class);
+                layout.getDeclaredMethod("fitTargetView", sticker);
+                frame.getDeclaredMethod("getTargetPosition");
+                Field targetDiff = frame.getDeclaredField("targetPositionDiff");
+                if (targetDiff.getType() != PointF.class)
+                  throw new UnsupportedOperationException("DIY edit pointer contract changed");
+                targetDiff.setAccessible(true);
                 DexEvidence.deoptimizeDiyPositions(apk, loader);
                 layoutType = layout;
                 modelType = model;
+                hooks.add(
+                    ModernHook.hookMethod(
+                        prepare,
+                        new ModernHook.Callback() {
+                          @Override
+                          protected void beforeHookedMethod(ModernHook.Param p) {
+                            if (onMain()) {
+                              moveRemainders.remove(p.args[0]);
+                              editLogCount = 0;
+                            }
+                          }
+                        }));
+                for (Method edit : new Method[] {sync, translate}) {
+                  boolean isSync = edit == sync;
+                  hooks.add(
+                      ModernHook.hookMethod(
+                          edit,
+                          new ModernHook.Callback() {
+                            @Override
+                            protected void beforeHookedMethod(ModernHook.Param p) {
+                              if (!ready || !enabled || failed || editing || !onMain()) return;
+                              try {
+                                ViewGroup owner = (ViewGroup) p.thisObject;
+                                register(owner);
+                                State state = layouts.get(owner);
+                                if (state == null || !state.valid()) return;
+                                Object control = p.args[0];
+                                WeakReference<Object> ref =
+                                    state.models.get(number(control, "getId"));
+                                Object item = ref == null ? null : ref.get();
+                                if (item == null || !eligible(item)) return;
+                                View target = (View) call(control, "getTargetView");
+                                if (target.getParent() != owner) return;
+                                Object lp = target.getLayoutParams();
+                                PointF rest = moveRemainders.getOrDefault(control, new PointF());
+                                PointF requested;
+                                if (isSync) {
+                                  // Native getTargetPosition truncates to int. Read its verified
+                                  // float
+                                  // inputs so repeated moves of less than one pixel are not
+                                  // discarded
+                                  // when the control frame is snapped back onto a cell.
+                                  PointF diff = (PointF) targetDiff.get(control);
+                                  View handle = (View) call(control, "getControlView");
+                                  requested =
+                                      new PointF(
+                                          handle.getTranslationX() - diff.x,
+                                          handle.getTranslationY() - diff.y);
+                                } else
+                                  requested =
+                                      new PointF(
+                                          number(lp, "getCellX") + (Float) p.args[1],
+                                          number(lp, "getCellY") + (Float) p.args[2]);
+                                PointF intended =
+                                    new PointF(requested.x + rest.x, requested.y + rest.y);
+                                Point raw =
+                                    new Point(Math.round(intended.x), Math.round(intended.y));
+                                Point snapped = state.snap(item, number(item, "getPageId"), raw);
+                                if (snapped == null) return;
+                                if (editLogCount++ < 4)
+                                  HookEntry.log(
+                                      "DIY_GRID_EDIT "
+                                          + (isSync ? "sync" : "translate")
+                                          + " type="
+                                          + item.getClass().getSimpleName()
+                                          + " requested="
+                                          + requested
+                                          + " remainder="
+                                          + rest
+                                          + " snapped="
+                                          + snapped);
+                                editing = true;
+                                try {
+                                  call(
+                                      lp,
+                                      "setup",
+                                      new Class<?>[] {Point.class, float.class},
+                                      snapped,
+                                      call(lp, "getScale"));
+                                  target.requestLayout();
+                                  // Keep the native edit frame on the icon. Carry sub-cell pointer
+                                  // motion
+                                  // forward so small MOVE events can still cross a cell boundary.
+                                  if (isSync || Boolean.TRUE.equals(p.args[3]))
+                                    call(owner, "fitTargetView", new Class<?>[] {sticker}, control);
+                                  moveRemainders.put(
+                                      control,
+                                      new PointF(intended.x - snapped.x, intended.y - snapped.y));
+                                  p.setResult(null);
+                                } finally {
+                                  editing = false;
+                                }
+                              } catch (Throwable error) {
+                                disable(error);
+                              }
+                            }
+                          }));
+                }
+                hooks.add(
+                    ModernHook.hookMethod(
+                        drop,
+                        new ModernHook.Callback() {
+                          @Override
+                          protected void beforeHookedMethod(ModernHook.Param p) {
+                            if (!ready || !enabled || failed || !onMain() || !eligible(p.args[0]))
+                              return;
+                            try {
+                              Point desired = (Point) p.args[1];
+                              if (desired.x == -1 || desired.y == -1) return; // Native sentinel.
+                              State state = states.get(p.thisObject);
+                              if (state == null || !state.valid()) return;
+                              Point snapped = state.snap(p.args[0], (Integer) p.args[2], desired);
+                              if (snapped != null) p.args[1] = snapped;
+                            } catch (Throwable error) {
+                              disable(error);
+                            }
+                          }
+
+                          @Override
+                          protected void afterHookedMethod(ModernHook.Param p) {
+                            if (!ready || failed || !onMain()) return;
+                            State state = states.get(p.thisObject);
+                            if (state != null) state.dirty = true;
+                            queueRender();
+                          }
+                        }));
+                hooks.add(
+                    ModernHook.hookMethod(
+                        layout.getDeclaredMethod(
+                            "createLayoutParams",
+                            View.class,
+                            int.class,
+                            int.class,
+                            int.class,
+                            int.class,
+                            float.class,
+                            boolean.class),
+                        new ModernHook.Callback() {
+                          @Override
+                          protected void afterHookedMethod(ModernHook.Param p) {
+                            if (!ready || !enabled || failed || !onMain() || p.hasThrowable())
+                              return;
+                            try {
+                              register((ViewGroup) p.thisObject);
+                              State state = layouts.get(p.thisObject);
+                              View view = (View) p.args[0];
+                              if (state == null || !searchable.isInstance(view) || !state.valid())
+                                return;
+                              WeakReference<Object> ref =
+                                  state.models.get((Integer) viewItemId.invoke(view));
+                              Object item = ref == null ? null : ref.get();
+                              GridSnapPlan.Slot slot = item == null ? null : state.position(item);
+                              if (slot != null)
+                                call(
+                                    p.getResult(),
+                                    "setup",
+                                    new Class<?>[] {Point.class, float.class},
+                                    new Point(slot.x(), slot.y()),
+                                    p.args[5]);
+                            } catch (Throwable error) {
+                              disable(error);
+                            }
+                          }
+                        }));
                 // Install observers before coordinate hooks; until ready=true every getter stays
                 // native.
                 hooks.add(
@@ -184,6 +380,7 @@ final class DiyGridBridge {
                             if (state != null && p.getResult() instanceof Iterable<?> list)
                               try {
                                 state.bind(list);
+                                if (state.dirty) queueRender();
                               } catch (Throwable error) {
                                 disable(error);
                               }
@@ -469,6 +666,25 @@ final class DiyGridBridge {
       sources = nextSources;
       sourcePages = nextPages;
       dirty = false;
+    }
+
+    Point snap(Object item, int page, Point requested) throws ReflectiveOperationException {
+      if (geometry == null || Boolean.TRUE.equals(call(item, "getLand"))) return null;
+      plan();
+      GridSnapPlan.Item original = source(item);
+      GridSnapPlan.Item desired =
+          new GridSnapPlan.Item(
+              original.id(),
+              requested.x,
+              requested.y,
+              original.spanX(),
+              original.spanY(),
+              original.offsetX(),
+              original.offsetY());
+      GridSnapPlan.Slot slot =
+          GridSnapPlan.move(
+              grid.x, grid.y, cell.x, cell.y, desired, pages.getOrDefault(page, Map.of()).values());
+      return slot == null ? null : new Point(slot.x(), slot.y());
     }
   }
 

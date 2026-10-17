@@ -84,5 +84,5 @@
   <string name="clock_date_left">日期顯示在時鐘左側</string>
   <string name="clock_date_left_note">將狀態列中已顯示的日期移到時間左側。日期的顯示與隱藏及格式遵循系統和 QuickStar 設定。預設關閉。</string>
   <string name="diy_icon_grid">DIY Home 圖示使用標準網格</string>
-  <string name="diy_icon_grid_note">保持 DIY Home 啟用，將應用程式和資料夾對齊至一般主畫面網格。小工具和貼紙仍可自由放置。關閉後恢復原來的自由位置。僅支援直向螢幕，預設關閉。</string>
+  <string name="diy_icon_grid_note">保持 DIY Home 啟用，將應用程式圖示和資料夾對齊至一般主畫面網格，編輯移動時也會吸附至網格。小工具和貼紙仍可自由放置。關閉後顯示已儲存的自由位置，不會復原編輯。僅支援直向螢幕，預設關閉。</string>
 </resources>

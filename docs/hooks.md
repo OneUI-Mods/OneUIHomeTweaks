@@ -99,3 +99,7 @@ SDK 36 / SM-S948Q / owner user / 対象メインプロセスに限定。SDK更�
 標準の更新後に、実際の表示文字列がその連結結果と完全一致する場合だけ順序を入れ替える。日付を生成せず、sound・グローバル設定・時計のvisibility・色を変更しない。SpannableStringBuilderで既存の範囲を移し、contentDescriptionも一致する場合のみ並べ替える。更新通知と設定のContentObserverを使い、独自の時計タイマーを持たない。OFF時は保持済みのsoundを標準のnotifyTimeChangedへ戻して再描画する。
 
 SystemUIメインプロセス・メイン画面・確認済みビルドBP4A.251205.006.S948QOPS1AZHLに限定。RTL・未知の文字列・クラス構造変更では標準を維持する。例外時はこの機能のフックだけ解除し、標準の文字列を再生成する。個別応答はproviderのSystemUI専用`clock_date`機能キーに保存し、音量機能の状態とは分ける。
+
+## DIY Homeの通常グリッド（0.9.0）
+
+アプリ・フォルダの描画、モデルによる当たり判定、純正DIYエディターの移動・ドロップを対象にする。Home Upの通常グリッドを取得し、ウィジェット・ステッカーの自由配置とDIY Home設定は維持する。[対象メソッド・保存座標・検証範囲](diy-home-grid.md)を参照。

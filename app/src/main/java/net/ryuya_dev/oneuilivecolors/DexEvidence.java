@@ -23,11 +23,25 @@ final class DexEvidence {
           for (var instruction : method.getImplementation().getInstructions())
             if (instruction instanceof ReferenceInstruction refInstruction
                 && refInstruction.getReference() instanceof MethodReference ref
-                && ref.getDefiningClass()
-                    .startsWith("Lcom/honeyspace/ui/honeypots/freegrid/domain/model/FreeGridItem")
-                && (ref.getName().equals("getX") || ref.getName().equals("getY"))
-                && ref.getParameterTypes().isEmpty()
-                && ref.getReturnType().equals("I")) names.add(method.getName());
+                && ((ref.getDefiningClass()
+                            .startsWith(
+                                "Lcom/honeyspace/ui/honeypots/freegrid/domain/model/FreeGridItem")
+                        && (ref.getName().equals("getX") || ref.getName().equals("getY"))
+                        && ref.getParameterTypes().isEmpty()
+                        && ref.getReturnType().equals("I"))
+                    || (ref.getDefiningClass()
+                            .equals(
+                                "Lcom/honeyspace/ui/honeypots/freegrid/presentation/FreeGridCellLayout;")
+                        && Set.of(
+                                "prepareSyncPosition",
+                                "syncPosition",
+                                "translateTarget",
+                                "createLayoutParams")
+                            .contains(ref.getName()))
+                    || (ref.getDefiningClass()
+                            .equals(
+                                "Lcom/honeyspace/ui/honeypots/freegrid/viewmodel/FreeGridViewModel;")
+                        && ref.getName().equals("updateToDropPoint")))) names.add(method.getName());
         }
         if (names.isEmpty()) continue;
         Class<?> actual =

@@ -1,46 +1,74 @@
-# DIY Homeのアイコン整列: 実装と検証状況
-
-この機能は開発中です。日付表示を追加した公開版0.8.0には含まれません。実機でON/OFF・操作・保存座標の維持を確認するまでリリースしません。
+# DIY Homeのアイコン整列（0.9.0）
 
 ## 目的と対象
 
-DIY Homeを有効にしたまま、ホーム上のアプリ・ショートカット・フォルダだけを通常ホームと同じグリッドへ揃える。ウィジェット、積み重ねウィジェット、ステッカー、DIY Home自体の設定は変更しない。通常のグリッドは端末の設定から取得し、7×7などを固定値として埋め込まない。
+DIY Homeを有効にしたまま、ホーム上のアプリアイコン・ショートカット・フォルダだけを通常ホームと同じグリッドへ揃える。ウィジェット、積み重ねウィジェット、ステッカー、DIY Home自体の設定は変更しない。通常のグリッドは端末の設定から取得し、7×7などを固定値として埋め込まない。
 
-初期値はOFF。全体・One UI Homeの各スイッチも尊重する。現在の実装は既存の対象も最寄りの空いたセルへ整列する方針で、移動・追加したものだけを対象にする案については利用者の回答待ち。
+「ホーム」タブのスイッチは初期OFF。全体・One UI Homeのスイッチも尊重する。既存の対象を最寄りの空いたセルへ整列し、利用者がDIYエディターで動かすときもセルへ吸着させる。
 
-## 調査で確認したこと
+## 確認した実装と選定根拠
 
-- Galaxy S26 Ultra SM-S948Q / Android 16 / One UI 8.5 / One UI Home 17.5.03.27 / Home Up 17.5.00.30で解析。
-- Home UpはLauncherに動的ロードされる。既存PageBridgeが確認する実際のFreeGridFastRecyclerViewのクラスローダーを使用する。
-- 実機の読み取りで、通常ホームのグリッドが7×7、DIY Homeが7×9、通常セルの画素寸法が190×339、座標差分が(0,0)、1×1アイコンの内側余白が(9,61)だった。取得に成功したことを確認しており、整列動作の検証済みという意味ではない。
-- FreeGridViewModel.getItemPositionData()は、通常ホーム用のCellLayoutInfoと通常グリッドからDIY Home上の位置へ変換する寸法・余白を作る。
-- FreeGridCellLayout.createLayoutParams(FreeGridItem)、updateViewWithoutReattach(View,FreeGridItem)が描画座標を読み、FreeGridViewModel.includePoint(FreeGridItem,Point)がフォルダ等のモデルによる当たり判定に使う。
-- FreeGridItem.createCommonItemData()は保存座標にgetPortX()/getPortY()を使う。描画と当たり判定に使うgetX()/getY()と区別する。
+調査・実機確認環境: Galaxy S26 Ultra SM-S948Q / Android 16 / One UI 8.5 / One UI Home 17.5.03.27 / Home Up 17.5.00.30 / Vector 2.2（API 102）。対象端末・OSの既存の互換性ゲートを維持する。
 
-## 実装
+Home UpはLauncherに動的ロードされる。PageBridgeが実際に観測するFreeGridFastRecyclerViewのクラスローダーを使う。Home Up本体をXposedスコープへ追加する必要はない。
 
-GridSnapPlanは、ページ内の対象に重複しないセルを割り当てる。移動していないアイコンは以前の割り当てを維持し、変更・追加されたアイコンは近い空きセルへ移す。大きいフォルダは複数セルを予約する。容量不足や不正なグリッドではページ単位で標準配置を維持する。ウィジェットの位置は変更せず、ウィジェットとの重なりを解消する機能ではない。
+実機で通常グリッド7×7、DIYグリッド7×9、通常セル190×339 px、座標差分(0,0)、1×1アイコンの内側余白(9,61)を取得した。これらは実測値であり、ソースの固定定数ではない。
 
-DiyGridBridgeは描画と当たり判定の確認済み3メソッドの実行中に限って、対象モデルのgetX()/getY()を投影する。保存・移行・向き変更時の座標補正・シリアライズへ投影を流さない。既存Viewの単なるtranslationではなく、純正FreeGridLayoutParams.setup(Point,float)を使って描画と編集用の座標を揃える。
+| 確認済みの型・メソッド | 根拠と用途 |
+|---|---|
+| FreeGridViewModel.getItemPositionData() | 通常ホーム用CellLayoutInfo・グリッドからDIY上の位置へ変換する寸法・余白を作る |
+| FreeGridCellLayout.createLayoutParams(FreeGridItem) | モデル座標を読む描画経路。実行中だけgetX/getYを投影 |
+| FreeGridCellLayout.createLayoutParams(View,int,int,int,int,float,boolean) | 追加Viewのレイアウト経路。対象アイコンだけ純正paramsへ投影 |
+| FreeGridCellLayout.updateViewWithoutReattach(View,FreeGridItem) | 既存View更新の座標参照に限定して投影 |
+| FreeGridViewModel.includePoint(FreeGridItem,Point) | フォルダ等のモデル座標による当たり判定を描画位置と合わせる |
+| FreeGridCellLayout.prepareSyncPosition(FrameControlStickerView) | 純正の編集開始時。移動量の持ち越しをリセット |
+| FreeGridCellLayout.syncPosition(FrameControlStickerView) / translateTarget(StickerView,float,float,boolean) | 純正エディターの移動処理。対象モデルがアプリ・フォルダの場合だけ吸着を補う |
+| FreeGridCellLayout.fitTargetView(StickerView) | 純正の編集枠を実際のアイコン位置と一致させる |
+| FreeGridViewModel.updateToDropPoint(FreeGridItem,Point,int,Point) | ドロップ時の座標を補完。(-1,-1)の無効位置は維持し、保存は純正に任せる |
+| FreeGridCellLayout$FreeGridLayoutParams.setup(Point,float) | 描画と編集の両方が参照する純正座標を設定。単なるViewのtranslationで済ませない |
 
-保存済みの配置を書き換えるためのAPI呼び出しは追加しない。ON/OFF自体は元の保存座標へ影響しない。ON中に利用者自身が移動・編集した場合は、通常のDIY Homeの保存処理に従う。OFFは利用者の編集を取り消す機能ではない。
+FreeGridItem.createCommonItemData()は保存にgetPortX()/getPortY()を使う。描画と当たり判定に使うgetX()/getY()と区別し、後者の投影は確認済みの読み取り専用UIメソッドの実行中だけ有効にする。保存・移行・向き変更時の補正・シリアライズへ投影を流さない。
 
-互換性の確認とDEX呼び出し元のdeoptimizationはバックグラウンドで行う。定期ポーリングは行わず、設定・ページ・レイアウト・モデルの更新を契機に動く。縦画面・メインディスプレイ・通常ホームの実体に限定し、プレビューやRTLでは標準を維持する。失敗時は本機能のフックだけを解除し、元の座標で再レイアウトする。
+編集時はFrameControlStickerViewのgetTargetPosition()が使う実際のPointFフィールドとControlViewを検証して参照する。純正APIの整数への切り捨てだけを毎回使うと、編集枠をセルへ戻したときに1 px未満の移動が失われる。小数を含めた余りをジェスチャーごとに保持し、少しずつ指を動かしてもセル境界を越えられるようにする。
 
-## 検証
+DEXの実呼び出し参照から関連UI・編集メソッドを特定し、インライン化の影響を避けるためdeoptimizeする。この版の実機では48個のメソッド／コンストラクタを確認した。名前だけが存在することをもって将来版の互換性を保証しない。
+
+## 配置計算・保存・停止条件
+
+GridSnapPlanはページ内の対象に重複しないセルを割り当てる。未変更アイコンの以前の割り当てを維持し、大きいフォルダは複数セルを予約する。移動中は同じページの他の対象セルを避け、近い空きセルへ吸着する。ウィジェットの領域は予約しないため、DIY Home本来のウィジェットとの重なりを許容する。これは全アイテムを通常ホームの占有ルールへ戻す機能ではない。
+
+ON/OFF自体では保存済み配置を更新しない。利用者が対象を動かした場合は、吸着した座標を純正の編集・履歴・保存処理が扱う。OFFは保存中の自由配置を表示する操作で、利用者の編集を取り消すものではない。純正「元に戻す」もDIY Homeの履歴仕様に従い、編集前の全DBを復元する機能ではない。
+
+互換性検証とDEX処理はバックグラウンドで行う。定期ポーリングはなく、設定・ページ・レイアウト・モデルの更新を契機に動く。メイン画面・縦画面・LTR・通常ホームの実体に限定し、プレビュー、横画面、RTL、他ディスプレイは純正配置を使う。容量不足はページ単位で純正へ戻す。契約不一致や例外では本機能のフックだけを解除し、保存座標で再レイアウトする。
+
+## 2026-10-17の検証
 
 確認済み:
 
-- グリッド寸法・余白・対象モデル型の実機での読み取り。
-- 同一署名のrelease variantのビルド、単体テスト33件、release Lint。
-- 整列計算では範囲内・セル重複なし・入力順に依存しない配置を100個の生成ケースでも確認。
-- Launcher停止中にDB・WAL・共有設定の私用バックアップを取得。端末データはGitや配布物に含めていない。
+- 同一署名のrelease版で上書き更新し、Launcherを再読み込み。端末再起動は実施していない。
+- 整列ON/OFF、ページ移動、通常ホームへ戻った後の整列。
+- 整列したアイコンから設定アプリが起動すること、フォルダが開閉できること。
+- 純正DIYエディターでアプリとフォルダを別セルへドラッグし、編集枠が追従すること。
+- 約8秒かけた低速ドラッグでも隣の空きセルへ移ること。ログで約0.25 pxの移動と小数の持ち越しを確認。
+- 状態タブで、専用のチェックアイコンと「稼働中」バッジが表示されること。
+- 純正の「元に戻す」で元のセルへ戻ること。テスト編集後は1フォルダの保存座標にセル吸着相当の微差が残った。全配置の無変更を確認したという意味ではない。
+- 編集後を基準として、編集なしのOFF→ONとページ移動の前後でDB比較。item、item_group、multi_display_position、inversion_grid_positionの配置関連フィールドに差分なし。ウィジェットの配置・サイズも不変。
+- スナップ計算・空きセル移動を含む35件の単体テストとrelease Lint。配置計算の100個の生成ケースで範囲・重複・入力順の不変性も確認。
 
-未完了:
+未検証の組み合わせ:
 
-- ロック解除後の整列ON/OFF、アプリのタップ、フォルダ開閉とドロップ操作。
-- 全ページの表示・ホームラベルの配色との連携。
-- ON/OFF後も保存座標とウィジェットの配置が変わっていないことのDB比較。
-- 横画面・容量不足・大きいフォルダの実機確認。
+- ドロワーからの新規追加・別ページへのドロップ、複数対象の同時移動、ステッカーとの混合選択。
+- 横画面・RTL・容量不足・大きいフォルダの実機操作（計算・ガードの実装はある）。
+- 他のHome Up／Launcher版、他機種、Android 17／One UI 9。
 
-必要なXposedスコープはOne UI Homeのみ。Home Up本体や壁紙アプリへの追加フックは不要。
+実機検証範囲は上記に限定する。バックアップしたDB・設定、Samsung APK、逆コンパイル結果、個人のホーム画像は公開リポジトリや配布物に含めない。
+
+## ログと復旧
+
+```sh
+adb logcat -s OneUiLiveColors
+```
+
+DIY_GRID loading / active / off、DIY_GRID_DEX_VERIFIED、DIY_GRID_EDIT、DIY_GRID_PAGE_UNAVAILABLE、DIY_GRID_DISABLEDで状況を追える。移動ログはジェスチャー先頭の少数回に限定する。
+
+問題がある場合は整列スイッチをOFFにする。フック自体の例外停止後に再試行する場合は、原因を解消してからアプリ内でOne UI Homeを再読み込みする。通常のスイッチ変更ではプロセス再読み込みも端末再起動も不要。

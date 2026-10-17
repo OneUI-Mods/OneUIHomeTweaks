@@ -84,5 +84,5 @@
   <string name="clock_date_left">日付を時計の左側に表示</string>
   <string name="clock_date_left_note">ステータスバーに表示されている日付を時刻の左側へ移します。日付の表示・非表示と書式はOS・QuickStarの設定に従います。初期設定はOFFです。</string>
   <string name="diy_icon_grid">DIY Homeのアイコンを通常グリッドに整列</string>
-  <string name="diy_icon_grid_note">DIY Homeを有効なまま、アプリとフォルダを通常ホームのグリッドに揃えます。ウィジェットとステッカーは自由配置のままです。OFFで元の自由配置に戻ります。縦画面のみ対応。初期設定はOFFです。</string>
+  <string name="diy_icon_grid_note">DIY Homeを有効なまま、アプリアイコンとフォルダを通常ホームのグリッドに揃え、編集時の移動もセル単位にします。ウィジェットとステッカーは自由配置のままです。OFFで保存中の自由配置を表示します。編集の取り消しではありません。縦画面のみ対応。初期設定はOFFです。</string>
 </resources>

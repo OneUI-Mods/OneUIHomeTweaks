@@ -65,4 +65,26 @@ public final class GridSnapPlanTest {
     assertNull(
         GridSnapPlan.build(2, 2, 100, 100, List.of(item(1, 9, 61), item(1, 10, 62)), Map.of()));
   }
+
+  @Test
+  public void userMoveUsesNearestFreeCellAndKeepsOtherIcons() {
+    var fixed =
+        GridSnapPlan.build(3, 2, 100, 100, List.of(item(1, 9, 61), item(2, 109, 61)), Map.of());
+    var moved = GridSnapPlan.move(3, 2, 100, 100, item(1, 190, 70), fixed.values());
+    assertEquals(2, moved.column());
+    assertEquals(0, moved.row());
+    assertEquals(109, fixed.get(2).x());
+    assertEquals(
+        0, GridSnapPlan.move(3, 2, 100, 100, item(1, -10000, -10000), fixed.values()).column());
+  }
+
+  @Test
+  public void movingFolderCannotOverlapOccupiedCellsOrLeaveGrid() {
+    var fixed = GridSnapPlan.build(3, 2, 100, 100, List.of(item(2, 209, 61)), Map.of());
+    var folder = new GridSnapPlan.Item(1, 999, 999, 2, 2, 9, 61);
+    var moved = GridSnapPlan.move(3, 2, 100, 100, folder, fixed.values());
+    assertEquals(0, moved.column());
+    assertEquals(0, moved.row());
+    assertNull(GridSnapPlan.move(1, 1, 100, 100, folder, List.of()));
+  }
 }
