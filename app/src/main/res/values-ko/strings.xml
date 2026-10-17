@@ -56,7 +56,7 @@
   <string name="help_text">범위: 앱 이름, 최근 앱 세로 고정 및 페이지 알림은 One UI Home, 음량 패널은 System UI, 라이브 미리보기는 배경화면 및 스타일입니다.\n\n기준 환경: SM-S948Q, Android 16, One UI Home 17.5.03.27, Vector 2.2. 호환되지 않는 구조에서는 기능을 중지합니다. Android 17 이상은 재조사가 필요합니다.\n\n홈 자동 색상은 배경화면의 어두운 글자 힌트를 따릅니다. 색상 알림이 없는 이미지 변경은 감지할 수 없습니다.\n\n불안정한 시작이 반복되면 모듈을 중지할 수 있습니다. Vector 내부나 앱 연결 전의 오류는 방지할 수 없습니다.</string>
   <string name="status_details">세부 정보</string>
   <string name="scope_home">One UI Home</string>
-  <string name="scope_volume">System UI (음량)</string>
+  <string name="scope_volume">System UI</string>
   <string name="scope_preview">배경화면 및 스타일</string>
   <string name="license_unavailable">라이선스 정보를 불러오지 못했습니다.</string>
   <string name="reload_targets">다른 대상 다시 시작</string>
@@ -81,4 +81,6 @@
   <string name="recents_bar_system">시스템 표시 설정을 따르며 추가로 숨기지 않습니다.</string>
   <string name="mode_local">위치별 자동 (이름 뒤 배경)</string>
   <string name="local_labels_note">각 앱 이름과 하단 Finder 텍스트 주변만 확인하여 검정 또는 흰색을 개별 선택합니다. 홈 표시, 페이지 이동, 배치 변경, 배경화면 색상 알림 시 다시 판단합니다. 알림 없는 이미지 변경은 다음 이벤트까지 반영되지 않을 수 있습니다. 상태 표시줄 색상은 변경하지 않습니다.</string>
+  <string name="clock_date_left">날짜를 시계 왼쪽에 표시</string>
+  <string name="clock_date_left_note">상태 표시줄에 표시된 날짜를 시간 왼쪽으로 이동합니다. 날짜 표시 여부와 형식은 시스템 및 QuickStar 설정을 따릅니다. 기본값은 꺼짐입니다.</string>
 </resources>

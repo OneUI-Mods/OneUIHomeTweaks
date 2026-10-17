@@ -5,6 +5,10 @@ import android.os.*;
 
 final class HostStatus {
   static void report(Context context, String state, String detail) {
+    reportFeature(context, null, state, detail);
+  }
+
+  static void reportFeature(Context context, String feature, String state, String detail) {
     if (context == null) return;
     try {
       Bundle b = new Bundle();
@@ -13,6 +17,7 @@ final class HostStatus {
       b.putInt("pid", android.os.Process.myPid());
       b.putLong("elapsed", SystemClock.elapsedRealtime());
       b.putString("host", context.getPackageName());
+      if (feature != null) b.putString("feature", feature);
       context.getContentResolver().call(ConfigProvider.URI, "report_status", null, b);
     } catch (Throwable e) {
       android.util.Log.w(

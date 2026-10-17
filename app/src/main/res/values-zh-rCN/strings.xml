@@ -56,7 +56,7 @@
   <string name="help_text">作用域：应用名称、最近任务竖屏及页面通知选择 One UI Home；音量面板选择 System UI；动态预览选择壁纸和风格。\n\n基准环境：SM-S948Q、Android 16、One UI Home 17.5.03.27、Vector 2.2。结构不兼容时停用。Android 17 及以后版本需要重新调查。\n\n主屏幕自动配色遵循壁纸提供的深色文字提示。无法检测不发送颜色通知的图片更换。\n\n多次启动不稳定时可停用模块。无法防止 Vector 内部或应用连接前发生的错误。</string>
   <string name="status_details">详细信息</string>
   <string name="scope_home">One UI Home</string>
-  <string name="scope_volume">System UI（音量）</string>
+  <string name="scope_volume">System UI</string>
   <string name="scope_preview">壁纸和风格</string>
   <string name="license_unavailable">无法加载许可证信息。</string>
   <string name="reload_targets">重新加载其他目标</string>
@@ -81,4 +81,6 @@
   <string name="recents_bar_system">遵循系统显示设置，不额外隐藏。</string>
   <string name="mode_local">按位置自动（名称背景）</string>
   <string name="local_labels_note">仅根据每个应用名称和底部Finder文字周围的背景，分别选择黑色或白色。在显示主屏幕、切换页面、更改布局或收到壁纸颜色通知时重新判断。无通知的图像更改可能等待下次事件。不会修改状态栏颜色。</string>
+  <string name="clock_date_left">日期显示在时钟左侧</string>
+  <string name="clock_date_left_note">将状态栏中已显示的日期移到时间左侧。日期的显示与隐藏及格式遵循系统和 QuickStar 设置。默认关闭。</string>
 </resources>

@@ -91,3 +91,11 @@ SDK 36 / SM-S948Q / owner user / 対象メインプロセスに限定。SDK更�
 訪問済みページの保持だけでは、未訪問ページのnative白→判定色という初回フラッシュが残る。確認済み`IconViewImpl.onDraw(Canvas)`の直前に、実ホームの同じDecorView・縦画面・画面内・未判定アイコンだけ、文字のcustom色を一時的に透明にする。アイコン画像とレイアウトは維持する。局所画素が安定して色が決まったら120msで文字だけフェードインする。訪問済みの文字は隠さない。
 
 未知の画素や座標を取得し続ける場合は、有限の採取が終了した3秒時点で未判定文字を標準色へ戻す。同じViewを直後に再び隠すループを防ぎ、OFF・破棄・エラー時は表示アニメーションもキャンセルして元のcustom色を戻す。取得画像の寸法不一致が続く間は初回非表示処理を止める。
+
+## ステータスバーの日付の順序（0.8.0）
+
+実機SystemUIの`QSClockIndicatorView.notifyTimeChanged(QSClockBellSound)`は、QuickStarの`showDateClock()`などが有効な場合だけ`getDateText(sound)`を時刻へ連結する。LTRでは時刻→2個または3個の空白→日付。表示する時刻は`TimeText`または`TimeContentDescription`。日付OFFでは時刻だけを設定することをAPKで確認した。
+
+標準の更新後に、実際の表示文字列がその連結結果と完全一致する場合だけ順序を入れ替える。日付を生成せず、sound・グローバル設定・時計のvisibility・色を変更しない。SpannableStringBuilderで既存の範囲を移し、contentDescriptionも一致する場合のみ並べ替える。更新通知と設定のContentObserverを使い、独自の時計タイマーを持たない。OFF時は保持済みのsoundを標準のnotifyTimeChangedへ戻して再描画する。
+
+SystemUIメインプロセス・メイン画面・確認済みビルドBP4A.251205.006.S948QOPS1AZHLに限定。RTL・未知の文字列・クラス構造変更では標準を維持する。例外時はこの機能のフックだけ解除し、標準の文字列を再生成する。個別応答はproviderのSystemUI専用`clock_date`機能キーに保存し、音量機能の状態とは分ける。

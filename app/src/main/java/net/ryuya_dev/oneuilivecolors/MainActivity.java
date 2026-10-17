@@ -39,7 +39,8 @@ public final class MainActivity extends AppCompatActivity {
     "pages",
     "preview",
     "recents_portrait",
-    "recents_hide_bar"
+    "recents_hide_bar",
+    "clock_date_left"
   };
   private final int[] switchIds = {
     R.id.master,
@@ -49,7 +50,8 @@ public final class MainActivity extends AppCompatActivity {
     R.id.pages,
     R.id.preview,
     R.id.recents_portrait,
-    R.id.recents_hide_bar
+    R.id.recents_hide_bar,
+    R.id.clock_date_left
   };
   private final ContentObserver reports =
       new ContentObserver(new Handler(Looper.getMainLooper())) {
@@ -114,7 +116,11 @@ public final class MainActivity extends AppCompatActivity {
       final String key = switches[i];
       MaterialSwitch control = findViewById(switchIds[i]);
       control.setChecked(
-          prefs.getBoolean(key, !key.equals("preview") && !key.startsWith("recents_")));
+          prefs.getBoolean(
+              key,
+              !key.equals("preview")
+                  && !key.startsWith("recents_")
+                  && !key.equals("clock_date_left")));
       control.setOnCheckedChangeListener(
           (button, checked) -> {
             prefs.edit().putBoolean(key, checked).apply();
@@ -187,14 +193,15 @@ public final class MainActivity extends AppCompatActivity {
         .setOnClickListener(v -> startActivity(new Intent(this, LicensesActivity.class)));
     getContentResolver().registerContentObserver(ConfigProvider.STATUS_URI, false, reports);
     LinearLayout cards = findViewById(R.id.status_cards);
-    statusCards = new HookStatusCard[6];
+    statusCards = new HookStatusCard[7];
     int[] titles = {
       R.string.scope_home,
       R.string.scope_volume,
       R.string.scope_preview,
       R.string.recents_portrait,
       R.string.recents_hide_bar,
-      R.string.mode_local
+      R.string.mode_local,
+      R.string.clock_date_left
     };
     for (int i = 0; i < titles.length; i++) {
       statusCards[i] = new HookStatusCard(this, titles[i]);
@@ -215,6 +222,41 @@ public final class MainActivity extends AppCompatActivity {
   private void showStatus() {
     if (isDestroyed() || statusCards == null) return;
     var report = getSharedPreferences("host_status", MODE_PRIVATE);
+    boolean dateOn =
+        prefs.getBoolean("enabled", true)
+            && prefs.getBoolean("systemui_enabled", true)
+            && prefs.getBoolean("clock_date_left", false);
+    String dateKey = "com.android.systemui.clock_date";
+    String dateState = dateOn ? report.getString(dateKey + ".state", "") : "OFF";
+    long dateReported = report.getLong(dateKey + ".elapsed", 0);
+    if (dateOn
+        && (dateReported > SystemClock.elapsedRealtime()
+            || (dateReported < statusRequest
+                && ("ACTIVE".equals(dateState) || "OFF".equals(dateState))))) dateState = "";
+    int dateLabel =
+        !dateOn
+            ? R.string.status_off
+            : switch (dateState) {
+              case "ACTIVE" -> R.string.status_active;
+              case "OFF" -> R.string.status_unused;
+              case "UNSUPPORTED" -> R.string.status_unsupported;
+              case "ERROR" -> R.string.status_error;
+              default -> R.string.status_unconfirmed;
+            };
+    // A host-wide crash guard/compatibility gate also prevents this feature from loading.
+    if (dateOn && dateState.isEmpty()) {
+      String hostState = report.getString("com.android.systemui.state", "");
+      if ("CRASH_GUARD".equals(hostState) || "UNSUPPORTED".equals(hostState)) {
+        dateState = hostState;
+        dateLabel =
+            "CRASH_GUARD".equals(hostState) ? R.string.status_guard : R.string.status_unsupported;
+      }
+    }
+    statusCards[6].update(
+        dateLabel,
+        dateState,
+        dateOn,
+        dateOn && !dateState.isEmpty() ? report.getString(dateKey + ".detail", "") : "");
     for (int i = 0; i < ConfigProvider.HOSTS.length; i++) {
       String host = ConfigProvider.HOSTS[i];
       boolean on = prefs.getBoolean("enabled", true) && prefs.getBoolean(switches[i + 1], true);

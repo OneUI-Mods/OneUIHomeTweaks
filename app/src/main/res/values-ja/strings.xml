@@ -56,7 +56,7 @@
   <string name="help_text">必要なスコープ：文字色・履歴の縦向き固定・ページ通知はOne UI Home、音量パネルはSystem UI、プレビューは壁紙とスタイルです。\n\n確認環境：SM-S948Q、Android 16、One UI Home 17.5.03.27、Vector 2.2。構造が確認できない機能は適用しません。Android 17以降は再調査が必要です。\n\nホームの自動色は壁紙の黒文字ヒントに従います。色通知がない画像変更は検出できません。\n\n連続した不安定な起動ではフックを停止します。Vector自体の障害や、アプリが接続される前の障害を防ぐ機能ではありません。</string>
   <string name="status_details">詳細</string>
   <string name="scope_home">One UI Home</string>
-  <string name="scope_volume">System UI（音量）</string>
+  <string name="scope_volume">System UI</string>
   <string name="scope_preview">壁紙とスタイル</string>
   <string name="license_unavailable">ライセンス情報を読み込めませんでした。</string>
   <string name="reload_targets">その他の適用先を再起動</string>
@@ -81,4 +81,6 @@
   <string name="recents_bar_system">OSの表示設定に従い、履歴画面への追加の非表示処理は行っていません。</string>
   <string name="mode_local">場所ごとに自動（ラベルの背景）</string>
   <string name="local_labels_note">各アプリ名と下部のファインダーの文字周辺だけを調べ、黒か白を個別に選びます。ホーム表示・ページ移動・配置変更・壁紙の色通知で再判定します。通知のない画像変更は次のイベントまで反映されない場合があります。ステータスバーは変更しません。</string>
+  <string name="clock_date_left">日付を時計の左側に表示</string>
+  <string name="clock_date_left_note">ステータスバーに表示されている日付を時刻の左側へ移します。日付の表示・非表示と書式はOS・QuickStarの設定に従います。初期設定はOFFです。</string>
 </resources>

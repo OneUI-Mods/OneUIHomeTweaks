@@ -50,7 +50,8 @@ public final class ConfigProvider extends ContentProvider {
               "systemui_enabled",
               "preview_enabled",
               "recents_portrait",
-              "recents_hide_bar"
+              "recents_hide_bar",
+              "clock_date_left"
             });
     c.addRow(
         new Object[] {
@@ -65,7 +66,8 @@ public final class ConfigProvider extends ContentProvider {
           p.getBoolean("systemui_enabled", true) ? 1 : 0,
           p.getBoolean("preview_enabled", true) ? 1 : 0,
           p.getBoolean("recents_portrait", false) ? 1 : 0,
-          p.getBoolean("recents_hide_bar", false) ? 1 : 0
+          p.getBoolean("recents_hide_bar", false) ? 1 : 0,
+          p.getBoolean("clock_date_left", false) ? 1 : 0
         });
     return c;
   }
@@ -76,6 +78,12 @@ public final class ConfigProvider extends ContentProvider {
       throw new IllegalArgumentException("Unsupported call");
     String host = hostCaller();
     if (!host.equals(extras.getString("host"))) throw new SecurityException("Host mismatch");
+    String feature = extras.getString("feature");
+    if (feature != null) {
+      if (!"com.android.systemui".equals(host) || !"clock_date".equals(feature))
+        throw new SecurityException("Unsupported feature");
+      host += "." + feature;
+    }
     String state = extras.getString("state", "ERROR"), detail = extras.getString("detail", "");
     if (detail.length() > 512) detail = detail.substring(0, 512);
     getContext()

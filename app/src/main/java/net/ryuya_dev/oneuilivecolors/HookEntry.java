@@ -128,8 +128,10 @@ public final class HookEntry extends XposedModule {
                 return;
               }
               if (LAUNCHER.equals(p.packageName)) installLauncher(p, app);
-              else if ("com.android.systemui".equals(p.packageName))
+              else if ("com.android.systemui".equals(p.packageName)) {
+                new ClockDateHooks().install(app, p.classLoader);
                 new VolumeHooks().install(app, p.classLoader);
+              }
               else new PreviewHooks().install(app, p.classLoader);
               new Handler(Looper.getMainLooper()).postDelayed(guard::healthy, 90000);
             } catch (Throwable t) {

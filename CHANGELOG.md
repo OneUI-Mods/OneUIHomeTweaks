@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.0
+
+- Add an optional date-before-time layout for the native status-bar clock.
+- Preserve OS / QuickStar date visibility, native date formats, clock visibility and colors.
+- Restore native order immediately when disabled; do not synthesize a date when hidden.
+- Add a Material 3 switch in Appearance and a separate graphical hook status in all five languages.
+- Leave unknown clock formats, RTL layouts and unverified SystemUI builds unchanged.
+
 ## 0.6.0
 
 - Rename the app to One UI Home Tweaks and replace the wallpaper icon with a home/customization icon.

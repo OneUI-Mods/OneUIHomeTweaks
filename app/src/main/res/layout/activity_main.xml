@@ -42,6 +42,8 @@
             <com.google.android.material.textfield.TextInputLayout style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:hint="@string/volume_theme">
               <com.google.android.material.textfield.MaterialAutoCompleteTextView android:id="@+id/volume_mode" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="none" />
             </com.google.android.material.textfield.TextInputLayout>
+            <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/clock_date_left" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="56dp" android:layout_marginTop="16dp" android:text="@string/clock_date_left" android:textAppearance="@style/TextAppearance.Material3.TitleMedium" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/clock_date_left_note" android:textAppearance="@style/TextAppearance.Material3.BodyMedium" android:textColor="?attr/colorOnSurfaceVariant" />
           </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
         <com.google.android.material.card.MaterialCardView style="?attr/materialCardViewFilledStyle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="12dp" app:cardCornerRadius="24dp" app:strokeWidth="0dp">
