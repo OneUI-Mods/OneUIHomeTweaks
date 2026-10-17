@@ -24,6 +24,32 @@ final class RecentsLiveGeometry {
         .then(affine(global));
   }
 
+  static RecentsMotionPath.Transform compose(
+      RecentsCardSpace.Space source,
+      int bitmapWidth,
+      int bitmapHeight,
+      int snapshotRotation,
+      double scale,
+      float[] shader,
+      float[] global) {
+    if (!Double.isFinite(scale) || scale <= 0 || snapshotRotation < 0 || snapshotRotation > 3)
+      throw new IllegalArgumentException("Invalid snapshot metadata");
+    int naturalWidth = source.rotation() % 2 == 0 ? source.width() : source.height();
+    int naturalHeight = source.rotation() % 2 == 0 ? source.height() : source.width();
+    int width = snapshotRotation % 2 == 0 ? naturalWidth : naturalHeight;
+    int height = snapshotRotation % 2 == 0 ? naturalHeight : naturalWidth;
+    if (bitmapWidth <= 0
+        || bitmapHeight <= 0
+        || Math.abs(bitmapWidth - width * scale) > 1
+        || Math.abs(bitmapHeight - height * scale) > 1)
+      throw new IllegalArgumentException("Snapshot does not match source display geometry");
+    var snapshot = new RecentsCardSpace.Space(width, height, snapshotRotation);
+    return RecentsCardSpace.between(source, snapshot)
+        .then(new RecentsMotionPath.Transform(scale, 0, 0, scale, 0, 0))
+        .then(affine(shader))
+        .then(affine(global));
+  }
+
   private static RecentsMotionPath.Transform affine(float[] m) {
     if (m == null || m.length != 9) throw new IllegalArgumentException("Unknown matrix");
     for (float f : m)
