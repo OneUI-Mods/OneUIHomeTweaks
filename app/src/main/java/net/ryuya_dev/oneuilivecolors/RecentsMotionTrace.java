@@ -144,6 +144,10 @@ final class RecentsMotionTrace {
                           + event.getX()
                           + ","
                           + event.getY()
+                          + " raw="
+                          + event.getRawX()
+                          + ","
+                          + event.getRawY()
                           + " displacement="
                           + p.getResult();
                 }

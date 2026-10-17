@@ -61,7 +61,27 @@ final class RecentsGestureCoordinates {
     var displacement = new RecentsMotionPath.Point(dx, dy);
     var pointer =
         new RecentsMotionPath.Point(
-            down.x() * naturalWidth / initialWidth + dx, naturalHeight + dy);
+            down.x() * naturalWidth / initialWidth + (region == Region.LEFT ? -dx : dx),
+            naturalHeight + dy);
     return new Position(displacement, pointer);
+  }
+
+  /** Apply to the whole cloned MotionEvent, including all pointers and historical samples. */
+  RecentsMotionPath.Transform pointerTransform(int currentRotation) {
+    var current = RecentsMotionPath.Transform.display(currentRotation, naturalWidth, naturalHeight);
+    var original = current.inverse().then(initialDisplay);
+    double kx = naturalWidth / initialWidth, ky = naturalHeight / initialHeight;
+    RecentsMotionPath.Transform virtual;
+    if (region == Region.BOTTOM)
+      virtual = new RecentsMotionPath.Transform(kx, 0, 0, ky, 0, naturalHeight - down.y() * ky);
+    else if (region == Region.LEFT)
+      virtual =
+          new RecentsMotionPath.Transform(
+              0, ky, kx, 0, kx * (down.x() - down.y()), naturalHeight - down.x() * ky);
+    else
+      virtual =
+          new RecentsMotionPath.Transform(
+              0, ky, -kx, 0, kx * (down.x() + down.y()), naturalHeight - down.x() * ky);
+    return original.then(virtual);
   }
 }

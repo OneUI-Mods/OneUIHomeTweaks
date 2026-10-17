@@ -12,6 +12,109 @@ import org.jf.dexlib2.iface.reference.MethodReference;
 
 /** Finds the real callers by DEX type relationships; no obfuscated name assumptions. */
 final class DexEvidence {
+  record CapturedEmitter(java.lang.reflect.Method emit, java.lang.reflect.Field owner) {}
+
+  static void deoptimizeRecentsCoordinateCalls(
+      String apk, ClassLoader loader, List<java.lang.reflect.Method> targets) throws Exception {
+    Set<String> identities = new HashSet<>();
+    for (var method : targets)
+      identities.add(
+          "L" + method.getDeclaringClass().getName().replace('.', '/') + ";#" + method.getName());
+    identities.add("Lcom/honeyspace/gesture/recentsanimation/RecentsAnimationAction;#start");
+    identities.add("Lcom/honeyspace/gesture/recentsanimation/RecentsAnimationAction;#move");
+    Set<java.lang.reflect.Method> callers = new HashSet<>(targets);
+    Class<?> helper =
+        Class.forName("com.honeyspace.gesture.session.AnimationSessionKt", false, loader);
+    for (var method : helper.getDeclaredMethods())
+      if (method.getReturnType() == android.view.MotionEvent.class) callers.add(method);
+    var dex = DexFileFactory.loadDexContainer(new File(apk), Opcodes.getDefault());
+    for (String entry : dex.getDexEntryNames())
+      for (ClassDef c : dex.getEntry(entry).getDexFile().getClasses()) {
+        Set<String> names = new HashSet<>();
+        for (var m : c.getMethods()) {
+          if (m.getImplementation() == null) continue;
+          for (var instruction : m.getImplementation().getInstructions())
+            if (instruction instanceof ReferenceInstruction r
+                && r.getReference() instanceof MethodReference ref
+                && identities.contains(ref.getDefiningClass() + "#" + ref.getName()))
+              names.add(m.getName());
+        }
+        if (names.isEmpty()) continue;
+        Class<?> actual =
+            Class.forName(
+                c.getType().substring(1, c.getType().length() - 1).replace('/', '.'),
+                false,
+                loader);
+        for (var method : actual.getDeclaredMethods())
+          if (names.contains(method.getName())) callers.add(method);
+      }
+    if (callers.isEmpty() || callers.size() > 96)
+      throw new IllegalStateException("Coordinate caller set changed");
+    for (var method : callers)
+      if (!ModernHook.deoptimize(method))
+        throw new IllegalStateException("Cannot deoptimize coordinate caller");
+    HookEntry.log("RECENTS_COORDINATES_DEX_VERIFIED callers=" + callers.size());
+  }
+
+  static CapturedEmitter capturedEmitter(
+      String apk,
+      ClassLoader loader,
+      Class<?> ownerType,
+      Class<?> payload,
+      String marker,
+      String calledMethod)
+      throws Exception {
+    String ownerDescriptor = "L" + ownerType.getName().replace('.', '/') + ";";
+    String payloadDescriptor = "L" + payload.getName().replace('.', '/') + ";";
+    List<CapturedEmitter> matches = new ArrayList<>();
+    var dex = DexFileFactory.loadDexContainer(new File(apk), Opcodes.getDefault());
+    for (String entry : dex.getDexEntryNames())
+      for (ClassDef c : dex.getEntry(entry).getDexFile().getClasses()) {
+        if (!c.getInterfaces().contains("Lkotlinx/coroutines/flow/FlowCollector;")) continue;
+        int captures = 0;
+        for (var f : c.getFields()) if (f.getType().equals(ownerDescriptor)) captures++;
+        if (captures != 1) continue;
+        for (var m : c.getMethods()) {
+          if (!m.getName().equals("emit")
+              || m.getImplementation() == null
+              || !m.getParameterTypes()
+                  .toString()
+                  .equals("[" + payloadDescriptor + ", Lkotlin/coroutines/Continuation;]"))
+            continue;
+          boolean text = marker == null, call = false;
+          for (var i : m.getImplementation().getInstructions())
+            if (i instanceof ReferenceInstruction r) {
+              if (r.getReference() instanceof org.jf.dexlib2.iface.reference.StringReference s
+                  && marker != null
+                  && s.getString().contains(marker)) text = true;
+              if (r.getReference() instanceof MethodReference ref
+                  && ref.getName().equals(calledMethod)) call = true;
+            }
+          if (!text || !call) continue;
+          Class<?> actual =
+              Class.forName(
+                  c.getType().substring(1, c.getType().length() - 1).replace('/', '.'),
+                  false,
+                  loader);
+          java.lang.reflect.Field owner = null;
+          for (var f : actual.getDeclaredFields()) if (f.getType() == ownerType) owner = f;
+          if (owner == null) continue;
+          owner.setAccessible(true);
+          var emit =
+              actual.getDeclaredMethod(
+                  "emit", payload, Class.forName("kotlin.coroutines.Continuation", false, loader));
+          emit.setAccessible(true);
+          for (var caller : actual.getDeclaredMethods())
+            if (!ModernHook.deoptimize(caller))
+              throw new IllegalStateException("Cannot deoptimize captured emitter");
+          matches.add(new CapturedEmitter(emit, owner));
+        }
+      }
+    if (matches.size() != 1)
+      throw new IllegalStateException("Ambiguous captured emitter " + payload.getName());
+    return matches.get(0);
+  }
+
   static void verifyRecentsMotion(String apk, ClassLoader loader) throws Exception {
     String player = "Lcom/honeyspace/transition/anim/floating/PlayerImpl;";
     String manager = "Lcom/honeyspace/gesture/recentsanimation/RecentsAnimationManager;";

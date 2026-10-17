@@ -88,3 +88,10 @@ adb logcat -s OneUiLiveColors:I '*:S'
 対象メソッド、座標の扱い、編集時の吸着と実機検証の範囲は[DIY Homeの技術記録](diy-home-grid.md)を参照してください。SamsungのAPK・逆コンパイル結果・ホームDB・壁紙画像は私用の調査資料で、公開ソースや配布APKには含めません。
 
 - [履歴の連続アニメーション調査（開発中・未解決）](recents-motion.md)
+
+
+## 履歴座標アダプターのローカル実験
+
+`-PrecentsMotionTrace=true` は幾何ログのみ、`-PrecentsCoordinateExperimental=true` は未完成の入力・描画座標アダプターを登録する別のフラグです。**両方とも通常ビルドではfalse**です。実験版は公開リリースへ混入させないでください。実機試験は失敗しており、フラグを付けたビルドの成功は動作確認を意味しません。
+
+所有セッション、実タスクID、remote source bounds、player basis、Root寸法とnative stylerを照合し、不明な構成は履歴の補正だけを解除します。最新のガードは実機未検証です。次の操作試験には署名・フラグを確認した通常APKを事前に用意し、端末操作が許可された時間内に戻してください。[失敗条件と残る作業](recents-motion.md)を参照してください。

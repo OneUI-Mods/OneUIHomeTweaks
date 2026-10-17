@@ -21,6 +21,7 @@ android {
         versionName = "0.10.0"
         // Observational geometry logging is opt-in for local investigation, never default release behavior.
         buildConfigField("boolean", "RECENTS_MOTION_TRACE", providers.gradleProperty("recentsMotionTrace").map { (it == "true").toString() }.getOrElse("false"))
+        buildConfigField("boolean", "RECENTS_COORDINATE_EXPERIMENTAL", providers.gradleProperty("recentsCoordinateExperimental").map { (it == "true").toString() }.getOrElse("false"))
     }
     signingConfigs {
         if (!distributionProperties.isEmpty) create("distribution") {

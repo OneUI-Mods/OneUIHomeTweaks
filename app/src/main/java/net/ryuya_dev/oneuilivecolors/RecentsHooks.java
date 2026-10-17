@@ -17,6 +17,7 @@ final class RecentsHooks {
   private final List<ModernHook.Handle> handles = new ArrayList<>();
   private final ThreadLocal<Boolean> restoring = ThreadLocal.withInitial(() -> false);
   private final RecentsMotionTrace motion = new RecentsMotionTrace();
+  private final RecentsCoordinateHooks coordinates = new RecentsCoordinateHooks(this::disable);
   private Class<?> recentsClass;
   private volatile boolean enabled;
   private volatile boolean failed;
@@ -74,10 +75,12 @@ final class RecentsHooks {
                     apply((Activity) p.thisObject);
                 }
               }));
+      if (BuildConfig.RECENTS_COORDINATE_EXPERIMENTAL) coordinates.install(apk, loader);
       if (BuildConfig.RECENTS_MOTION_TRACE) motion.install(apk, loader);
       diagnostic = "off";
       HookEntry.log("RECENTS_HOOK_READY Activity-local portrait policy");
     } catch (Throwable e) {
+      coordinates.uninstall();
       motion.uninstall();
       for (var handle : handles) handle.unhook();
       handles.clear();
@@ -90,6 +93,7 @@ final class RecentsHooks {
     if (Looper.myLooper() != Looper.getMainLooper())
       throw new IllegalStateException("Recents policy requires main thread");
     enabled = value && !failed && recentsClass != null && !handles.isEmpty();
+    coordinates.setEnabled(enabled);
     motion.setEnabled(enabled);
     for (Activity a : new ArrayList<>(nativeRequests.keySet())) apply(a);
     if (!failed && !handles.isEmpty()) diagnostic = enabled ? "portrait" : "off";
@@ -136,6 +140,7 @@ final class RecentsHooks {
     if (failed) return;
     failed = true;
     enabled = false;
+    coordinates.uninstall();
     motion.uninstall();
     diagnostic = "error:" + e.getClass().getSimpleName();
     for (var handle : handles) {

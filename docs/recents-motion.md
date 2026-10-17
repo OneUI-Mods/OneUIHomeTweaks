@@ -1,6 +1,6 @@
 # Portrait Recents: motion adapter investigation
 
-Status: **incomplete**. The final Recents screen can be portrait, but the landscape-to-portrait gesture is not yet seamless. The replacement path is not connected to live Surface transactions. Do not release this work as an animation fix.
+Status: **incomplete**. The final Recents screen can be portrait, but the landscape-to-portrait gesture is not yet seamless. A development-only adapter has been connected to native input and player targets, but two device trials failed. Normal builds do not install it. Do not release this work as an animation fix.
 
 ## Preserved device baseline
 
@@ -69,6 +69,36 @@ Further inspected native code: `AnimationSessionKt.displacement` calculates delt
 
 `AnimationSession` also observes `DeviceState`. Its typed FlowCollector compares the new display size with `LeashSizeCalculator.getFullDisplaySize()`. During a gesture, a mismatch can dispatch `ActionEvent.StartHomeScreenAnimation`. This is a verified code path, not yet a proven explanation for every failed earlier test. Simply requesting portrait early can therefore change gesture completion behavior.
 
-`RecentsGestureCoordinates` captures the initial display transform and pointer, projects later events back into those original axes, and produces displacement plus a virtual portrait-card pointer without accumulating deltas. Six additional tests include the actual measured landscape drag, both landscape rotations, repeated rotation/reversal, horizontal drift, native side-region conventions and invalid inputs. This component is **not yet connected to live input or rendering**.
+`RecentsGestureCoordinates` captures the initial display transform and pointer, projects later events back into those original axes, and produces displacement plus a virtual portrait-card pointer without accumulating deltas. Six additional tests include the actual measured landscape drag, both landscape rotations, repeated rotation/reversal, horizontal drift, native side-region conventions and invalid inputs. This component is now connected only by the opt-in experimental adapter described below; the normal APK retains native input.
 
-The runtime adapter still needs one coordinated session: capture the source gesture; prepare a portrait overlay; rebase only its own pending display-size change before the native mismatch fallback; project both displacement and direct View events; map card target bounds through the verified player Home-to-window basis; convert spring callbacks back into card coordinates; and preserve native completion/cancellation. General rotation changes, Home gestures, DeX, split screen and unrelated tasks must retain native behavior. This is not a plan to hook all MotionEvents or globally suppress the native fallback.
+The adapter attempts one coordinated session: capture the source gesture; prepare a portrait overlay; rebase only its own pending display-size change before the native mismatch fallback; project both displacement and direct View events; map card target bounds through the verified player Home-to-window basis; convert spring callbacks back into card coordinates; and preserve native completion/cancellation. General rotation changes, Home gestures, DeX, split screen and unrelated tasks must retain native behavior. This is not a plan to hook all MotionEvents or globally suppress the native fallback.
+
+
+## 2026-10-18: experimental adapter trials and rollback
+
+`RecentsCoordinateHooks` is installed only with the separate build property `-PrecentsCoordinateExperimental=true`; its default is false. It binds a fullscreen display-0 app task to its exact `AnimationSession`, `TaskViewInteraction.leashOverlayWindow` and native player. It excludes Home/lock/key starts, re-entry with an existing player, DeX, non-fullscreen apps, secondary displays and unmeasured input regions. It does not hook SystemUI or modify app orientation. Existing native spring, cropping, alpha, Surface transactions and completion are retained.
+
+The typed `DeviceState` and `WindowManager.LayoutParams` FlowCollectors are found using captured owner type, payload signature and DEX call relationships. Their compiler-generated class names are not hardcoded. The installed test APK verified 27 coordinate-path callers. A whole-event matrix transforms cloned MotionEvents, including pointer history; individual point edits would leave old historical samples in the wrong axes.
+
+Two signed **local experimental release builds**, not public releases, were tried within an explicitly authorized device-use window:
+
+1. Shell supplied an already-normalized 1440 x 3120 closing source with an identity player basis, even though the initial gesture was 3120 x 1440 / rotation 1. A guard that compared player bounds with the *gesture start size* rejected it. The feature stopped and returned to native requests. The app target must instead be matched by task ID and actual remote source-container bounds.
+2. After correcting that check, the adapter bound a 3120 x 1440 app with a quarter-turn player basis. However, the gesture overlay remained **3120 x 1440 / rotation 1** while the calculator had been changed to 1440 x 3120. At handoff, measured card scale was about **1.5249 x 0.3450**, and the mapped target extended to y approximately -3121. The card did not meet the final portrait card. This is a failed experiment, not a seamless transition. The native Recents-first branch was selected, so selecting that branch alone is insufficient.
+
+Screenrecord letterboxed landscape content into a fixed portrait recording. Those black recording margins are not evidence of deliberate visual masking. The window geometry and unequal native View scales independently establish the mismatch. Videos, screenshots, original logs and app/task identifiers remain private and excluded from Git.
+
+The phone was restored to the normal signed release build with **both experimental and tracing flags false**. The Launcher was reloaded and its normal hook initialization confirmed; the private orientation probe was uninstalled and the test recording files removed from the phone. No device reboot or SystemUI reload was performed in these trials. Cancellation/reversal and seamless completion have **not** been validated for this adapter.
+
+### Source changes after these failed trials (not device-tested)
+
+- Defer calculator and pointer changes until player binding. Requesting portrait is preparation, not proof that native layout became portrait.
+- Validate the **owned overlay's actual measured dimensions** and the calculator's native `RecentStyleData.getBounds()` against the same portrait viewport before enabling the adapter; recheck before mapping a card target. A stale landscape styler or dormant 1 x 1 window is rejected.
+- Rebase from the actual native player's current rectangle after verifying source identity/basis; discard old pending target rectangles rather than interpreting them in new axes.
+- Resolve the overlay through the session's own `TaskViewInteraction` instead of changing every remembered overlay on display 0.
+- Keep a session snapshot across native synchronous invalidation so error/disable cleanup can restore the original calculator size and drawn bounds.
+
+These checks prevent the *known* mixed-viewport state from being accepted. They do not arrange the missing portrait overlay/styler, and they are **not the animation fix**. The next design must render the gesture cards and live app in a common verified viewport throughout the transition, including when Shell defers display rotation, before enabling coordinate projection. Continuity must be established at the actual snapshot-content handoff, not only the outer card rectangle.
+
+The native calculator calls `getStyleData()` for scene insets, bounds and list scale, while `calculateTopRect` also reads its mutable `fullDisplaySize`. Therefore changing that Point does not update all of its inputs. `LeashOverlayWindowImpl` updates its cached styler from its own WindowContext on configuration/inset events; the final Activity uses a different styler. These verified source paths explain why the earlier Point-only rebase was insufficient. They do not establish when Shell will honor an orientation request.
+
+Four regression tests use the measured portrait/landscape dimensions, stale styler, incomplete layout and invalid geometry. Together with input projection and existing tests, **65 unit tests** pass. Signed normal APK assembly and release Lint pass. The post-trial guard itself has not been loaded on the phone.

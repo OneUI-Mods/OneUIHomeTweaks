@@ -8,6 +8,37 @@ public class RecentsGestureCoordinatesTest {
   private static final double EPS = 1e-7;
 
   @Test
+  public void eventMatrixMatchesPointerAndHistoricalSampleProjection() {
+    for (var region : RecentsGestureCoordinates.Region.values())
+      for (int initial : new int[] {1, 3}) {
+        var c = new RecentsGestureCoordinates(initial, 3120, 1440, 1560, 1434, region);
+        for (int rotation = 0; rotation < 4; rotation++)
+          for (double[] point : new double[][] {{100, 200}, {720, 1000}, {900, 1200}}) {
+            var projected = c.pointerTransform(rotation).map(point[0], point[1]);
+            var expected = c.pointer(rotation, point[0], point[1]).virtualPointer();
+            assertEquals(expected.x(), projected.x(), EPS);
+            assertEquals(expected.y(), projected.y(), EPS);
+          }
+      }
+  }
+
+  @Test
+  public void leftAndRightRegionsPreserveNativeHorizontalPointerDirection() {
+    var left =
+        new RecentsGestureCoordinates(
+            1, 3120, 1440, 10, 720, RecentsGestureCoordinates.Region.LEFT);
+    var right =
+        new RecentsGestureCoordinates(
+            1, 3120, 1440, 10, 720, RecentsGestureCoordinates.Region.RIGHT);
+    assertTrue(
+        left.pointer(1, 400, 740).virtualPointer().x()
+            > left.pointer(1, 400, 720).virtualPointer().x());
+    assertTrue(
+        right.pointer(1, 400, 740).virtualPointer().x()
+            < right.pointer(1, 400, 720).virtualPointer().x());
+  }
+
+  @Test
   public void measuredDragSurvivesDisplayRotationWithoutChangingFraction() {
     var coordinates =
         new RecentsGestureCoordinates(
