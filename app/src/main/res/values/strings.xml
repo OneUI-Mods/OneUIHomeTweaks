@@ -83,4 +83,6 @@
   <string name="local_labels_note">Home labels and Finder each use only the area around their text to choose black or white. Rechecks after home/page/layout events and wallpaper color notifications. Silent image changes may wait until the next event. Status bar colors are managed outside this module.</string>
   <string name="clock_date_left">Date before the status-bar clock</string>
   <string name="clock_date_left_note">Moves the displayed date to the left of the time. Date visibility and format follow system and QuickStar settings. Off by default.</string>
+  <string name="diy_icon_grid">Standard grid for DIY Home icons</string>
+  <string name="diy_icon_grid_note">Keeps DIY Home enabled and aligns app icons and folders to the normal home grid. Widgets and stickers stay freely placed. Turning this off restores the original free positions. Portrait only; off by default.</string>
 </resources>

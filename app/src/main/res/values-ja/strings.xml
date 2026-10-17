@@ -83,4 +83,6 @@
   <string name="local_labels_note">各アプリ名と下部のファインダーの文字周辺だけを調べ、黒か白を個別に選びます。ホーム表示・ページ移動・配置変更・壁紙の色通知で再判定します。通知のない画像変更は次のイベントまで反映されない場合があります。ステータスバーは変更しません。</string>
   <string name="clock_date_left">日付を時計の左側に表示</string>
   <string name="clock_date_left_note">ステータスバーに表示されている日付を時刻の左側へ移します。日付の表示・非表示と書式はOS・QuickStarの設定に従います。初期設定はOFFです。</string>
+  <string name="diy_icon_grid">DIY Homeのアイコンを通常グリッドに整列</string>
+  <string name="diy_icon_grid_note">DIY Homeを有効なまま、アプリとフォルダを通常ホームのグリッドに揃えます。ウィジェットとステッカーは自由配置のままです。OFFで元の自由配置に戻ります。縦画面のみ対応。初期設定はOFFです。</string>
 </resources>

@@ -34,6 +34,7 @@ public final class HookEntry extends XposedModule {
   private Context context;
   private WallpaperManager wm;
   private final PageBridge pages = new PageBridge();
+  private final DiyGridBridge diyGrid = new DiyGridBridge();
   private final DrawerBridge drawer = new DrawerBridge();
   private final HomeLabelBridge homeLabels = new HomeLabelBridge();
   private final RecentsHooks recents = new RecentsHooks();
@@ -52,6 +53,8 @@ public final class HookEntry extends XposedModule {
   @Override
   public void onModuleLoaded(XposedModuleInterface.ModuleLoadedParam param) {
     ModernHook.attach(this);
+    pages.setFreeGridObserver(diyGrid::observe);
+    diyGrid.setChanged(this::requestRefresh);
     processName = param.getProcessName();
     log(
         "MODULE_LOADED api="
@@ -131,8 +134,7 @@ public final class HookEntry extends XposedModule {
               else if ("com.android.systemui".equals(p.packageName)) {
                 new ClockDateHooks().install(app, p.classLoader);
                 new VolumeHooks().install(app, p.classLoader);
-              }
-              else new PreviewHooks().install(app, p.classLoader);
+              } else new PreviewHooks().install(app, p.classLoader);
               new Handler(Looper.getMainLooper()).postDelayed(guard::healthy, 90000);
             } catch (Throwable t) {
               HostStatus.report(app, "ERROR", t.getClass().getSimpleName() + ": " + t.getMessage());
@@ -428,7 +430,11 @@ public final class HookEntry extends XposedModule {
     if (failed) return;
     try {
       int label = ColorPolicy.OFF, status = ColorPolicy.OFF, drawerMode = ColorPolicy.AUTO;
-      boolean master = false, pageMode = false, recentsPortrait = false, hideRecentsBar = false;
+      boolean master = false,
+          pageMode = false,
+          recentsPortrait = false,
+          hideRecentsBar = false,
+          diyGridMode = false;
       try (Cursor cursor =
           context.getContentResolver().query(ConfigProvider.URI, null, null, null, null)) {
         if (cursor == null || !cursor.moveToFirst())
@@ -441,6 +447,7 @@ public final class HookEntry extends XposedModule {
             master && cursor.getInt(cursor.getColumnIndexOrThrow("recents_portrait")) != 0;
         hideRecentsBar =
             master && cursor.getInt(cursor.getColumnIndexOrThrow("recents_hide_bar")) != 0;
+        diyGridMode = master && cursor.getInt(cursor.getColumnIndexOrThrow("diy_icon_grid")) != 0;
         drawerMode = cursor.getInt(cursor.getColumnIndexOrThrow("drawer"));
         label = cursor.getInt(cursor.getColumnIndexOrThrow("label"));
         // Status bar belongs to the user's separate module; never override it.
@@ -460,6 +467,7 @@ public final class HookEntry extends XposedModule {
       boolean currentRecentsPortrait = recentsPortrait;
       boolean currentHideRecentsBar = hideRecentsBar;
       boolean currentMaster = master;
+      boolean currentDiyGrid = diyGridMode;
       boolean localLabels = apply && label == ColorPolicy.LOCAL;
       main.post(
           () -> {
@@ -468,6 +476,7 @@ public final class HookEntry extends XposedModule {
             homeLabels.setEnabled(localLabels);
             recents.setEnabled(currentRecentsPortrait);
             recentsBar.setEnabled(currentHideRecentsBar);
+            diyGrid.setEnabled(currentDiyGrid);
             HostStatus.report(
                 context,
                 currentMaster ? "ACTIVE" : "OFF",
@@ -480,7 +489,9 @@ public final class HookEntry extends XposedModule {
                     + "; recents="
                     + recents.diagnostic()
                     + "; recentsBar="
-                    + recentsBar.diagnostic());
+                    + recentsBar.diagnostic()
+                    + "; diyGrid="
+                    + diyGrid.diagnostic());
           });
       Snapshot next =
           new Snapshot(
@@ -507,7 +518,11 @@ public final class HookEntry extends XposedModule {
       failures = 0;
     } catch (Throwable t) {
       publish(new Snapshot(null, null));
-      main.post(() -> homeLabels.setEnabled(false));
+      main.post(
+          () -> {
+            homeLabels.setEnabled(false);
+            diyGrid.setEnabled(false);
+          });
       log(
           "REFRESH_ERROR, native behavior restored: "
               + t.getClass().getSimpleName()
@@ -560,6 +575,7 @@ public final class HookEntry extends XposedModule {
             homeLabels.setEnabled(false);
             recents.setEnabled(false);
             recentsBar.setEnabled(false);
+            diyGrid.setEnabled(false);
           });
     publish(new Snapshot(null, null));
     log("DISABLED " + stage + ": " + t);

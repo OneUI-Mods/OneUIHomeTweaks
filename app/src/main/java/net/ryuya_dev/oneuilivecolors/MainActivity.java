@@ -40,7 +40,8 @@ public final class MainActivity extends AppCompatActivity {
     "preview",
     "recents_portrait",
     "recents_hide_bar",
-    "clock_date_left"
+    "clock_date_left",
+    "diy_icon_grid"
   };
   private final int[] switchIds = {
     R.id.master,
@@ -51,7 +52,8 @@ public final class MainActivity extends AppCompatActivity {
     R.id.preview,
     R.id.recents_portrait,
     R.id.recents_hide_bar,
-    R.id.clock_date_left
+    R.id.clock_date_left,
+    R.id.diy_icon_grid
   };
   private final ContentObserver reports =
       new ContentObserver(new Handler(Looper.getMainLooper())) {
@@ -120,7 +122,8 @@ public final class MainActivity extends AppCompatActivity {
               key,
               !key.equals("preview")
                   && !key.startsWith("recents_")
-                  && !key.equals("clock_date_left")));
+                  && !key.equals("clock_date_left")
+                  && !key.equals("diy_icon_grid")));
       control.setOnCheckedChangeListener(
           (button, checked) -> {
             prefs.edit().putBoolean(key, checked).apply();
@@ -193,7 +196,7 @@ public final class MainActivity extends AppCompatActivity {
         .setOnClickListener(v -> startActivity(new Intent(this, LicensesActivity.class)));
     getContentResolver().registerContentObserver(ConfigProvider.STATUS_URI, false, reports);
     LinearLayout cards = findViewById(R.id.status_cards);
-    statusCards = new HookStatusCard[7];
+    statusCards = new HookStatusCard[8];
     int[] titles = {
       R.string.scope_home,
       R.string.scope_volume,
@@ -201,7 +204,8 @@ public final class MainActivity extends AppCompatActivity {
       R.string.recents_portrait,
       R.string.recents_hide_bar,
       R.string.mode_local,
-      R.string.clock_date_left
+      R.string.clock_date_left,
+      R.string.diy_icon_grid
     };
     for (int i = 0; i < titles.length; i++) {
       statusCards[i] = new HookStatusCard(this, titles[i]);
@@ -282,6 +286,25 @@ public final class MainActivity extends AppCompatActivity {
           label, state, on, on && !state.isEmpty() ? report.getString(host + ".detail", "") : "");
       if (i == 0) {
         String detail = report.getString(host + ".detail", "");
+        boolean gridOn = on && prefs.getBoolean("diy_icon_grid", false);
+        String gridState = gridOn ? state : "OFF";
+        int gridLabel = gridOn ? label : R.string.status_off;
+        if (gridOn && "ACTIVE".equals(state)) {
+          if (detail.contains("diyGrid=error:")) {
+            gridState = "ERROR";
+            gridLabel = R.string.status_error;
+          } else if (!detail.contains("diyGrid=active")) {
+            gridState = "";
+            gridLabel = R.string.status_unconfirmed;
+          }
+        }
+        statusCards[7].update(
+            gridLabel,
+            gridState,
+            gridOn,
+            gridOn && !gridState.isEmpty()
+                ? detail.substring(Math.max(0, detail.indexOf("diyGrid=")))
+                : "");
         boolean localOn = on && prefs.getInt("label", ColorPolicy.LOCAL) == ColorPolicy.LOCAL;
         String localState = !localOn ? "OFF" : state;
         int localLabel = !localOn ? R.string.status_off : label;

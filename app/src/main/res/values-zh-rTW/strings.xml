@@ -83,4 +83,6 @@
   <string name="local_labels_note">僅根據各應用程式名稱與底部Finder文字周圍的背景，分別選擇黑色或白色。在顯示主畫面、切換頁面、變更配置或收到桌布色彩通知時重新判斷。沒有通知的圖片變更可能等待下次事件。不會修改狀態列色彩。</string>
   <string name="clock_date_left">日期顯示在時鐘左側</string>
   <string name="clock_date_left_note">將狀態列中已顯示的日期移到時間左側。日期的顯示與隱藏及格式遵循系統和 QuickStar 設定。預設關閉。</string>
+  <string name="diy_icon_grid">DIY Home 圖示使用標準網格</string>
+  <string name="diy_icon_grid_note">保持 DIY Home 啟用，將應用程式和資料夾對齊至一般主畫面網格。小工具和貼紙仍可自由放置。關閉後恢復原來的自由位置。僅支援直向螢幕，預設關閉。</string>
 </resources>

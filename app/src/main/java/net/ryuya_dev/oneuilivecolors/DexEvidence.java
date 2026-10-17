@@ -12,6 +12,44 @@ import org.jf.dexlib2.iface.reference.MethodReference;
 
 /** Finds the real callers by DEX type relationships; no obfuscated name assumptions. */
 final class DexEvidence {
+  static void deoptimizeDiyPositions(String apk, ClassLoader loader) throws Exception {
+    Set<java.lang.reflect.Executable> callers = new HashSet<>();
+    var dex = DexFileFactory.loadDexContainer(new File(apk), Opcodes.getDefault());
+    for (String entry : dex.getDexEntryNames())
+      for (ClassDef c : dex.getEntry(entry).getDexFile().getClasses()) {
+        Set<String> names = new HashSet<>();
+        for (var method : c.getMethods()) {
+          if (method.getImplementation() == null) continue;
+          for (var instruction : method.getImplementation().getInstructions())
+            if (instruction instanceof ReferenceInstruction refInstruction
+                && refInstruction.getReference() instanceof MethodReference ref
+                && ref.getDefiningClass()
+                    .startsWith("Lcom/honeyspace/ui/honeypots/freegrid/domain/model/FreeGridItem")
+                && (ref.getName().equals("getX") || ref.getName().equals("getY"))
+                && ref.getParameterTypes().isEmpty()
+                && ref.getReturnType().equals("I")) names.add(method.getName());
+        }
+        if (names.isEmpty()) continue;
+        Class<?> actual =
+            Class.forName(
+                c.getType().substring(1, c.getType().length() - 1).replace('/', '.'),
+                false,
+                loader);
+        if (names.contains("<init>"))
+          callers.addAll(Arrays.asList(actual.getDeclaredConstructors()));
+        for (var method : actual.getDeclaredMethods())
+          if (names.contains(method.getName())
+              && !Modifier.isAbstract(method.getModifiers())
+              && !Modifier.isNative(method.getModifiers())) callers.add(method);
+      }
+    if (callers.isEmpty() || callers.size() > 256)
+      throw new UnsupportedOperationException("DIY coordinate callsite contract changed");
+    for (var caller : callers)
+      if (!ModernHook.deoptimize(caller))
+        throw new UnsupportedOperationException("Cannot deoptimize DIY coordinate caller");
+    HookEntry.log("DIY_GRID_DEX_VERIFIED coordinate callers=" + callers.size());
+  }
+
   static void verifyRecentsOrientation(String apk, ClassLoader loader) throws Exception {
     Set<java.lang.reflect.Method> callers = new HashSet<>();
     boolean recentsLifecycle = false;

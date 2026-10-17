@@ -83,4 +83,6 @@
   <string name="local_labels_note">각 앱 이름과 하단 Finder 텍스트 주변만 확인하여 검정 또는 흰색을 개별 선택합니다. 홈 표시, 페이지 이동, 배치 변경, 배경화면 색상 알림 시 다시 판단합니다. 알림 없는 이미지 변경은 다음 이벤트까지 반영되지 않을 수 있습니다. 상태 표시줄 색상은 변경하지 않습니다.</string>
   <string name="clock_date_left">날짜를 시계 왼쪽에 표시</string>
   <string name="clock_date_left_note">상태 표시줄에 표시된 날짜를 시간 왼쪽으로 이동합니다. 날짜 표시 여부와 형식은 시스템 및 QuickStar 설정을 따릅니다. 기본값은 꺼짐입니다.</string>
+  <string name="diy_icon_grid">DIY Home 아이콘을 기본 격자에 정렬</string>
+  <string name="diy_icon_grid_note">DIY Home을 유지하면서 앱과 폴더를 기본 홈 격자에 맞춥니다. 위젯과 스티커는 자유롭게 배치됩니다. 끄면 원래 위치로 돌아갑니다. 세로 화면 전용이며 기본값은 꺼짐입니다.</string>
 </resources>

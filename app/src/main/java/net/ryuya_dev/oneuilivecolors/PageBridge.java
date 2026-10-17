@@ -20,6 +20,11 @@ final class PageBridge {
   private boolean discovering, discoveryFailed;
   private WeakReference<android.app.Activity> homeActivity = new WeakReference<>(null);
   private String lastReport = "";
+  private java.util.function.Consumer<ViewGroup> freeGridObserver;
+
+  void setFreeGridObserver(java.util.function.Consumer<ViewGroup> observer) {
+    freeGridObserver = observer;
+  }
 
   void install(ClassLoader loader) throws Exception {
     if (!DexEvidence.workspaceVerified)
@@ -81,6 +86,7 @@ final class PageBridge {
               DexEvidence.verifyScrollContract(ctx.getApplicationInfo().sourceDir, name);
               PageBridge bridge = new PageBridge();
               bridge.isFreeGrid = true;
+              bridge.freeGridObserver = freeGridObserver;
               bridge.installFreeGrid(Class.forName(name, false, pluginLoader));
               freeGrid = bridge;
               bridge.homeActivity = homeActivity;
@@ -109,6 +115,7 @@ final class PageBridge {
               DexEvidence.verifyScrollContract(ctx.getApplicationInfo().sourceDir, name);
               PageBridge bridge = new PageBridge();
               bridge.isFreeGrid = true;
+              bridge.freeGridObserver = freeGridObserver;
               bridge.installFreeGrid(Class.forName(name, false, pluginLoader));
               freeGrid = bridge;
               bridge.homeActivity = homeActivity;
@@ -123,8 +130,7 @@ final class PageBridge {
         });
     // Verified caller contains the actual virtual scroll callback; undo possible ART inlining.
     for (Method method : base.getDeclaredMethods())
-      if ("swipeScrollToWithOverScroll".equals(method.getName())
-          && !ModernHook.deoptimize(method))
+      if ("swipeScrollToWithOverScroll".equals(method.getName()) && !ModernHook.deoptimize(method))
         throw new IllegalStateException("Failed to deoptimize workspace scroll caller");
     HookEntry.log(
         "PAGE_HOOK_READY standard offsets; includes dynamically loaded Home Up discovery");
@@ -214,6 +220,7 @@ final class PageBridge {
       if (expected != null && view.getWindowToken() != expected) return;
     }
     last = new WeakReference<>(view);
+    if (isFreeGrid && freeGridObserver != null) freeGridObserver.accept(view);
     if (!enabled || failed || pending) return;
     pending = true;
     view.postOnAnimation(
