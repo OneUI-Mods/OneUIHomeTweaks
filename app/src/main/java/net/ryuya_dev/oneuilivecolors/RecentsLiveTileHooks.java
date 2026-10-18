@@ -25,6 +25,27 @@ import java.util.WeakHashMap;
 
 /** Owns Samsung's native live-tile lifetime without suppressing app lifecycle methods. */
 final class RecentsLiveTileHooks {
+  private final RecentsFocusClient focus = new RecentsFocusClient();
+  private final Map<Object, RecentsFocusClient.Lease> focusOwners = new WeakHashMap<>();
+  private int focusMode;
+
+  void connectFocus(Context context) {
+    focus.connect(context);
+  }
+
+  String focusDiagnostic() {
+    return focus.diagnostic();
+  }
+
+  void setFocusMode(int mode) {
+    int next = RecentsFocusPolicy.mode(mode);
+    if (focusMode != next) {
+      for (RecentsFocusClient.Lease owner : new ArrayList<>(focusOwners.values())) focus.end(owner);
+      focusOwners.clear();
+      focusMode = next;
+    }
+  }
+
   private final Map<Object, Session> sessions = new WeakHashMap<>();
   private final Map<Object, Session> gestures = new WeakHashMap<>();
   private final List<ModernHook.Handle> hooks = new ArrayList<>();
@@ -201,6 +222,14 @@ final class RecentsLiveTileHooks {
             boolean.class);
     Method decision = method(manager, "needRecentsActivityCall", boolean.class, boolean.class);
     Method request = method(gestureType, "requestFinishRecentAnimation", void.class);
+    Method finishController =
+        method(manager, "finishController", void.class, boolean.class, boolean.class);
+    Method gestureLaunch =
+        method(
+            type(loader, "com.honeyspace.gesture.utils.LaunchTaskHelper"),
+            "launchTask",
+            List.class,
+            type(loader, "com.honeyspace.sdk.transition.ShellTransition$TaskInfo"));
     Method invalidate = method(manager, "invalidate", void.class);
     Class<?> shell = type(loader, "com.honeyspace.transition.ShellTransitionManager");
     Class<?> launchInfo = type(loader, "com.honeyspace.sdk.transition.ShellTransition$Info");
@@ -242,6 +271,8 @@ final class RecentsLiveTileHooks {
             invalidate,
             setHold,
             finish,
+            finishController,
+            gestureLaunch,
             launch,
             launchRequest,
             input,
@@ -307,6 +338,15 @@ final class RecentsLiveTileHooks {
             }
           });
       hook(begin, false, this::begin);
+      hooks.add(
+          ModernHook.hookMethod(
+              begin,
+              new ModernHook.Callback() {
+                @Override
+                protected void afterHookedMethod(ModernHook.Param p) {
+                  if (p.hasThrowable()) focus.end(focusOwners.remove(p.thisObject));
+                }
+              }));
       hooks.add(
           ModernHook.hookMethod(
               dispatch,
@@ -407,6 +447,29 @@ final class RecentsLiveTileHooks {
             if (sessions.containsKey(p.thisObject) && !Boolean.TRUE.equals(p.args[0]))
               p.setResult(true);
           });
+      // Return/cancel decisions must restore focus policy before native finish returns focus.
+      hook(
+          request,
+          false,
+          p -> {
+            Session s = gestures.get(p.thisObject);
+            if (s != null && !willGo.getBoolean(s.gesture()))
+              focus.end(focusOwners.remove(s.manager()));
+          });
+      hook(finish, false, p -> focus.end(focusOwners.remove(p.thisObject)));
+      // Native onGestureEnd/onSettledOnTarget may bypass both public finish entry points.
+      // This shared gate runs before finishGestureTransition can return focus to the app.
+      hook(finishController, false, p -> focus.end(focusOwners.remove(p.thisObject)));
+      // Home Up's gesture page can relaunch the task before any animation-finish callback.
+      // Restore only our focus leases before its coroutine dispatches the native task launch.
+      hook(
+          gestureLaunch,
+          false,
+          p -> {
+            for (RecentsFocusClient.Lease owner : new ArrayList<>(focusOwners.values()))
+              focus.end(owner);
+            focusOwners.clear();
+          });
       hook(
           request,
           true,
@@ -429,6 +492,9 @@ final class RecentsLiveTileHooks {
           launchRequest, false, p -> releaseForLaunch(launchView, p.args[0], "recents app launch"));
       // Task cards also have direct getActivityLaunchOptions callers; retain their completion path.
       hook(launch, false, p -> releaseForLaunch(launchView, p.args[0], "recents task launch"));
+      // Restore native focus retention before invalidate can return focus to the source Activity.
+      // Restoring afterwards misses DecorView.mStayFocus initialization on a cancelled gesture.
+      hook(invalidate, false, p -> focus.end(focusOwners.remove(p.thisObject)));
       hook(invalidate, true, p -> end(sessions.remove(p.thisObject)));
       // initialize() can run before ActivityThread publishes mInitialApplication. The supplied
       // Application context is already attached; getApplicationContext() can still return null.
@@ -560,6 +626,10 @@ final class RecentsLiveTileHooks {
         || Boolean.TRUE.equals(gestureDesktop.invoke(owner))) return;
     Session s = new Session(p.thisObject, owner, nativeHold.getBoolean(owner));
     s.taskId = (Integer) p.args[0];
+    if (focusMode != 0) {
+      RecentsFocusClient.Lease ownerToken = focus.begin(s.taskId, focusMode);
+      if (ownerToken != null) focusOwners.put(p.thisObject, ownerToken);
+    }
     sessions.put(p.thisObject, s);
     gestures.put(owner, s);
     setHold.invoke(owner, true);
@@ -633,6 +703,7 @@ final class RecentsLiveTileHooks {
 
   private void end(Session s) throws Exception {
     if (s == null) return;
+    focus.end(focusOwners.remove(s.manager()));
     if (surface != null) surface.clear();
     gestures.remove(s.gesture());
     setHold.invoke(s.gesture(), s.originalHold());
@@ -646,6 +717,8 @@ final class RecentsLiveTileHooks {
       setDiagnostic(enabled ? "ready" : "off");
       return;
     }
+    for (RecentsFocusClient.Lease owner : new ArrayList<>(focusOwners.values())) focus.end(owner);
+    focusOwners.clear();
     releasing = true;
     if (surface != null) surface.clear();
     try {

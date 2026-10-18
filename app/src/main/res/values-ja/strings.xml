@@ -99,4 +99,13 @@
   <string name="recents_live_tile">履歴で最後のアプリの描画を続ける</string>
   <string name="recents_live_tile_note">標準の縦画面・横画面の履歴で、最後のアプリだけ描画を続けます。画面の向きと遷移はSamsung標準の処理に従います。Home Upの配置を維持し、遠近変形中は一時的に標準の静止画を使います。保護されたアプリや非対応の構成は標準動作に戻します。実験的機能：Android 16 / One UI 8.5、ジェスチャー操作のみ。アプリ側の再生・音声の制御は変更しません。</string>
   <string name="status_ready">準備完了</string>
+  <string name="recents_focus_mode">履歴中のフォーカス通知</string>
+  <string name="focus_native">標準（MultiStarに従う）</string>
+  <string name="focus_notify">フォーカス喪失を通知する</string>
+  <string name="focus_preserve">フォーカス喪失を通知しない</string>
+  <string name="recents_focus_note">実験機能です。One UI Homeに加えて「Androidシステム」のスコープが必要です。ゲームごとの追加は不要です。バックエンドの読み込み後に有効化してください。システムプロセス再起動後は再度手動で有効化します。履歴へのジェスチャー中と履歴画面で最後のライブアプリに適用し、安全のため10分で解除します。通知により描画も停止するアプリがあります。「通知しない」はMultiStarの保持が元から有効な場合に限ります。モード変更は次のジェスチャーから適用します。</string>
+  <string name="focus_activate">今回のシステム稼働中に有効化</string>
+  <string name="focus_backend_missing">Android側が未読み込み</string>
+  <string name="focus_disarmed">有効化が必要</string>
+  <string name="focus_dispatched">設定送信済み（通知は未検証）</string>
 </resources>

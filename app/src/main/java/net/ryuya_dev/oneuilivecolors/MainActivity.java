@@ -27,6 +27,7 @@ public final class MainActivity extends AppCompatActivity {
   private SharedPreferences prefs;
   private HookStatusCard[] statusCards;
   private long statusRequest;
+  private long focusStatusRequest;
   private GridSaveUi gridSave;
   private final int[] modes = new int[3];
   private final int[] modeIds = {R.id.label_mode, R.id.drawer_mode, R.id.volume_mode};
@@ -137,6 +138,31 @@ public final class MainActivity extends AppCompatActivity {
             notifyConfig();
           });
     }
+    MaterialAutoCompleteTextView focusMode = findViewById(R.id.recents_focus_mode);
+    String[] focusChoices = {
+      getString(R.string.focus_native),
+      getString(R.string.focus_notify),
+      getString(R.string.focus_preserve)
+    };
+    ArrayAdapter<String> focusAdapter =
+        new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, focusChoices);
+    focusMode.setAdapter(focusAdapter);
+    focusMode.setText(
+        focusChoices[RecentsFocusPolicy.mode(prefs.getInt("recents_focus_mode", 0))], false);
+    focusMode.setOnItemClickListener(
+        (parent, view, position, id) -> {
+          Object selected = parent.getItemAtPosition(position);
+          for (int choice = 0; choice < focusChoices.length; choice++) {
+            if (focusChoices[choice].equals(selected)) {
+              prefs.edit().putInt("recents_focus_mode", choice).apply();
+              notifyConfig();
+              break;
+            }
+          }
+        });
+    focusMode.setOnClickListener(
+        v -> focusAdapter.getFilter().filter(null, count -> focusMode.showDropDown()));
+    findViewById(R.id.focus_activate).setOnClickListener(v -> applyFocus());
     int[] infoViews = {
       R.id.local_note_button,
       R.id.diy_note_button,
@@ -265,7 +291,7 @@ public final class MainActivity extends AppCompatActivity {
           recreate();
         });
     LinearLayout cards = findViewById(R.id.status_cards);
-    statusCards = new HookStatusCard[8];
+    statusCards = new HookStatusCard[9];
     int[] titles = {
       R.string.scope_home,
       R.string.volume_theme,
@@ -274,7 +300,8 @@ public final class MainActivity extends AppCompatActivity {
       R.string.mode_local,
       R.string.clock_date_left,
       R.string.diy_icon_grid,
-      R.string.recents_live_tile
+      R.string.recents_live_tile,
+      R.string.recents_focus_mode
     };
     for (int i = 0; i < statusCards.length; i++) {
       statusCards[i] = new HookStatusCard(this, titles[i]);
@@ -289,11 +316,74 @@ public final class MainActivity extends AppCompatActivity {
 
   private void notifyConfig() {
     getContentResolver().notifyChange(ConfigProvider.URI, null);
+    applyFocus();
     showStatus();
+  }
+
+  private void applyFocus() {
+    commands.submit(
+        () -> {
+          try {
+            Bundle reply = getContentResolver().call(ConfigProvider.URI, "focus_apply", null, null);
+            Log.i(
+                "OneUiLiveColors",
+                "RECENTS_FOCUS_UI_RESULT "
+                    + (reply == null ? "missing" : reply.getString("state")));
+          } catch (RuntimeException error) {
+            Log.w("OneUiLiveColors", "Focus backend unavailable", error);
+          }
+          runOnUiThread(this::showStatus);
+        });
+  }
+
+  private void showFocusStatus() {
+    long request = ++focusStatusRequest;
+    boolean on =
+        prefs.getBoolean("enabled", true)
+            && prefs.getBoolean("home_enabled", true)
+            && prefs.getBoolean("recents_live_tile", false)
+            && RecentsFocusPolicy.mode(prefs.getInt("recents_focus_mode", 0)) != 0;
+    findViewById(R.id.focus_activate).setEnabled(on);
+    statusCards[8].update(
+        on ? R.string.status_unconfirmed : R.string.status_off,
+        on ? "" : "OFF",
+        on,
+        on ? getString(R.string.recents_focus_note) : "");
+    if (!on) return;
+    commands.submit(
+        () -> {
+          Bundle reply = null;
+          try {
+            reply = getContentResolver().call(ConfigProvider.URI, "focus_status", null, null);
+          } catch (RuntimeException ignored) {
+          }
+          String state = reply == null ? "backend-missing" : reply.getString("state", "error");
+          runOnUiThread(
+              () -> {
+                if (isDestroyed() || request != focusStatusRequest) return;
+                int label =
+                    switch (state) {
+                      case "ready" -> R.string.status_ready;
+                      case "state-dispatched" -> R.string.focus_dispatched;
+                      case "disarmed" -> R.string.focus_disarmed;
+                      case "backend-missing" -> R.string.focus_backend_missing;
+                      default -> R.string.status_error;
+                    };
+                String visual =
+                    switch (state) {
+                      case "ready", "state-dispatched" -> "ACTIVE";
+                      case "disarmed" -> "OFF";
+                      case "backend-missing" -> "UNSUPPORTED";
+                      default -> "ERROR";
+                    };
+                statusCards[8].update(label, visual, true, getString(R.string.recents_focus_note));
+              });
+        });
   }
 
   private void showStatus() {
     if (isDestroyed() || statusCards == null) return;
+    showFocusStatus();
     if (gridSave != null) gridSave.availability();
     var report = getSharedPreferences("host_status", MODE_PRIVATE);
     boolean dateOn =

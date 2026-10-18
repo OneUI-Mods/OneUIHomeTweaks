@@ -71,6 +71,19 @@ final class ModernHook {
     return handle::unhook;
   }
 
+  interface Around {
+    Object run(XposedInterface.Chain chain) throws Throwable;
+  }
+
+  static Handle aroundMethod(Executable executable, Around around) {
+    XposedInterface.HookHandle handle =
+        requireModule()
+            .hook(executable)
+            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+            .intercept(around::run);
+    return handle::unhook;
+  }
+
   static List<Handle> hookAllConstructors(Class<?> owner, Callback callback) {
     List<Handle> result = new ArrayList<>();
     try {

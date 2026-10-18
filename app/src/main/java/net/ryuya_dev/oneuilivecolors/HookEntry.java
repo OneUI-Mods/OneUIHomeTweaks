@@ -15,7 +15,7 @@ import java.security.MessageDigest;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** Scoped host entry point. No system_server or Zygote hooks. */
+/** Scoped hosts plus opt-in, disarmed-by-default system_server focus support. No Zygote hooks. */
 public final class HookEntry extends XposedModule {
   public static final String LAUNCHER = "com.sec.android.app.launcher";
   private static final String FINGERPRINT =
@@ -66,6 +66,15 @@ public final class HookEntry extends XposedModule {
             + ModernHook.frameworkDescription()
             + " process="
             + processName);
+  }
+
+  @Override
+  public void onSystemServerStarting(XposedModuleInterface.SystemServerStartingParam param) {
+    try {
+      RecentsFocusServer.install(param.getClassLoader());
+    } catch (Throwable error) {
+      log("RECENTS_FOCUS_SERVER_UNSUPPORTED " + error.getClass().getSimpleName());
+    }
   }
 
   @Override
@@ -434,6 +443,7 @@ public final class HookEntry extends XposedModule {
     if (failed) return;
     try {
       int label = ColorPolicy.OFF, status = ColorPolicy.OFF, drawerMode = ColorPolicy.AUTO;
+      int focusMode = 0;
       boolean master = false,
           pageMode = false,
           hideRecentsBar = false,
@@ -451,6 +461,8 @@ public final class HookEntry extends XposedModule {
             master && cursor.getInt(cursor.getColumnIndexOrThrow("recents_hide_bar")) != 0;
         int liveColumn = cursor.getColumnIndex("recents_live_tile");
         recentsLive = master && liveColumn >= 0 && cursor.getInt(liveColumn) != 0;
+        int focusColumn = cursor.getColumnIndex("recents_focus_mode");
+        focusMode = recentsLive && focusColumn >= 0 ? cursor.getInt(focusColumn) : 0;
         diyGridMode = master && cursor.getInt(cursor.getColumnIndexOrThrow("diy_icon_grid")) != 0;
         drawerMode = cursor.getInt(cursor.getColumnIndexOrThrow("drawer"));
         label = cursor.getInt(cursor.getColumnIndexOrThrow("label"));
@@ -470,6 +482,8 @@ public final class HookEntry extends XposedModule {
       boolean currentPages = pageMode;
       boolean currentHideRecentsBar = hideRecentsBar;
       boolean currentLiveRecents = recentsLive;
+      int currentFocusMode = focusMode;
+      liveRecents.connectFocus(context);
       boolean currentMaster = master;
       boolean currentDiyGrid = diyGridMode;
       Bundle gridRequest =
@@ -480,6 +494,7 @@ public final class HookEntry extends XposedModule {
             pages.setEnabled(apply && currentPages);
             drawer.setMode(currentDrawerMode, apply);
             homeLabels.setEnabled(localLabels);
+            liveRecents.setFocusMode(currentFocusMode);
             liveRecents.setEnabled(currentLiveRecents);
             recentsBar.setEnabled(currentHideRecentsBar);
             diyGrid.setEnabled(currentDiyGrid);
@@ -497,6 +512,8 @@ public final class HookEntry extends XposedModule {
                     + recentsBar.diagnostic()
                     + "; liveRecents="
                     + liveRecents.diagnostic()
+                    + "; focusBridge="
+                    + liveRecents.focusDiagnostic()
                     + "; diyGrid="
                     + diyGrid.diagnostic());
           });

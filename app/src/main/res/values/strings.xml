@@ -99,4 +99,13 @@
   <string name="recents_live_tile">Keep the last app live in Recents</string>
   <string name="recents_live_tile_note">Continues rendering only the last app in native portrait or landscape Recents, preserving the Home Up layout. Perspective animations temporarily use the native snapshot. Protected or incompatible tasks use standard behavior. Experimental: Android 16 / One UI 8.5, gesture navigation only. App playback and audio policies are unchanged.</string>
   <string name="status_ready">Ready</string>
+  <string name="recents_focus_mode">Focus notifications in Recents</string>
+  <string name="focus_native">Standard (follow MultiStar)</string>
+  <string name="focus_notify">Notify focus loss</string>
+  <string name="focus_preserve">Suppress focus loss</string>
+  <string name="recents_focus_note">Experimental. Requires the Android system scope, in addition to One UI Home. No game scopes are needed. Enable after the backend has loaded. After a system process restart, enable again manually. Applies only to the last live app during the Recents gesture and screen. Ends after ten minutes as a safety limit. Games may stop rendering when notified. The suppress option requires native MultiStar focus retention to already be enabled. Mode changes take effect on the next gesture.</string>
+  <string name="focus_activate">Enable for this system session</string>
+  <string name="focus_backend_missing">Android backend not loaded</string>
+  <string name="focus_disarmed">Enable required</string>
+  <string name="focus_dispatched">State dispatched (notification unverified)</string>
 </resources>

@@ -97,3 +97,7 @@ adb logcat -s OneUiLiveColors:I '*:S'
 `-PrecentsLiveTrace=true`は残したライブ描画の調査用フラグです。通常はfalseで、詳細なカード情報を出しません。旧`recentsMotionTrace`フラグと遷移の測定器は削除しました。公開APKは追加のGradleプロパティなしでビルドしてください。
 
 残した機能の実装は[継続描画の技術記録](recents-live.md)を参照してください。過去の対象メソッド、試作、実機記録は[履歴の技術記録](recents-motion.md)に残しています。0.10系の調査は現行機能の説明ではありません。OS・Launcher・Home Up更新時は残した機能を再検証してください。
+
+## 履歴のフォーカス通知（0.12.0検証版）
+
+[共通バックエンドの設計と検証記録](recents-focus.md)を参照。`system`スコープを追加し、`onSystemServerStarting`で読み込む。通常のホストとは異なり起動時は無効で、手動有効化が必要。対象アプリを追加する方式は撤回した。ゲームの処理や音声の直接フックは行わない。

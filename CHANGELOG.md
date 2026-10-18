@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.12.0 (2026-10-18, experimental)
+
+- Add Recents-only focus notification modes through a shared system_server backend. Require the common Vector `system` scope and One UI Home, with no source-app scopes or hooks.
+- Deliver a copied Samsung core-state bundle only to the owned fullscreen app process. Preserve global MultiStar and top-resumed settings, filter subsequent state deliveries, and restore the latest native state on exit.
+- Start disarmed after each system process restart; require explicit activation and reject unknown builds, identities, window modes and conflicting visible activities. Bound a lost lease to ten minutes and retry restoration at most three times.
+- Add localized Material 3 controls and graphical backend status. Reset the dropdown filter before showing all modes and map choices by value. Distinguish dispatch from a verified target-app callback.
+- Verify notify and suppression in portrait/landscape with an unscoped Canvas/AudioTrack fixture, native mode, and held landscape Recents with Home Up OFF. Restore before Home Up’s gesture task-launch request, which can precede animation completion. Verify cancel → source → Home callbacks in portrait with Task Changer ON and landscape with it ON/OFF; repeat the previously failing ON/landscape case. Actual Garupa audio and exceptional recovery paths remain unverified.
+- Abort a new lease if restoring its predecessor failed; do not hide a disabled backend or block restoration retries. This exceptional path has not been forced on the device.
+- Pass 75 unit tests and release Lint; build a signed, non-debuggable APK.
+
 ## 0.11.0 (2026-10-18)
 
 - Remove portrait-only Recents and its custom rotation/viewport animation, insets override, handoff barrier and tracing implementation. Remove its switch, details and graphical status in every UI language.

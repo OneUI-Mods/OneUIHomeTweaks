@@ -117,3 +117,11 @@ SystemUIメインプロセス・メイン画面・確認済みビルドBP4A.2512
 
 
 同じ所有ウィンドウの`systemGestures` insetsから左右の戻る領域も取得します。戻るの追跡中はカード一覧へのタッチを止め、指を離した時点で標準の戻る処理へ渡します。キャンセル・複数指・古い入力は操作を発火させません。追加の予測型戻るプレビューは実装していません。
+
+## 履歴中のフォーカス通知（0.12.0検証版）
+
+共通の`system`スコープを追加する実験機能。[詳細と確認範囲](recents-focus.md)。`ActivityTaskManagerService.onTransact`の独自番号で認証した問い合わせだけを処理し、既存の標準トランザクションは元の実装へ渡す。明示的な有効化後に`ClientLifecycleManager.scheduleTransaction`、`WindowManagerService.updateFocusedWindowLocked`、`ActivityRecord.setState`を登録する。正確な端末fingerprintとメソッド構造を照合し、起動後の自動有効化はしない。
+
+`CoreStatesChangeItem`のBundleを対象のアプリプロセスだけへ補完し、端末全体のMultiStar設定・描画維持設定は変更しない。対象ゲームのDecorViewやActivityへのフックはない。通知の配送順と効果は実機で別途確認する。
+
+Launcher側は所有するジェスチャー開始前にリースを開始し、終了・invalidate前に解除する。Home Upのジェスチャーページは終了通知より前に元タスクを起動し直すため、実APKの`LaunchTaskHelper.launchTask(ShellTransition.TaskInfo)`前でもフォーカスリースを解除する。タスク起動や描画の標準処理は止めない。

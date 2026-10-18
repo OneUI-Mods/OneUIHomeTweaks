@@ -99,4 +99,13 @@
   <string name="recents_live_tile">최근 앱에서 마지막 앱 계속 그리기</string>
   <string name="recents_live_tile_note">기본 세로 및 가로 최근 앱 화면에서 마지막 앱만 계속 그리며 Home Up 배치를 유지합니다. 화면 방향과 전환은 Samsung의 기본 동작을 따릅니다. 원근 애니메이션 중에는 일시적으로 기본 스냅샷을 사용합니다. 보호된 앱이나 호환되지 않는 구성은 기본 동작을 사용합니다. 실험 기능: Android 16 / One UI 8.5, 제스처 탐색 전용. 앱의 재생 및 오디오 정책은 변경하지 않습니다.</string>
   <string name="status_ready">준비됨</string>
+  <string name="recents_focus_mode">최근 앱의 포커스 알림</string>
+  <string name="focus_native">기본값(MultiStar 설정)</string>
+  <string name="focus_notify">포커스 상실 알림</string>
+  <string name="focus_preserve">포커스 상실 알림 억제</string>
+  <string name="recents_focus_note">실험 기능입니다. One UI Home과 Android 시스템 범위가 필요합니다. 게임별 범위 추가는 필요하지 않습니다. 백엔드 로드 후 활성화하세요. 시스템 프로세스 재시작 후 수동으로 다시 활성화해야 합니다. 최근 앱 제스처 및 화면의 마지막 라이브 앱에만 적용되며 안전을 위해 10분 후 해제됩니다. 알림으로 앱의 렌더링도 멈출 수 있습니다. 알림 억제는 MultiStar의 포커스 유지가 이미 켜져 있어야 합니다. 모드 변경은 다음 제스처부터 적용됩니다.</string>
+  <string name="focus_activate">현재 시스템 세션에서 활성화</string>
+  <string name="focus_backend_missing">Android 백엔드가 로드되지 않음</string>
+  <string name="focus_disarmed">활성화 필요</string>
+  <string name="focus_dispatched">설정 전송됨(알림 미검증)</string>
 </resources>

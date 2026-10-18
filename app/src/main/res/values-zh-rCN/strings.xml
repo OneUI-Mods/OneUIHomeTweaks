@@ -99,4 +99,13 @@
   <string name="recents_live_tile">在最近任务中保持最后一个应用绘制</string>
   <string name="recents_live_tile_note">在原生竖屏或横屏最近任务中，仅保持最后一个应用绘制，并保留 Home Up 布局。屏幕方向和过渡遵循 Samsung 标准行为。透视动画期间暂时使用原生快照。受保护或不兼容的任务使用标准行为。实验功能：Android 16 / One UI 8.5，仅支持手势导航。不更改应用的播放或音频策略。</string>
   <string name="status_ready">已就绪</string>
+  <string name="recents_focus_mode">最近任务中的焦点通知</string>
+  <string name="focus_native">默认（遵循 MultiStar）</string>
+  <string name="focus_notify">通知焦点丢失</string>
+  <string name="focus_preserve">抑制焦点丢失通知</string>
+  <string name="recents_focus_note">实验功能。需要 One UI Home 和 Android 系统作用域，无需逐个添加游戏。后端加载后启用；系统进程重启后需手动重新启用。仅用于最近任务手势及界面中的最后一个实时应用，安全时限为10分钟。通知可能使应用停止绘制。抑制通知需要 MultiStar 原有焦点保持已开启。模式更改从下次手势开始生效。</string>
+  <string name="focus_activate">为本次系统运行启用</string>
+  <string name="focus_backend_missing">Android 后端未加载</string>
+  <string name="focus_disarmed">需要启用</string>
+  <string name="focus_dispatched">已发送设置（通知未经验证）</string>
 </resources>
