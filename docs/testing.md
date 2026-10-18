@@ -1,5 +1,17 @@
 # 実機検証と復旧
 
+## 2026-10-18: 0.10.1 おすすめアプリのタップ修正
+
+0.10.0で、履歴下部のおすすめアプリのタップが`Case waiting for the transition to end`で保留され、その後のカード起動で複数の要求がまとめて実行されるログを採取した。0.10.1（versionCode 16、同一release署名、非debuggable）を上書きし、Launcherだけを読み込み直した。
+
+- 継続描画ON、Home Up Task Changer ONで下部4枠を各1回タップ。各枠で選んだアプリが前面になり、所有effect Surfaceが0個になることを確認した。
+- 起動受付からネイティブの起動options作成までのログは、この試験では約8～36 ms。ネイティブcompletionが非同期の場合の短い終了待ちは残るが、別操作まで保留される状態と要求の蓄積は解消した。forceStart引数はモジュールで変更せず、必要な再開は標準処理が行う。
+- Task Changer OFF、横向き3120×1440の検証アプリから縦向き履歴へ入り、ライブSurfaceのbindを確認。下部の管理アプリアイコンを1回タップし、管理アプリが前面になることとeffectの解放を確認した。Task ChangerはONへ復元した。
+- 直接の履歴カード起動も確認。`RECENTS_LIVE_RELEASE recents task launch`と前面Activity、所有effect 0個を照合した。
+- `RECENTS_LIVE_READY launch request handoff 0.10.1`、実DEX呼び出し元の検証・deoptimizeを確認。82単体テスト、release Lint、release署名検証が成功。
+
+検証用アプリと端末内の今回の録画を削除し、ホームへ戻した。端末再起動、SystemUI再読み込み、システムパーティション変更は行っていない。YouTubeはこの修正ではアイコンからの起動だけを確認し、動画再生の継続を検証したものではない。個人のおすすめ一覧・画面・取得ログは公開しない。
+
 ## 確認記録（2026-10-16、開発中）
 
 - APKのインストール、Vector runtime API 102でのモジュール読み込み。

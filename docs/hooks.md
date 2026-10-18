@@ -111,6 +111,8 @@ SystemUIメインプロセス・メイン画面・確認済みビルドBP4A.2512
 
 継続描画は`AnimationSession.requestFinishRecentAnimation`の既存holdを所有セッションだけで利用します。`RecentsHandoffGate`で遷移からライブ描画へSurfaceの所有権を引き継ぎ、`TaskSceneView.draw`の実際のshader・clip・行列を使います。壁紙ぼかしは所有ウィンドウのeffect Surfaceへ分離し、動画の色がカード外へにじまないようにします。定期ポーリングは行いません。
 
+0.10.1では、おすすめアプリの起動が`ShellTransitionManager.getLaunchOptions(Info,boolean,boolean,Function0)`で遷移終了待ちになる前に、対象ViewのRootが所有中のRecents Rootと同一の場合だけholdを解除します。従来の`getActivityLaunchOptions(Info,ShellAnimationRunner)`も直接到達する履歴カード向けに残します。標準のタップ判定や起動先、forceStart引数、共有の遷移フラグは変更しません。
+
 最後の通常fullscreenアプリ、同一ユーザー、メイン画面、SDK 36、ジェスチャー操作に限定します。保護・実画面ではないsnapshot・アプリロック・複数アプリの対象・不明な描画契約では標準動作へ戻します。遠近変形中と画面外では静止画へ一時退避し、アプリ自体の描画は継続します。タスク起動、Home、Recents終了、別タスクの前面化、画面OFF、機能OFF、ネイティブinvalidateでhold・ぼかし・所有Surfaceを解放します。画面OFF経路は実装済みですが、今回の実機テストでは端末を再ロックしていません。
 
 詳細な対象シグネチャ、AOSPの参照元、実機記録と未確認事項は[履歴の技術記録](recents-motion.md)を参照してください。SystemUIや対象アプリのライフサイクルへの新しいフックはありません。

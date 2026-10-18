@@ -1,5 +1,26 @@
 # Portrait Recents: motion adapter investigation
 
+## 2026-10-18: suggested-app launch gate correction (0.10.1)
+
+The 0.10.0 device log showed two suggested-icon `startShellTransition` calls entering
+`Case waiting for the transition to end` while the live controller was retained. Neither
+reached `getActivityLaunchOptions`. After a later task-card launch released the controller,
+both waiting icon requests restarted with `forceStart: true`, alongside the card launch.
+This is queued native launch work, not evidence of a different icon hit target.
+
+The installed Launcher implementation routes ordinary icons through
+`HoneySpaceUIComponent.startAppShellTransition` → `ShellTransitionManager.startShellTransition`
+→ `getLaunchOptions(Info, boolean, boolean, Function0)`. Its transition-running branch waits
+for native completion before invoking the start callback. The previous hook at
+`getActivityLaunchOptions(Info, ShellAnimationRunner)` was too late for this route.
+
+0.10.1 validates and deoptimizes the earlier method and its actual DEX callers, then releases
+only a held session whose captured Recents root is the exact launch target's root. The later
+hook remains for task cards that enter directly. Native hit testing, intent selection, launch
+options and animation run normally; no synthetic icon click, forced-launch flag or global
+transition-state override is used. Unsupported contracts disable the existing live feature.
+Device verification for the correction is recorded separately in `testing.md`.
+
 Status: **0.10.0 pre-release implementation**. The common-viewport controller and independently optional live rendering are now part of normal builds; the latter defaults OFF. They have been exercised with the documented Launcher/Home Up pair, including Task Changer ON and OFF and a real hardware-video Surface. Perspective cards temporarily use native snapshots while the app keeps drawing. This is a device-specific implementation, not a guarantee for every app, layout or interruption. The dated sections below preserve earlier failures and superseded prototypes.
 
 ## Preserved device baseline

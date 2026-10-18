@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.1 (2026-10-18)
+
+- Fix suggested apps at the bottom of Recents waiting indefinitely while live rendering is enabled. Release the owned controller at the native launch-request gate, before its transition-wait branch; retain the direct task-card launch path.
+- Preserve Samsung's native icon hit testing, selected app, launch options and animation. Apply the handoff only to requests originating from the owned Recents root.
+
 ## 0.10.0 (2026-10-18)
 
 - Add explicit persistence of aligned app, shortcut and folder positions through the native DIY editor, with a preview of affected items/pages and a confirmation step.

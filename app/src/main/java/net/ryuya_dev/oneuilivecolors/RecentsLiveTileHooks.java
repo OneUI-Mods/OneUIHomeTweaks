@@ -212,6 +212,15 @@ final class RecentsLiveTileHooks {
             launchInfo,
             type(loader, "com.honeyspace.transition.ShellAnimationRunner"));
     Method launchView = launchInfo.getMethod("getTargetView");
+    Method launchRequest =
+        method(
+            shell,
+            "getLaunchOptions",
+            type(loader, "com.honeyspace.transition.utils.ActivityOptionsWrapper"),
+            launchInfo,
+            boolean.class,
+            boolean.class,
+            type(loader, "kotlin.jvm.functions.Function0"));
     Class<?> recents = type(loader, "com.android.quickstep.RecentsActivity");
     Method back = recents.getMethod("onBackPressed");
     if (back.getReturnType() != void.class)
@@ -234,6 +243,7 @@ final class RecentsLiveTileHooks {
             setHold,
             finish,
             launch,
+            launchRequest,
             input,
             taskMessage,
             nativeInput));
@@ -427,20 +437,13 @@ final class RecentsLiveTileHooks {
               else activateSurface(s);
             }
           });
+      // Suggested-app icons enter getLaunchOptions before getActivityLaunchOptions. Its native
+      // transitionRunning gate otherwise waits for the very controller we retained, so the old
+      // later hook never executes and multiple taps queue launches until another exit releases it.
       hook(
-          launch,
-          false,
-          p -> {
-            View target = (View) launchView.invoke(p.args[0]);
-            if (target == null) return;
-            for (Session s : new ArrayList<>(sessions.values())) {
-              View root = (View) recentTarget.invoke(systemController.invoke(s.manager()));
-              if (s.held && root != null && target.getRootView() == root) {
-                release("recents task launch");
-                break;
-              }
-            }
-          });
+          launchRequest, false, p -> releaseForLaunch(launchView, p.args[0], "recents app launch"));
+      // Task cards also have direct getActivityLaunchOptions callers; retain their completion path.
+      hook(launch, false, p -> releaseForLaunch(launchView, p.args[0], "recents task launch"));
       hook(invalidate, true, p -> end(sessions.remove(p.thisObject)));
       // initialize() can run before ActivityThread publishes mInitialApplication. The supplied
       // Application context is already attached; getApplicationContext() can still return null.
@@ -452,12 +455,23 @@ final class RecentsLiveTileHooks {
       context.registerReceiver(
           screenOff, new IntentFilter(Intent.ACTION_SCREEN_OFF), Context.RECEIVER_NOT_EXPORTED);
       setDiagnostic("off");
-      HookEntry.log("RECENTS_LIVE_READY window navigation all sources 0.10");
+      HookEntry.log("RECENTS_LIVE_READY launch request handoff 0.10.1");
     } catch (Throwable t) {
       uninstall();
       if (t instanceof Exception e) throw e;
       throw new IllegalStateException(t);
     }
+  }
+
+  private void releaseForLaunch(Method targetView, Object info, String reason) throws Exception {
+    View target = (View) targetView.invoke(info);
+    if (target == null) return;
+    View root = target.getRootView();
+    for (Session s : new ArrayList<>(sessions.values()))
+      if (s.held && s.boundRoot != null && root == s.boundRoot) {
+        release(reason);
+        return;
+      }
   }
 
   private void activateSurface(Session s) throws Exception {
