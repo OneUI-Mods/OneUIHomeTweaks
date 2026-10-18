@@ -90,10 +90,10 @@ adb logcat -s OneUiLiveColors:I '*:S'
 - [履歴の連続アニメーション・ライブ描画の技術記録](recents-motion.md)
 
 
-## 履歴の連続遷移とライブ描画
+## 履歴のライブ描画
 
-0.10.0では共通ビューポートのコントローラーを通常ビルドに含め、縦向き固定スイッチに従って有効にします。ライブ描画も通常ビルドの独立したスイッチで設定し、初期OFFです。以前の`recentsCoordinateExperimental`／`recentsLiveTileExperimental`ビルドフラグと不要な旧入力変換アダプターは削除しました。所有セッションのhandoff barrierを通してSurface操作を引き継ぎます。
+0.11.0で縦向き固定と独自の回転・遷移補正を削除しました。方向要求のフック、共通viewportの再描画・insets補完・spring・handoff barrierは登録しません。縦・横とも標準遷移の終了要求後にライブ描画を開始し、実測したウィンドウの寸法・回転・ネイティブplayerのbasisを検証して配置します。画面の向きを要求・変更しません。
 
-`-PrecentsMotionTrace=true`だけが調査用フラグとして残っています。通常はfalseで、カードID・寸法などの詳細トレースを出しません。公開APKは追加のGradleプロパティなしでビルドしてください。
+`-PrecentsLiveTrace=true`は残したライブ描画の調査用フラグです。通常はfalseで、詳細なカード情報を出しません。旧`recentsMotionTrace`フラグと遷移の測定器は削除しました。公開APKは追加のGradleプロパティなしでビルドしてください。
 
-対象メソッド、失敗した試作、実機検証の範囲は[履歴の技術記録](recents-motion.md)に残しています。OS・Launcher・Home Up更新時は同じ検証を再実施してください。構造検証が通ることと、アニメーションが正しく見えることは別です。
+残した機能の実装は[継続描画の技術記録](recents-live.md)を参照してください。過去の対象メソッド、試作、実機記録は[履歴の技術記録](recents-motion.md)に残しています。0.10系の調査は現行機能の説明ではありません。OS・Launcher・Home Up更新時は残した機能を再検証してください。

@@ -42,14 +42,6 @@ TextViewの実Layoutの各行、compound drawableを含むtotal padding、親の
 
 `IconViewImpl.getCustomLabelColor/setCustomLabelColor(Integer)`と`setItemStyle(ItemStyle)`を確認。ドロワーの祖先Viewを持つアイコンだけにSamsungのカスタム色APIを適用し、解除時は記録した元の値へ戻す。自動では既存動作を維持する。
 
-## アプリ履歴の縦向き固定
-
-実機LauncherのManifestで`com.android.quickstep.RecentsActivity`を確認した。初期の`screenOrientation`は`UNSPECIFIED`（-1）。DEXでは`TaskListViewModel`が`OverviewEventHandler.getCurrentActivity()`を通じて現在のActivityに`setRequestedOrientation(14)`（LOCKED）を要求し、別の回転管理処理がUSER（2）も要求する。このため、横向きアプリから入ると横向きの履歴が保持される。
-
-`RecentsActivity.onCreate(Bundle)`・`onResume()`の前と、Launcher内の`Activity.setRequestedOrientation(int)`に限定したフックを置く。実際のActivityが検証済みRecentsActivityであり、display 0・全画面の場合だけPORTRAIT（1）へ補正する。アプリタスクや通常のホームActivityは対象外。元の要求をActivity単位で記録し、機能・対象・全体スイッチの解除時に元へ戻す。
-
-Activity継承、ライフサイクルの戻り値・引数、向き要求メソッドの宣言元を実行時に検証する。呼び出し元は実APKのDEX参照から探索して限定deoptimizeし、実機では9メソッドだった。難読化された`C7.c`等の名前には依存しない。検証失敗は履歴機能だけを停止する。
-
 ## 履歴画面だけホームバーを非表示
 
 実機`NavigationModeSource`はAndroidの`config_navBarInteractionMode`を読み、0=3ボタン、1=2ボタン、2=標準ジェスチャー、3=Samsungジェスチャーに変換する。`NavigationBarVisibilityCheckerImpl`はさらに`navigation_bar_gesture_hint`、NavStarのフラグ、`policy_control`等を参照して標準の表示状態を決めている。
@@ -105,23 +97,23 @@ SystemUIメインプロセス・メイン画面・確認済みビルドBP4A.2512
 アプリ・フォルダの描画、モデルによる当たり判定、純正DIYエディターの移動・ドロップを対象にする。Home Upの通常グリッドを取得し、ウィジェット・ステッカーの自由配置とDIY Home設定は維持する。[対象メソッド・保存座標・検証範囲](diy-home-grid.md)を参照。
 
 
-## 履歴の連続遷移・継続描画（0.10.0）
+## 履歴の継続描画（0.11.0）
 
-`RecentsViewportHooks`が実際の`RecentsAnimationManager`と`AnimationSession`の所有関係を確認し、ジェスチャー側の横向きRootと縦向き`RecentsActivity`を共通座標へつなぎます。`RecentStyler.createStyleData`が読むinsetsは対象ウィンドウの計算中だけ補い、共有キャッシュは変更しません。`RecentsViewportMotion`はネイティブカードの実描画行列を到着先にし、アプリSurfaceと同じ姿勢でネイティブのカード一覧を再描画します。Home Upの並び順やレイアウト設定は変更しません。透明化や描画待ちで途中を隠す方式は使いません。
+縦向き固定と独自の回転・遷移補正は削除済みです。Activityの方向要求、gesture overlayの寸法、native stylerのinsets、遷移中のSurface行列、カード一覧の再描画を変更するフックはありません。ネイティブの向き・遷移とHome Upの並び順に従います。
 
-継続描画は`AnimationSession.requestFinishRecentAnimation`の既存holdを所有セッションだけで利用します。`RecentsHandoffGate`で遷移からライブ描画へSurfaceの所有権を引き継ぎ、`TaskSceneView.draw`の実際のshader・clip・行列を使います。壁紙ぼかしは所有ウィンドウのeffect Surfaceへ分離し、動画の色がカード外へにじまないようにします。定期ポーリングは行いません。
+継続描画は標準の縦・横の履歴で`AnimationSession.requestFinishRecentAnimation`の既存holdを所有セッションだけで利用します。画面の寸法・回転と実playerのbasisからsource空間を検証し、snapshotの回転・shader・View行列を合成します。Home Upの微小な遠近成分は全source矩形で画面上の誤差上限を評価し、0.5ピクセル以内の場合だけ許容します。大きな遠近変形は標準の静止画へ退避します。標準の終了要求の後に`TaskSceneView.draw`の実際のshader・clip・行列からライブSurfaceを配置します。壁紙ぼかしは所有ウィンドウのeffect Surfaceへ分離し、動画の色がカード外へにじまないようにします。定期ポーリングは行いません。
 
-0.10.1では、おすすめアプリの起動が`ShellTransitionManager.getLaunchOptions(Info,boolean,boolean,Function0)`で遷移終了待ちになる前に、対象ViewのRootが所有中のRecents Rootと同一の場合だけholdを解除します。従来の`getActivityLaunchOptions(Info,ShellAnimationRunner)`も直接到達する履歴カード向けに残します。標準のタップ判定や起動先、forceStart引数、共有の遷移フラグは変更しません。
+おすすめアプリは`ShellTransitionManager.getLaunchOptions(Info,boolean,boolean,Function0)`の遷移終了待ちより前に、対象ViewのRootが所有中のRecents Rootと同一の場合だけholdを解除します。`getActivityLaunchOptions(Info,ShellAnimationRunner)`も直接到達する履歴カード向けに残します。標準のタップ判定や起動先、forceStart引数、共有の遷移フラグは変更しません。
 
 最後の通常fullscreenアプリ、同一ユーザー、メイン画面、SDK 36、ジェスチャー操作に限定します。保護・実画面ではないsnapshot・アプリロック・複数アプリの対象・不明な描画契約では標準動作へ戻します。遠近変形中と画面外では静止画へ一時退避し、アプリ自体の描画は継続します。タスク起動、Home、Recents終了、別タスクの前面化、画面OFF、機能OFF、ネイティブinvalidateでhold・ぼかし・所有Surfaceを解放します。画面OFF経路は実装済みですが、今回の実機テストでは端末を再ロックしていません。
 
-詳細な対象シグネチャ、AOSPの参照元、実機記録と未確認事項は[履歴の技術記録](recents-motion.md)を参照してください。SystemUIや対象アプリのライフサイクルへの新しいフックはありません。
+現行の行列・入力・終了処理は[継続描画の技術記録](recents-live.md)、過去の方向固定の調査は[履歴資料](recents-motion.md)を参照してください。SystemUIや対象アプリのライフサイクルへの新しいフックはありません。
 
 
 保持中のネイティブ入力proxyはMotionEvent以外を処理しないため、所有セッションのBACKキーだけを既存の`RecentsActivity.onBackPressed`へ渡します。外部起動ではtransient Recentsがresumeのまま残るため、既存`TaskStackChangeListeners.Impl.handleMessage`の前面タスク通知でも終了させます。このクラスはLauncherに同梱された実装で、SystemUIプロセスへの追加フックではありません。新しいタスクリスナー・権限・ポーリングは追加しません。
 
 
-横向きのcontroller保持中だけ、縦向きウィンドウの実ナビゲーションinsetsに基づく下端スワイプを既存の`KeyInjector`へ渡します。`GestureInputHandler`のdisplay 0のDOWNから既存の所有者を取得し、難読化されたDIの名前には依存しません。前提を確認できない場合は保持を終了して標準へ戻します。[経路と実機結果](recents-motion.md#portrait-navigation-while-the-controller-is-retained)を参照。
+ネイティブcontroller保持中だけ、対象ウィンドウの実ナビゲーションinsetsに基づく下端スワイプを既存の`KeyInjector`へ渡します。`GestureInputHandler`のdisplay 0のDOWNから既存の所有者を取得し、難読化されたDIの名前には依存しません。前提を確認できない場合は保持を終了して標準へ戻します。[経路と実機結果](recents-motion.md#portrait-navigation-while-the-controller-is-retained)を参照。
 
 
-同じ縦向きウィンドウの`systemGestures` insetsから左右の戻る領域も取得します。戻るの追跡中はカード一覧へのタッチを止め、指を離した時点で標準の戻る処理へ渡します。キャンセル・複数指・古い入力は操作を発火させません。追加の予測型戻るプレビューは実装していません。
+同じ所有ウィンドウの`systemGestures` insetsから左右の戻る領域も取得します。戻るの追跡中はカード一覧へのタッチを止め、指を離した時点で標準の戻る処理へ渡します。キャンセル・複数指・古い入力は操作を発火させません。追加の予測型戻るプレビューは実装していません。

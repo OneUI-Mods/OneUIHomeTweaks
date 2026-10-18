@@ -9,7 +9,6 @@ import android.graphics.Path;
 import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.RectF;
-import android.view.Surface;
 import android.view.SurfaceControl;
 import android.view.View;
 import android.view.ViewGroup;
@@ -65,7 +64,7 @@ final class RecentsLiveSurface {
 
   private boolean updating, logged, visualSuspended;
   private String lastGeometry;
-  private int viewportWidth, viewportHeight;
+  private int viewportWidth, viewportHeight, viewportRotation, perspectiveSamples;
   private final ViewTreeObserver.OnPreDrawListener preDraw = this::validateScene;
 
   private boolean validateScene() {
@@ -74,6 +73,8 @@ final class RecentsLiveSurface {
       if (!root.isAttachedToWindow()
           || root.getWidth() != viewportWidth
           || root.getHeight() != viewportHeight
+          || root.getDisplay() == null
+          || root.getDisplay().getRotation() != viewportRotation
           || appLeash == null
           || !appLeash.isValid()
           || recentsLeash == null
@@ -218,8 +219,8 @@ final class RecentsLiveSurface {
     if (target == null
         || target.getDisplay() == null
         || target.getDisplay().getDisplayId() != 0
-        || target.getDisplay().getRotation() != Surface.ROTATION_0
-        || target.getWidth() >= target.getHeight()) return false;
+        || target.getWidth() <= 0
+        || target.getHeight() <= 0) return false;
     Object nativePlayer = player.get(manager);
     if (nativePlayer == null) return false;
     Object u = updater.get(manager);
@@ -267,6 +268,7 @@ final class RecentsLiveSurface {
     root = target;
     viewportWidth = root.getWidth();
     viewportHeight = root.getHeight();
+    viewportRotation = root.getDisplay().getRotation();
     root.getViewTreeObserver().addOnPreDrawListener(preDraw);
     if (!blur.bind(root, appLeash)) {
       clear();
@@ -277,7 +279,13 @@ final class RecentsLiveSurface {
     root.invalidate();
     scene.invalidate();
     HookEntry.log(
-        "RECENTS_LIVE_SURFACE_BOUND source="
+        "RECENTS_LIVE_SURFACE_BOUND viewport="
+            + viewportWidth
+            + "x"
+            + viewportHeight
+            + " rotation="
+            + viewportRotation
+            + " source="
             + source.width()
             + "x"
             + source.height()
@@ -322,7 +330,7 @@ final class RecentsLiveSurface {
     float[] sh = new float[9], gl = new float[9];
     shader.getValues(sh);
     global.getValues(gl);
-    RecentsMotionPath.Transform transform;
+    RecentsAffine.Transform transform;
     try {
       transform =
           RecentsLiveGeometry.compose(
@@ -334,6 +342,12 @@ final class RecentsLiveSurface {
               sh,
               gl);
     } catch (RecentsLiveGeometry.PerspectiveCard unsupportedGeometry) {
+      if (BuildConfig.RECENTS_LIVE_TRACE && perspectiveSamples++ < 48)
+        HookEntry.log(
+            "RECENTS_LIVE_PROJECTIVE_MATRIX shader="
+                + java.util.Arrays.toString(sh)
+                + " global="
+                + java.util.Arrays.toString(gl));
       suspendVisual("RECENTS_LIVE_NATIVE_PERSPECTIVE app continues drawing");
       return Draw.SNAPSHOT;
     }

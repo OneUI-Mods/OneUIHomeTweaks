@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.0 (2026-10-18)
+
+- Remove portrait-only Recents and its custom rotation/viewport animation, insets override, handoff barrier and tracing implementation. Remove its switch, details and graphical status in every UI language.
+- Follow Samsung’s native orientation and transitions. Ignore the retired saved preference; return OFF to older loaded hooks during an in-place update.
+- Keep experimental live rendering independently in native portrait and landscape Recents, with window-local navigation in either orientation. Preserve the home-bar option and the suggested-app launch fix.
+- Accept settled Home Up projection residuals only when a conservative error bound across the complete source rectangle is at most 0.5 screen pixels; keep true perspective animations on native snapshots.
+- Retain the previous investigation as historical documentation.
+
 ## 0.10.1 (2026-10-18)
 
 - Fix suggested apps at the bottom of Recents waiting indefinitely while live rendering is enabled. Release the owned controller at the native launch-request gate, before its transition-wait branch; retain the direct task-card launch path.

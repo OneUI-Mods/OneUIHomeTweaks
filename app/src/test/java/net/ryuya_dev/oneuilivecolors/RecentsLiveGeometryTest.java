@@ -58,6 +58,35 @@ public class RecentsLiveGeometryTest {
   }
 
   @Test
+  public void settledLandscapeHomeUpResidualStaysWithinHalfAPixelEverywhere() {
+    float[] sh = {
+      .59344506f, 0, -83.08231f, 1.8505962e-5f, .5937261f, -52.84421f, 4.7708575e-8f, 0, .9999933f
+    };
+    float[] gl = {.9999263f, 0, 768.0583f, 0, .9999263f, 291.02454f, 0, 0, 1};
+    var m =
+        RecentsLiveGeometry.compose(
+            new RecentsCardSpace.Space(3120, 1440, 1), 3120, 1440, 1, 1, sh, gl);
+    for (int x = 0; x <= 3120; x += 120)
+      for (int y = 0; y <= 1440; y += 120) {
+        double w = sh[6] * x + sh[7] * y + sh[8];
+        double sx = (sh[0] * x + sh[1] * y + sh[2]) / w;
+        double sy = (sh[3] * x + sh[4] * y + sh[5]) / w;
+        var p = m.map(x, y);
+        assertTrue(Math.hypot(p.x() - (gl[0] * sx + gl[2]), p.y() - (gl[4] * sy + gl[5])) < .5);
+      }
+  }
+
+  @Test
+  public void realPerspectiveAndDenominatorCrossingStillUseSnapshots() {
+    for (float p : new float[] {.00001f, -.001f})
+      assertThrows(
+          RecentsLiveGeometry.PerspectiveCard.class,
+          () ->
+              RecentsLiveGeometry.compose(
+                  3120, 1440, 3120, 1440, 1, new float[] {1, 0, 0, 0, 1, 0, p, 0, 1}, ID));
+  }
+
+  @Test
   public void croppedOrStaleSnapshotIsRejected() {
     assertThrows(
         IllegalArgumentException.class,

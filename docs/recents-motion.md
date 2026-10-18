@@ -1,4 +1,6 @@
-# Portrait Recents: motion adapter investigation
+# 履歴の技術記録（縦向き固定は0.11.0で削除）
+
+0.11.0ではユーザーの要望で縦向き固定と独自の回転・遷移補正を削除しました。対応するフック、UI、再描画・insets補完・spring・handoff処理と旧調査フラグは現行APKに含みません。残したライブ描画は縦・横どちらも標準の向き・遷移の後に実カードへ配置します。現行機能は[標準の向きでの継続描画](recents-live.md)を参照してください。以下は0.10系の試作・失敗と実機証拠を保存した履歴です。
 
 ## 2026-10-18: suggested-app launch gate correction (0.10.1)
 
@@ -21,7 +23,7 @@ options and animation run normally; no synthetic icon click, forced-launch flag 
 transition-state override is used. Unsupported contracts disable the existing live feature.
 Device verification for the correction is recorded separately in `testing.md`.
 
-Status: **0.10.0 pre-release implementation**. The common-viewport controller and independently optional live rendering are now part of normal builds; the latter defaults OFF. They have been exercised with the documented Launcher/Home Up pair, including Task Changer ON and OFF and a real hardware-video Surface. Perspective cards temporarily use native snapshots while the app keeps drawing. This is a device-specific implementation, not a guarantee for every app, layout or interruption. The dated sections below preserve earlier failures and superseded prototypes.
+Historical status: **0.10.0 pre-release implementation (removed in 0.11.0)**. The common-viewport controller and independently optional live rendering are now part of normal builds; the latter defaults OFF. They have been exercised with the documented Launcher/Home Up pair, including Task Changer ON and OFF and a real hardware-video Surface. Perspective cards temporarily use native snapshots while the app keeps drawing. This is a device-specific implementation, not a guarantee for every app, layout or interruption. The dated sections below preserve earlier failures and superseded prototypes.
 
 ## Preserved device baseline
 

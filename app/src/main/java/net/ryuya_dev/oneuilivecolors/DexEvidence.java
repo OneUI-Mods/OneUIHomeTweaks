@@ -14,19 +14,14 @@ import org.jf.dexlib2.iface.reference.MethodReference;
 final class DexEvidence {
   record CapturedEmitter(java.lang.reflect.Method emit, java.lang.reflect.Field owner) {}
 
-  static void deoptimizeRecentsCoordinateCalls(
+  static void deoptimizeRecentsLiveCalls(
       String apk, ClassLoader loader, List<java.lang.reflect.Method> targets) throws Exception {
     Set<String> identities = new HashSet<>();
     for (var method : targets)
       identities.add(
           "L" + method.getDeclaringClass().getName().replace('.', '/') + ";#" + method.getName());
     identities.add("Lcom/honeyspace/gesture/recentsanimation/RecentsAnimationAction;#start");
-    identities.add("Lcom/honeyspace/gesture/recentsanimation/RecentsAnimationAction;#move");
     Set<java.lang.reflect.Method> callers = new HashSet<>(targets);
-    Class<?> helper =
-        Class.forName("com.honeyspace.gesture.session.AnimationSessionKt", false, loader);
-    for (var method : helper.getDeclaredMethods())
-      if (method.getReturnType() == android.view.MotionEvent.class) callers.add(method);
     var dex = DexFileFactory.loadDexContainer(new File(apk), Opcodes.getDefault());
     for (String entry : dex.getDexEntryNames())
       for (ClassDef c : dex.getEntry(entry).getDexFile().getClasses()) {
@@ -49,11 +44,11 @@ final class DexEvidence {
           if (names.contains(method.getName())) callers.add(method);
       }
     if (callers.isEmpty() || callers.size() > 96)
-      throw new IllegalStateException("Coordinate caller set changed");
+      throw new IllegalStateException("Live Recents caller set changed");
     for (var method : callers)
       if (!ModernHook.deoptimize(method))
-        throw new IllegalStateException("Cannot deoptimize coordinate caller");
-    HookEntry.log("RECENTS_COORDINATES_DEX_VERIFIED callers=" + callers.size());
+        throw new IllegalStateException("Cannot deoptimize live Recents caller");
+    HookEntry.log("RECENTS_LIVE_DEX_VERIFIED callers=" + callers.size());
   }
 
   static CapturedEmitter capturedEmitter(
@@ -115,69 +110,6 @@ final class DexEvidence {
     return matches.get(0);
   }
 
-  static void verifyRecentsMotion(String apk, ClassLoader loader) throws Exception {
-    String player = "Lcom/honeyspace/transition/anim/floating/PlayerImpl;";
-    String manager = "Lcom/honeyspace/gesture/recentsanimation/RecentsAnimationManager;";
-    String info = "Lcom/honeyspace/transition/anim/floating/utils/UpdateInfo;";
-    boolean setup = false, moving = false, matrix = false, construct = false;
-    Set<java.lang.reflect.Method> callers = new HashSet<>();
-    var dex = DexFileFactory.loadDexContainer(new File(apk), Opcodes.getDefault());
-    for (String entry : dex.getDexEntryNames())
-      for (ClassDef c : dex.getEntry(entry).getDexFile().getClasses()) {
-        if (!Set.of(
-                player,
-                manager,
-                "Lcom/honeyspace/transition/anim/floating/utils/RemoteTargetUpdaterKt;")
-            .contains(c.getType())) continue;
-        Set<String> deopt = new HashSet<>();
-        for (var method : c.getMethods()) {
-          if (method.getImplementation() == null) continue;
-          for (var instruction : method.getImplementation().getInstructions()) {
-            if (!(instruction instanceof ReferenceInstruction r)
-                || !(r.getReference() instanceof MethodReference ref)) continue;
-            if (c.getType().equals(manager)
-                && method.getName().equals("createFloatingPlayer")
-                && ref.getName().equals("setup")
-                && ref.getDefiningClass()
-                    .equals("Lcom/honeyspace/transition/anim/floating/Player;")) setup = true;
-            if (c.getType().equals(manager)
-                && ref.getName().equals("moving")
-                && ref.getParameterTypes()
-                    .toString()
-                    .equals("[Landroid/graphics/RectF;, F, F, F]")) {
-              moving = true;
-              deopt.add(method.getName());
-            }
-            if (c.getType().equals(player)
-                && ref.getDefiningClass().equals(info)
-                && ref.getName().equals("<init>")
-                && method.getName().equals("makeUpdateInfo")) construct = true;
-            if (ref.getDefiningClass().equals(player) && ref.getName().equals("makeUpdateInfo"))
-              deopt.add(method.getName());
-            if (ref.getDefiningClass().equals(manager)
-                && ref.getName().equals("createFloatingPlayer")) deopt.add(method.getName());
-            if (ref.getDefiningClass().equals(info) && ref.getName().equals("asMatrix"))
-              matrix = true;
-          }
-        }
-        if (!deopt.isEmpty()) {
-          Class<?> actual =
-              Class.forName(
-                  c.getType().substring(1, c.getType().length() - 1).replace('/', '.'),
-                  false,
-                  loader);
-          for (var method : actual.getDeclaredMethods())
-            if (deopt.contains(method.getName())) callers.add(method);
-        }
-      }
-    if (!setup || !moving || !matrix || !construct || callers.isEmpty() || callers.size() > 24)
-      throw new IllegalStateException("Recents motion DEX path changed");
-    for (var caller : callers)
-      if (!ModernHook.deoptimize(caller))
-        throw new IllegalStateException("Cannot measure Recents motion caller");
-    HookEntry.log("RECENTS_MOTION_DEX_VERIFIED callers=" + callers.size());
-  }
-
   static void deoptimizeDiyPositions(String apk, ClassLoader loader) throws Exception {
     Set<java.lang.reflect.Executable> callers = new HashSet<>();
     var dex = DexFileFactory.loadDexContainer(new File(apk), Opcodes.getDefault());
@@ -228,45 +160,6 @@ final class DexEvidence {
       if (!ModernHook.deoptimize(caller))
         throw new UnsupportedOperationException("Cannot deoptimize DIY coordinate caller");
     HookEntry.log("DIY_GRID_DEX_VERIFIED coordinate callers=" + callers.size());
-  }
-
-  static void verifyRecentsOrientation(String apk, ClassLoader loader) throws Exception {
-    Set<java.lang.reflect.Method> callers = new HashSet<>();
-    boolean recentsLifecycle = false;
-    var dex = DexFileFactory.loadDexContainer(new File(apk), Opcodes.getDefault());
-    for (String entry : dex.getDexEntryNames())
-      for (ClassDef c : dex.getEntry(entry).getDexFile().getClasses()) {
-        if (c.getType().equals("Lcom/android/quickstep/RecentsActivity;")) {
-          for (var m : c.getMethods())
-            if (m.getName().equals("onCreate") && m.getImplementation() != null)
-              recentsLifecycle = true;
-        }
-        Set<String> names = new HashSet<>();
-        for (var m : c.getMethods())
-          if (m.getImplementation() != null)
-            for (var i : m.getImplementation().getInstructions())
-              if (i instanceof ReferenceInstruction r
-                  && r.getReference() instanceof MethodReference ref
-                  && ref.getName().equals("setRequestedOrientation")
-                  && ref.getParameterTypes().toString().equals("[I]")
-                  && ref.getReturnType().equals("V")) names.add(m.getName());
-        if (names.isEmpty()) continue;
-        Class<?> actual =
-            Class.forName(
-                c.getType().substring(1, c.getType().length() - 1).replace('/', '.'),
-                false,
-                loader);
-        for (var m : actual.getDeclaredMethods())
-          if (names.contains(m.getName())
-              && !Modifier.isAbstract(m.getModifiers())
-              && !Modifier.isNative(m.getModifiers())) callers.add(m);
-      }
-    if (!recentsLifecycle || callers.isEmpty() || callers.size() > 32)
-      throw new IllegalStateException("Recents orientation DEX contract changed");
-    for (var m : callers)
-      if (!ModernHook.deoptimize(m))
-        throw new IllegalStateException("Cannot deoptimize orientation caller");
-    HookEntry.log("RECENTS_DEX_VERIFIED orientation callers=" + callers.size());
   }
 
   static void deoptimizeVolumeCalls(String apk, ClassLoader loader) throws Exception {

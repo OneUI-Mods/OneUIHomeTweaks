@@ -17,10 +17,10 @@ android {
         applicationId = "net.ryuya_dev.oneuilivecolors"
         minSdk = 31
         targetSdk = 36
-        versionCode = 16
-        versionName = "0.10.1"
-        // Observational geometry logging is opt-in for local investigation, never default release behavior.
-        buildConfigField("boolean", "RECENTS_MOTION_TRACE", providers.gradleProperty("recentsMotionTrace").map { (it == "true").toString() }.getOrElse("false"))
+        versionCode = 17
+        versionName = "0.11.0"
+        // Live-card diagnostics are opt-in for local investigation, never default release behavior.
+        buildConfigField("boolean", "RECENTS_LIVE_TRACE", providers.gradleProperty("recentsLiveTrace").map { (it == "true").toString() }.getOrElse("false"))
     }
     signingConfigs {
         if (!distributionProperties.isEmpty) create("distribution") {

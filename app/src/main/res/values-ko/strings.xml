@@ -73,8 +73,6 @@
   <string name="tab_appearance">표시</string>
   <string name="tab_status">상태</string>
   <string name="tab_settings">설정</string>
-  <string name="recents_portrait">최근 앱을 세로로 고정</string>
-  <string name="recents_portrait_note">가로 앱에서 열어도 최근 앱 화면을 세로로 표시합니다. 앱 자체의 방향은 바꾸지 않습니다. 멀티 윈도우와 외부 화면에는 적용하지 않습니다.</string>
   <string name="recents_hide_bar">최근 앱에서 홈 바 숨기기</string>
   <string name="recents_hide_bar_note">최근 앱 화면에서만 제스처 바를 숨깁니다. 3버튼 탐색에는 적용하지 않으며 시스템의 항상 숨김 설정을 유지합니다.</string>
   <string name="recents_bar_buttons">버튼 탐색에서는 숨기지 않습니다.</string>
@@ -99,6 +97,6 @@
   <string name="app_theme">앱 테마</string>
   <string name="dynamic_ui">배경화면 색상 사용</string>
   <string name="recents_live_tile">최근 앱에서 마지막 앱 계속 그리기</string>
-  <string name="recents_live_tile_note">최근 앱에서 마지막 앱만 계속 그리며 Home Up 배치를 유지합니다. 원근 애니메이션 중에는 일시적으로 기본 스냅샷을 사용합니다. 보호된 앱이나 호환되지 않는 구성은 기본 동작을 사용합니다. 실험 기능: Android 16 / One UI 8.5, 제스처 탐색 전용. 가로 앱에는 최근 앱 세로 고정도 켜세요. 앱의 재생 및 오디오 정책은 변경하지 않습니다.</string>
+  <string name="recents_live_tile_note">기본 세로 및 가로 최근 앱 화면에서 마지막 앱만 계속 그리며 Home Up 배치를 유지합니다. 화면 방향과 전환은 Samsung의 기본 동작을 따릅니다. 원근 애니메이션 중에는 일시적으로 기본 스냅샷을 사용합니다. 보호된 앱이나 호환되지 않는 구성은 기본 동작을 사용합니다. 실험 기능: Android 16 / One UI 8.5, 제스처 탐색 전용. 앱의 재생 및 오디오 정책은 변경하지 않습니다.</string>
   <string name="status_ready">준비됨</string>
 </resources>

@@ -17,12 +17,12 @@ final class RecentsCardSpace {
     }
   }
 
-  static RecentsMotionPath.Transform between(Space from, Space to) {
+  static RecentsAffine.Transform between(Space from, Space to) {
     if (from.naturalWidth() != to.naturalWidth() || from.naturalHeight() != to.naturalHeight())
       throw new IllegalArgumentException("Card windows do not share display geometry");
     int w = from.naturalWidth(), h = from.naturalHeight();
-    return RecentsMotionPath.Transform.display(from.rotation(), w, h)
+    return RecentsAffine.Transform.display(from.rotation(), w, h)
         .inverse()
-        .then(RecentsMotionPath.Transform.display(to.rotation(), w, h));
+        .then(RecentsAffine.Transform.display(to.rotation(), w, h));
   }
 }

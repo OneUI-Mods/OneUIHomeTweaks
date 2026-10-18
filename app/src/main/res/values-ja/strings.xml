@@ -73,8 +73,6 @@
   <string name="tab_appearance">表示</string>
   <string name="tab_status">状態</string>
   <string name="tab_settings">設定</string>
-  <string name="recents_portrait">アプリ履歴を縦向きに固定</string>
-  <string name="recents_portrait_note">横向きアプリから開いても履歴画面を縦向きにします。アプリ自体の向きは変えません。マルチウィンドウと外部画面は対象外です。</string>
   <string name="recents_hide_bar">履歴画面のホームバーを非表示</string>
   <string name="recents_hide_bar_note">履歴画面だけジェスチャーのホームバーを隠します。3ボタン操作には適用せず、OSの常時非表示設定も維持します。</string>
   <string name="recents_bar_buttons">ボタン操作のため、非表示処理は適用していません。</string>
@@ -99,6 +97,6 @@
   <string name="app_theme">アプリのテーマ</string>
   <string name="dynamic_ui">壁紙の色をアプリに使う</string>
   <string name="recents_live_tile">履歴で最後のアプリの描画を続ける</string>
-  <string name="recents_live_tile_note">履歴を開いている間、最後のアプリだけ描画を続けます。Home Upの配置を維持し、遠近変形中は一時的に標準の静止画を使います。保護されたアプリや非対応の構成は標準動作に戻します。実験的機能：Android 16 / One UI 8.5、ジェスチャー操作のみ。横向きアプリには「履歴を縦向きに固定」も有効にしてください。アプリ側の再生・音声の制御は変更しません。</string>
+  <string name="recents_live_tile_note">標準の縦画面・横画面の履歴で、最後のアプリだけ描画を続けます。画面の向きと遷移はSamsung標準の処理に従います。Home Upの配置を維持し、遠近変形中は一時的に標準の静止画を使います。保護されたアプリや非対応の構成は標準動作に戻します。実験的機能：Android 16 / One UI 8.5、ジェスチャー操作のみ。アプリ側の再生・音声の制御は変更しません。</string>
   <string name="status_ready">準備完了</string>
 </resources>

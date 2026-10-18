@@ -73,8 +73,6 @@
   <string name="tab_appearance">外觀</string>
   <string name="tab_status">狀態</string>
   <string name="tab_settings">設定</string>
-  <string name="recents_portrait">最近使用的應用程式固定直向</string>
-  <string name="recents_portrait_note">從橫向應用程式進入時，最近使用畫面保持直向。不會變更應用程式本身的方向。不套用於多重視窗和外接螢幕。</string>
   <string name="recents_hide_bar">在最近使用畫面隱藏主畫面列</string>
   <string name="recents_hide_bar_note">僅隱藏最近使用畫面的手勢列。不影響三鍵導覽，並保留系統一律隱藏的設定。</string>
   <string name="recents_bar_buttons">按鈕導覽：未套用隱藏。</string>
@@ -99,6 +97,6 @@
   <string name="app_theme">應用程式主題</string>
   <string name="dynamic_ui">使用桌布配色</string>
   <string name="recents_live_tile">在最近使用的應用程式中持續繪製最後一個應用程式</string>
-  <string name="recents_live_tile_note">在最近使用畫面中僅讓最後一個應用程式持續繪製，並保留 Home Up 配置。透視動畫期間暫時使用原生快照。受保護或不相容的工作採用標準行為。實驗功能：Android 16 / One UI 8.5，僅支援手勢導覽。橫向應用程式也需啟用最近使用畫面直向固定。不變更應用程式的播放或音訊原則。</string>
+  <string name="recents_live_tile_note">在原生直向或橫向最近使用畫面中，僅讓最後一個應用程式持續繪製，並保留 Home Up 配置。畫面方向與轉場遵循 Samsung 標準行為。透視動畫期間暫時使用原生快照。受保護或不相容的工作採用標準行為。實驗功能：Android 16 / One UI 8.5，僅支援手勢導覽。不變更應用程式的播放或音訊原則。</string>
   <string name="status_ready">已就緒</string>
 </resources>

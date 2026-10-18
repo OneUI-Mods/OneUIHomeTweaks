@@ -232,7 +232,7 @@ final class RecentsLiveTileHooks {
         method(taskMessages, "handleMessage", boolean.class, android.os.Message.class);
     int movedToFront = field(taskMessages, "ON_TASK_MOVED_TO_FRONT", int.class).getInt(null);
     Field movedDisplay = ActivityManager.RunningTaskInfo.class.getField("displayId");
-    DexEvidence.deoptimizeRecentsCoordinateCalls(
+    DexEvidence.deoptimizeRecentsLiveCalls(
         apk,
         loader,
         List.of(
@@ -365,8 +365,8 @@ final class RecentsLiveTileHooks {
                           Activity activity = foregroundRecents;
                           release(
                               key == KeyEvent.KEYCODE_HOME
-                                  ? "portrait navigation home"
-                                  : "portrait navigation back");
+                                  ? "native navigation home"
+                                  : "native navigation back");
                           try {
                             if (key == KeyEvent.KEYCODE_BACK && activity != null)
                               back.invoke(activity);
@@ -380,7 +380,7 @@ final class RecentsLiveTileHooks {
                   }
                   Object copy = p.getObjectExtra("liveRawEvent");
                   if (copy instanceof android.view.MotionEvent e) {
-                    if (BuildConfig.RECENTS_MOTION_TRACE
+                    if (BuildConfig.RECENTS_LIVE_TRACE
                         && e.getActionMasked() == android.view.MotionEvent.ACTION_UP) {
                       View view = (View) p.thisObject;
                       for (Session ss : new ArrayList<>(sessions.values()))
@@ -419,22 +419,7 @@ final class RecentsLiveTileHooks {
               s.heldAt = android.os.SystemClock.uptimeMillis();
               s.boundRoot = (View) recentTarget.invoke(systemController.invoke(s.manager()));
               HookEntry.log("RECENTS_LIVE_HELD native controller retained");
-              if (RecentsHandoffGate.SHARED.await(
-                  s.manager(),
-                  success -> {
-                    if (sessions.get(s.manager()) != s || !enabled) return;
-                    if (!success) {
-                      fallback("viewport handoff unavailable");
-                      return;
-                    }
-                    try {
-                      activateSurface(s);
-                    } catch (Throwable error) {
-                      HookEntry.log("RECENTS_LIVE_HANDOFF_ERROR " + error);
-                      fallback("live handoff failed");
-                    }
-                  })) HookEntry.log("RECENTS_LIVE_WAIT_VIEWPORT owned handoff pending");
-              else activateSurface(s);
+              activateSurface(s);
             }
           });
       // Suggested-app icons enter getLaunchOptions before getActivityLaunchOptions. Its native
@@ -455,7 +440,7 @@ final class RecentsLiveTileHooks {
       context.registerReceiver(
           screenOff, new IntentFilter(Intent.ACTION_SCREEN_OFF), Context.RECEIVER_NOT_EXPORTED);
       setDiagnostic("off");
-      HookEntry.log("RECENTS_LIVE_READY launch request handoff 0.10.1");
+      HookEntry.log("RECENTS_LIVE_READY native orientation lifecycle 0.11");
     } catch (Throwable t) {
       uninstall();
       if (t instanceof Exception e) throw e;
@@ -475,12 +460,12 @@ final class RecentsLiveTileHooks {
   }
 
   private void activateSurface(Session s) throws Exception {
-    if (BuildConfig.RECENTS_MOTION_TRACE) inspect(s);
+    if (BuildConfig.RECENTS_LIVE_TRACE) inspect(s);
     View root = (View) recentTarget.invoke(systemController.invoke(s.manager()));
-    if (root != null && root.getWidth() < root.getHeight()) {
+    if (root != null) {
       int bottom = navigationBottom(root);
       if (bottom <= 0 || bottom >= root.getHeight() * .1f) {
-        fallback("portrait navigation region unavailable");
+        fallback("native navigation region unavailable");
         return;
       }
       WindowInsets windowInsets = root.getRootWindowInsets();
@@ -497,7 +482,7 @@ final class RecentsLiveTileHooks {
                 bottom,
                 ViewConfiguration.get(root.getContext()).getScaledTouchSlop());
       } catch (IllegalArgumentException unsupported) {
-        fallback("portrait back region unavailable");
+        fallback("native back region unavailable");
         return;
       }
       s.navigationInjector = mainKeyInjector;

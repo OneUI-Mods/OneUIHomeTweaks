@@ -65,6 +65,22 @@ public class RecentsNavigationGestureTest {
     assertEquals(0, n.event(30, 1, 1, 300, 2200).command());
   }
 
+  @Test
+  public void landscapeUsesItsOwnBottomAndBothBackEdges() {
+    var n = new RecentsNavigationGesture(3120, 1440, 80, 80, 60, 24);
+    n.event(10, 0, 1, 1560, 1434);
+    assertEquals(3, n.event(10, 1, 1, 1560, 800).command());
+    n.event(20, 0, 1, 6, 720);
+    var left = n.event(20, 1, 1, 500, 720);
+    assertTrue(left.consume());
+    assertEquals(4, left.command());
+    n.event(30, 0, 1, 3114, 720);
+    var right = n.event(30, 1, 1, 2600, 720);
+    assertTrue(right.consume());
+    assertEquals(4, right.command());
+    assertEquals(RecentsNavigationGesture.NONE, n.event(40, 0, 1, 1560, 720));
+  }
+
   @Test(expected = IllegalArgumentException.class)
   public void missingEdgeRegionsAreRejected() {
     new RecentsNavigationGesture(1440, 3120, 0, 0, 94, 24);

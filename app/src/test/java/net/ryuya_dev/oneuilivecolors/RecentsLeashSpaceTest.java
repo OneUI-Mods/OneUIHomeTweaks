@@ -50,21 +50,4 @@ public class RecentsLeashSpaceTest {
     assertEquals(0, t.c(), 0);
     assertEquals(.64, t.tx(), .001);
   }
-
-  @Test
-  public void pixelRoundingIsAcceptedButLargeStretchAndShearAreNot() {
-    var measured =
-        new RecentsMotionPath.Transform(0, .693975588, -.694421797, 0, 2069.609, 210.289);
-    assertNotNull(RecentsLeashSpace.pixelMatchedPose(measured, 3120, 1440, 1));
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            RecentsLeashSpace.pixelMatchedPose(
-                new RecentsMotionPath.Transform(1.525, 0, 0, .345, 0, 0), 3120, 1440, 1));
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            RecentsLeashSpace.pixelMatchedPose(
-                new RecentsMotionPath.Transform(1, 0, .1, 1, 0, 0), 3120, 1440, 1));
-  }
 }

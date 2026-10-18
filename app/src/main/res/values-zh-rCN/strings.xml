@@ -73,8 +73,6 @@
   <string name="tab_appearance">外观</string>
   <string name="tab_status">状态</string>
   <string name="tab_settings">设置</string>
-  <string name="recents_portrait">最近任务固定为竖屏</string>
-  <string name="recents_portrait_note">从横屏应用进入时，最近任务保持竖屏。不会更改应用本身的方向。多窗口和外接屏幕不适用。</string>
   <string name="recents_hide_bar">在最近任务中隐藏主页条</string>
   <string name="recents_hide_bar_note">仅隐藏最近任务画面的手势条。不影响三键导航，并保留系统始终隐藏的设置。</string>
   <string name="recents_bar_buttons">按钮导航：未应用隐藏。</string>
@@ -99,6 +97,6 @@
   <string name="app_theme">应用主题</string>
   <string name="dynamic_ui">使用壁纸配色</string>
   <string name="recents_live_tile">在最近任务中保持最后一个应用绘制</string>
-  <string name="recents_live_tile_note">在最近任务中仅保持最后一个应用绘制，并保留 Home Up 布局。透视动画期间暂时使用原生快照。受保护或不兼容的任务使用标准行为。实验功能：Android 16 / One UI 8.5，仅支持手势导航。横屏应用还需开启最近任务竖屏固定。不更改应用的播放或音频策略。</string>
+  <string name="recents_live_tile_note">在原生竖屏或横屏最近任务中，仅保持最后一个应用绘制，并保留 Home Up 布局。屏幕方向和过渡遵循 Samsung 标准行为。透视动画期间暂时使用原生快照。受保护或不兼容的任务使用标准行为。实验功能：Android 16 / One UI 8.5，仅支持手势导航。不更改应用的播放或音频策略。</string>
   <string name="status_ready">已就绪</string>
 </resources>

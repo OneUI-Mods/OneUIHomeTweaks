@@ -41,7 +41,7 @@ public class RecentsCardSpaceTest {
   public void sameSpaceIsIdentityAndCannotApplyASecondQuarterTurn() {
     var s = new RecentsCardSpace.Space(3120, 1440, 1);
     var t = RecentsCardSpace.between(s, s);
-    assertEquals(new RecentsMotionPath.Point(971, 249), t.map(971, 249));
+    assertEquals(new RecentsAffine.Point(971, 249), t.map(971, 249));
   }
 
   @Test

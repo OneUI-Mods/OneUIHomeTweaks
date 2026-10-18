@@ -38,7 +38,6 @@ public final class HookEntry extends XposedModule {
   private final GridSaveCoordinator gridSave = new GridSaveCoordinator(diyGrid);
   private final DrawerBridge drawer = new DrawerBridge();
   private final HomeLabelBridge homeLabels = new HomeLabelBridge();
-  private final RecentsHooks recents = new RecentsHooks();
   private final RecentsBar recentsBar = new RecentsBar();
   private boolean initialized;
   private boolean hostAttached;
@@ -331,11 +330,6 @@ public final class HookEntry extends XposedModule {
     if (initialized) return;
     context = app;
     try {
-      recents.install(app.getApplicationInfo().sourceDir, launcherLoader);
-    } catch (Throwable t) {
-      log("RECENTS_UNSUPPORTED " + t);
-    }
-    try {
       recentsBar.install(app, launcherLoader);
     } catch (Throwable t) {
       log("RECENTS_BAR_UNSUPPORTED " + t);
@@ -442,7 +436,6 @@ public final class HookEntry extends XposedModule {
       int label = ColorPolicy.OFF, status = ColorPolicy.OFF, drawerMode = ColorPolicy.AUTO;
       boolean master = false,
           pageMode = false,
-          recentsPortrait = false,
           hideRecentsBar = false,
           recentsLive = false,
           diyGridMode = false;
@@ -454,8 +447,6 @@ public final class HookEntry extends XposedModule {
             cursor.getInt(cursor.getColumnIndexOrThrow("enabled")) != 0
                 && cursor.getInt(cursor.getColumnIndexOrThrow("home_enabled")) != 0;
         pageMode = cursor.getInt(cursor.getColumnIndexOrThrow("pages")) != 0;
-        recentsPortrait =
-            master && cursor.getInt(cursor.getColumnIndexOrThrow("recents_portrait")) != 0;
         hideRecentsBar =
             master && cursor.getInt(cursor.getColumnIndexOrThrow("recents_hide_bar")) != 0;
         int liveColumn = cursor.getColumnIndex("recents_live_tile");
@@ -477,7 +468,6 @@ public final class HookEntry extends XposedModule {
       boolean apply = master && target;
       int currentDrawerMode = drawerMode;
       boolean currentPages = pageMode;
-      boolean currentRecentsPortrait = recentsPortrait;
       boolean currentHideRecentsBar = hideRecentsBar;
       boolean currentLiveRecents = recentsLive;
       boolean currentMaster = master;
@@ -490,7 +480,6 @@ public final class HookEntry extends XposedModule {
             pages.setEnabled(apply && currentPages);
             drawer.setMode(currentDrawerMode, apply);
             homeLabels.setEnabled(localLabels);
-            recents.setEnabled(currentRecentsPortrait);
             liveRecents.setEnabled(currentLiveRecents);
             recentsBar.setEnabled(currentHideRecentsBar);
             diyGrid.setEnabled(currentDiyGrid);
@@ -504,8 +493,6 @@ public final class HookEntry extends XposedModule {
                     + hints
                     + "; localLabels="
                     + homeLabels.diagnostic()
-                    + "; recents="
-                    + recents.diagnostic()
                     + "; recentsBar="
                     + recentsBar.diagnostic()
                     + "; liveRecents="
@@ -593,7 +580,6 @@ public final class HookEntry extends XposedModule {
             pages.setEnabled(false);
             drawer.setMode(ColorPolicy.OFF, false);
             homeLabels.setEnabled(false);
-            recents.setEnabled(false);
             recentsBar.setEnabled(false);
             diyGrid.setEnabled(false);
           });

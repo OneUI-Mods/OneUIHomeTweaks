@@ -38,7 +38,6 @@ public final class MainActivity extends AppCompatActivity {
     "preview_enabled",
     "pages",
     "preview",
-    "recents_portrait",
     "recents_hide_bar",
     "recents_live_tile",
     "clock_date_left",
@@ -51,7 +50,6 @@ public final class MainActivity extends AppCompatActivity {
     R.id.preview_enabled,
     R.id.pages,
     R.id.preview,
-    R.id.recents_portrait,
     R.id.recents_hide_bar,
     R.id.recents_live_tile,
     R.id.clock_date_left,
@@ -90,6 +88,7 @@ public final class MainActivity extends AppCompatActivity {
     controller.setAppearanceLightStatusBars(!night);
     controller.setAppearanceLightNavigationBars(!night);
     prefs = getSharedPreferences(ConfigProvider.PREFS, MODE_PRIVATE);
+    if (prefs.contains("recents_portrait")) prefs.edit().remove("recents_portrait").apply();
     for (int i = 0; i < modeIds.length; i++) {
       final int index = i;
       String[] labels =
@@ -141,7 +140,6 @@ public final class MainActivity extends AppCompatActivity {
     int[] infoViews = {
       R.id.local_note_button,
       R.id.diy_note_button,
-      R.id.recents_portrait_info,
       R.id.recents_bar_info,
       R.id.recents_live_info,
       R.id.clock_date_info,
@@ -150,7 +148,6 @@ public final class MainActivity extends AppCompatActivity {
     int[] infoTitles = {
       R.string.home_labels,
       R.string.diy_icon_grid,
-      R.string.recents_portrait,
       R.string.recents_hide_bar,
       R.string.recents_live_tile,
       R.string.clock_date_left,
@@ -159,7 +156,6 @@ public final class MainActivity extends AppCompatActivity {
     int[] infoMessages = {
       R.string.local_labels_note,
       R.string.diy_icon_grid_note,
-      R.string.recents_portrait_note,
       R.string.recents_hide_bar_note,
       R.string.recents_live_tile_note,
       R.string.clock_date_left_note,
@@ -269,12 +265,11 @@ public final class MainActivity extends AppCompatActivity {
           recreate();
         });
     LinearLayout cards = findViewById(R.id.status_cards);
-    statusCards = new HookStatusCard[9];
+    statusCards = new HookStatusCard[8];
     int[] titles = {
       R.string.scope_home,
       R.string.volume_theme,
       R.string.scope_preview,
-      R.string.recents_portrait,
       R.string.recents_hide_bar,
       R.string.mode_local,
       R.string.clock_date_left,
@@ -345,7 +340,7 @@ public final class MainActivity extends AppCompatActivity {
             "CRASH_GUARD".equals(hostState) ? R.string.status_guard : R.string.status_unsupported;
       }
     }
-    statusCards[6].update(
+    statusCards[5].update(
         dateLabel,
         dateState,
         dateOn,
@@ -391,7 +386,7 @@ public final class MainActivity extends AppCompatActivity {
             gridLabel = R.string.status_unconfirmed;
           }
         }
-        statusCards[7].update(
+        statusCards[6].update(
             gridLabel,
             gridState,
             gridOn,
@@ -419,39 +414,14 @@ public final class MainActivity extends AppCompatActivity {
             localLabel = R.string.status_unconfirmed;
           }
         }
-        statusCards[5].update(
+        statusCards[4].update(
             localLabel,
             localState,
             localOn,
             localOn && !localState.isEmpty()
                 ? detail.substring(Math.max(0, detail.indexOf("localLabels="))).split(";", 2)[0]
                 : "");
-        boolean recentsOn = on && prefs.getBoolean("recents_portrait", false);
-        String recentsState = state;
-        int recentsLabel = label;
-        if (!recentsOn) {
-          recentsState = "OFF";
-          recentsLabel = R.string.status_off;
-        } else if ("ACTIVE".equals(state)) {
-          if (detail.contains("recents=unavailable")) {
-            recentsState = "UNSUPPORTED";
-            recentsLabel = R.string.status_unsupported;
-          } else if (detail.contains("recents=error:")) {
-            recentsState = "ERROR";
-            recentsLabel = R.string.status_error;
-          } else if (!detail.contains("recents=portrait")) {
-            recentsState = "";
-            recentsLabel = R.string.status_unconfirmed;
-          }
-        }
-        statusCards[3].update(
-            recentsLabel,
-            recentsState,
-            recentsOn,
-            recentsOn && !recentsState.isEmpty()
-                ? detail.substring(Math.max(0, detail.indexOf("recents=")))
-                : "");
-        if (statusCards.length > 8) {
+        if (statusCards.length > 7) {
           boolean liveOn = on && prefs.getBoolean("recents_live_tile", false);
           String liveState = state;
           int liveLabel = label;
@@ -477,7 +447,7 @@ public final class MainActivity extends AppCompatActivity {
               liveLabel = R.string.status_unconfirmed;
             }
           }
-          statusCards[8].update(liveLabel, liveState, liveOn, liveOn ? liveDetail : "");
+          statusCards[7].update(liveLabel, liveState, liveOn, liveOn ? liveDetail : "");
         }
         boolean barOn = on && prefs.getBoolean("recents_hide_bar", false);
         String barState = state;
@@ -502,7 +472,7 @@ public final class MainActivity extends AppCompatActivity {
             barLabel = R.string.status_unconfirmed;
           }
         }
-        statusCards[4].update(
+        statusCards[3].update(
             barLabel,
             barState,
             barOn,

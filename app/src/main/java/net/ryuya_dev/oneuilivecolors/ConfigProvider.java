@@ -67,7 +67,7 @@ public final class ConfigProvider extends ContentProvider {
           p.getBoolean("home_enabled", true) ? 1 : 0,
           p.getBoolean("systemui_enabled", true) ? 1 : 0,
           p.getBoolean("preview_enabled", true) ? 1 : 0,
-          p.getBoolean("recents_portrait", false) ? 1 : 0,
+          0, // Retired orientation option: tell pre-0.11 Launcher hooks to restore native requests.
           p.getBoolean("recents_hide_bar", false) ? 1 : 0,
           p.getBoolean("clock_date_left", false) ? 1 : 0,
           p.getBoolean("diy_icon_grid", false) ? 1 : 0,

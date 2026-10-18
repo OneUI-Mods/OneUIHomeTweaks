@@ -1,6 +1,6 @@
 package net.ryuya_dev.oneuilivecolors;
 
-/** Window-local navigation for a portrait Recents window over a retained controller. */
+/** Window-local navigation for the native Recents window over a retained controller. */
 final class RecentsNavigationGesture {
   static final int HOME = 3, BACK = 4;
 
@@ -15,14 +15,14 @@ final class RecentsNavigationGesture {
 
   RecentsNavigationGesture(int width, int height, int left, int right, int bottom, int slop) {
     if (width <= 0
-        || height <= width
+        || height <= 0
         || left <= 0
         || right <= 0
         || bottom <= 0
         || left >= width * .2f
         || right >= width * .2f
         || bottom >= height * .1f
-        || slop <= 0) throw new IllegalArgumentException("Unknown portrait navigation regions");
+        || slop <= 0) throw new IllegalArgumentException("Unknown native navigation regions");
     this.width = width;
     this.height = height;
     this.left = left;
