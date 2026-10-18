@@ -36,6 +36,10 @@ maxNorm(numerator) × max(|minW − 1|, |maxW − 1|) / minW
 
 おすすめアプリは起動受付の`ShellTransitionManager.getLaunchOptions`で所有holdを解放する。直接のカード起動は`getActivityLaunchOptions`でも解放し、0.10.1の「おすすめアプリの起動が待たされる」修正を維持する。Home、Back、別タスクの前面化、画面OFF、機能OFF、native invalidateでも解放する。
 
+## フォーカス通知と音声
+
+MultiStarのマルチフォーカスが有効だと、描画が続くアプリへのフォーカス喪失通知が抑制され、ゲームの音声も残る場合がある。実機の有効状態とSamsungのDecorView分岐を確認した。[フォーカス通知の調査記録](recents-focus.md)を参照。0.11.0には通知方法の選択や消音処理は含まれない。
+
 ## 検証と制限
 
 SM-S948Q、Android 16 / One UI 8.5、Launcher 17.5.03.27、Home Up 17.5.00.30、Vector 2.2 / API 102が対象。Home Up ON／OFFで標準の横向き履歴のCanvasアニメーションと実VideoView / SurfaceViewの更新を別々の画像で確認した。実際のYouTube再生ポリシー、すべてのHome Up配置、逆横向き・180度回転、他機種、Android 17 / One UI 9まで検証したものではない。
