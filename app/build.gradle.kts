@@ -11,14 +11,15 @@ val distributionProperties = Properties().apply {
 }
 android {
     namespace = "net.ryuya_dev.oneuilivecolors"
-    compileSdk = 36
+    compileSdk = 37
+    buildToolsVersion = "37.0.0"
     buildFeatures { buildConfig = true }
     defaultConfig {
         applicationId = "net.ryuya_dev.oneuilivecolors"
         minSdk = 31
-        targetSdk = 36
-        versionCode = 20
-        versionName = "0.12.2"
+        targetSdk = 37
+        versionCode = 21
+        versionName = "0.12.3"
         // Live-card diagnostics are opt-in for local investigation, never default release behavior.
         buildConfigField("boolean", "RECENTS_LIVE_TRACE", providers.gradleProperty("recentsLiveTrace").map { (it == "true").toString() }.getOrElse("false"))
     }

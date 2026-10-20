@@ -6,7 +6,7 @@
 
 ## ビルド
 
-JDK 21とAndroid SDK 36を用意し、Android Studioでプロジェクトを開きます。開発用チェックアウトは `~/Documents/OneUiLiveColors` に置いています。
+JDK 21とAndroid SDK 37を用意し、Android Studioでプロジェクトを開きます。開発用チェックアウトは `~/Documents/OneUiLiveColors` に置いています。
 
 ```sh
 ./gradlew :app:assembleRelease :app:testDebugUnitTest :app:lintRelease
