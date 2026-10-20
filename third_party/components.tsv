@@ -54,7 +54,7 @@ org.checkerframework:checker-compat-qual:2.5.2	MIT	checker-LICENSE.txt	https://c
 org.codehaus.mojo:animal-sniffer-annotations:1.17	MIT	animal-sniffer-LICENSE.txt	https://github.com/mojohaus/animal-sniffer
 org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22	Apache-2.0	Apache-2.0.txt	https://kotlinlang.org/
 org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22	Apache-2.0	Apache-2.0.txt	https://kotlinlang.org/
-org.jetbrains.kotlin:kotlin-stdlib:2.2.10	Apache-2.0	Apache-2.0.txt	https://kotlinlang.org/
+org.jetbrains.kotlin:kotlin-stdlib:2.2.10	Apache 2.0, BSD 3-Clause, Boost 1.0	KOTLIN-2.2.10.txt	https://kotlinlang.org/
 org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4	Apache-2.0	Apache-2.0.txt	https://github.com/Kotlin/kotlinx.coroutines
 org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.6.4	Apache-2.0	Apache-2.0.txt	https://github.com/Kotlin/kotlinx.coroutines
 org.jetbrains:annotations:13.0	Apache-2.0	Apache-2.0.txt	http://www.jetbrains.org
