@@ -7,3 +7,7 @@ compileSdkとtargetSdkを37へ更新しました。ビルド環境はJDK 21、AG
 4本のreleaseビルドとrelease Lint、既存JVM試験を実行しました。Android 16の実機は今回再試験していません。Android 17実機の更新・起動結果は追記します。
 
 検証済み：JVM試験84件、release Lint（error/fatalなし）、releaseビルド。
+
+## 実機更新（2026-10-21）
+
+署名済みrelease 0.12.3を既存データを維持して上書きし、端末のPackageManagerでtargetSdk=37を確認しました。4本の設定画面が開きました。TailADBは更新後のアプリUIから専用backendを停止・開始し、Tailscale経由のshellと所有ファイルの転送・削除が通過しました。ローカルADBを制御経路として保持しています。SystemUIだけを読み込み直し、端末本体・system_server・One UIホームは再起動していません。フック処理を変更していないCapture/Homeの各ホストを、SDK更新だけのためには再起動していません。
