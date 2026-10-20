@@ -9,7 +9,7 @@ import java.util.*;
 
 /** Experimental per-process Samsung core-state delivery. No app-process hooks or global setters. */
 @android.annotation.SuppressLint(
-    "NewApi") // Discovery is gated to the exact verified Android 16 build.
+    "NewApi") // Discovery is gated to independently reviewed, exact firmware fingerprints.
 final class RecentsFocusServer {
   private static final String KEY = "stay_focus_activity";
   private static RecentsFocusServer instance;

@@ -9,10 +9,12 @@ final class Android17Hooks {
   static final String TASK_SCENE_VIEW = "com.honeyspace.common.taskscene.TaskSceneView";
   static final String TASK_SCENE_DATA = "com.honeyspace.common.taskscene.TaskSceneData";
   static final String BUILD = "CP2A.260605.016.S948QOPU1BZI9";
+  static final String FINGERPRINT =
+      "samsung/m3qjpnw/m3q:17/CP2A.260605.016/S948QOPU1BZI9_SJP1BZI9:user/release-keys";
   static final String CANDIDATE_FIRMWARE = "S948QOPU1BZI9";
 
   static boolean supportsRecentsFocus(int sdk, String fingerprint) {
-    return false;
+    return sdk == 37 && FINGERPRINT.equals(fingerprint);
   }
 
   static boolean supports(

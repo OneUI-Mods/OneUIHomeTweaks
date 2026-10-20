@@ -43,3 +43,7 @@ SM-S948Q / m3q / Samsung / SDK 37 / BZI9完全一致の入場条件を17用定�
 端末・SystemUI・ホームを再起動する前に、Samsungキャプチャなど単独プロセスで検証できるものを確認します。必要なソフトリブートは全体の最後にまとめます。
 
 Home Up 18.0.00.36（code 1800005036、SHA-256 `8aa00d2cdcba89068a75f8571a54dfe60d5e255392b254b9675ab6bf903ac20e`）を実機から取得しました。`FrameControlStickerView`、`StickerView`、`FreeGridFastRecyclerView.notifyScrollX(int,int,int)`・`onEndPageScrolling()`はプラグイン側に存在します。ホーム本体のWorkspaceにも両スクロールメソッドは存在し、削除されていません。system_serverのfocus経路は別の確認が必要なため、17では引き続き無効です。
+
+## system_server focus契約の追加照合
+
+`ActivityTaskManagerServiceExt.mCoreStateController`、`CoreStateController.getCoreStates(int)`、`ClientLifecycleManager.scheduleTransaction(ClientTransaction):boolean`、`RootWindowContainer.anyTaskForId(int,int,ActivityOptions,boolean)`、`WindowManagerService.updateFocusedWindowLocked(int,boolean)`を17のservicesで照合しました。ClientTransaction・CoreStatesChangeItemのconstructorとフィールド、ActivityRecordの状態通知、WindowProcessControllerのUID/thread/activityフィールドも存在します。実機の完全一致fingerprintを17専用定義へ追加し、discoveryを許可します。実際の変更前に全契約を解決する処理と、利用者が設定するまでdisarmedの動作は維持します。実機でのfocus復元は読み込み後に別途確認します。

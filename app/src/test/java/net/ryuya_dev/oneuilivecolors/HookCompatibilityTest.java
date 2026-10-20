@@ -46,6 +46,9 @@ public class HookCompatibilityTest {
     assertTrue(HookCompatibility.supportsRecentsFocus(36, Android16Hooks.FINGERPRINT));
     assertFalse(HookCompatibility.supportsRecentsFocus(36, "other-firmware"));
     assertFalse(HookCompatibility.supportsRecentsFocus(37, Android16Hooks.FINGERPRINT));
+    assertTrue(HookCompatibility.supportsRecentsFocus(37, Android17Hooks.FINGERPRINT));
+    assertFalse(HookCompatibility.supportsRecentsFocus(36, Android17Hooks.FINGERPRINT));
+    assertFalse(HookCompatibility.supportsRecentsFocus(37, "other-firmware"));
   }
 
   @Test
