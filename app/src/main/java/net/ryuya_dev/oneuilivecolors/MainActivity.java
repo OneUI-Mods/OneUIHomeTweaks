@@ -119,6 +119,8 @@ public final class MainActivity extends AppCompatActivity {
           (p, v, position, id) -> {
             modes[index] = position;
             prefs.edit().putInt(keys[index], position).apply();
+            View preview = findViewById(R.id.appearance_preview);
+            if (preview != null) preview.invalidate();
             notifyConfig();
           });
     }

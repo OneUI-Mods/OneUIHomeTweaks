@@ -47,3 +47,9 @@ Home Up 18.0.00.36（code 1800005036、SHA-256 `8aa00d2cdcba89068a75f8571a54dfe6
 ## system_server focus契約の追加照合
 
 `ActivityTaskManagerServiceExt.mCoreStateController`、`CoreStateController.getCoreStates(int)`、`ClientLifecycleManager.scheduleTransaction(ClientTransaction):boolean`、`RootWindowContainer.anyTaskForId(int,int,ActivityOptions,boolean)`、`WindowManagerService.updateFocusedWindowLocked(int,boolean)`を17のservicesで照合しました。ClientTransaction・CoreStatesChangeItemのconstructorとフィールド、ActivityRecordの状態通知、WindowProcessControllerのUID/thread/activityフィールドも存在します。実機の完全一致fingerprintを17専用定義へ追加し、discoveryを許可します。実際の変更前に全契約を解決する処理と、利用者が設定するまでdisarmedの動作は維持します。実機でのfocus復元は読み込み後に別途確認します。
+
+## 実機デバッグと設定UI（2026-10-20）
+
+最後にzygoteをソフトリブートし、カーネルのboot IDが変わらないこと、SELinux EnforcingとTailADBの復帰を確認しました。解除後、Barは背景取得・文字ごとの配色・ライブ描画が動き、Home Tweaksはホームの場所別配色・時計・音量・壁紙プレビューがACTIVEになりました。Captureは録画対象一覧を取得でき、アプリ録画の縦開始→横→逆横→縦を1080×2340の固定枠で記録しました。逆横で180度を無視する設定も維持されています。
+
+設定UIは機能ごとにまとまりを作り、M3の面・文字階層・操作の優先度を整理しています。プレビューは合成サンプルで、実際の通知や壁紙を読み取るものではありません。Samsung設定内のUIは純正コンテナを維持します。
