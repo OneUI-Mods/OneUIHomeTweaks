@@ -100,7 +100,7 @@ public final class HookEntry extends XposedModule {
           protected void beforeHookedMethod(ModernHook.Param param) {
             if (hostAttached
                 || !LAUNCHER.equals(p.packageName)
-                || Build.VERSION.SDK_INT != 36
+                || !HookCompatibility.isCurrentSupported()
                 || !"SM-S948Q".equals(Build.MODEL)
                 || android.os.Process.myUid() / 100000 != 0) return;
             Context base = (Context) param.args[0];
@@ -127,7 +127,7 @@ public final class HookEntry extends XposedModule {
             hostAttached = true;
             context = app;
             try {
-              if (Build.VERSION.SDK_INT != 36
+              if (!HookCompatibility.isCurrentSupported()
                   || !"SM-S948Q".equals(Build.MODEL)
                   || android.os.Process.myUid() / 100000 != 0) {
                 HostStatus.report(app, "UNSUPPORTED", "SDK/model/user compatibility gate");
@@ -159,7 +159,7 @@ public final class HookEntry extends XposedModule {
   private void installLauncher(TargetPackage p, Application app) {
     if (!LAUNCHER.equals(p.packageName) || !LAUNCHER.equals(p.processName)) return;
     try {
-      if (Build.VERSION.SDK_INT != 36
+      if (!HookCompatibility.isCurrentSupported()
           || !"samsung".equalsIgnoreCase(Build.MANUFACTURER)
           || !"SM-S948Q".equals(Build.MODEL)
           || android.os.Process.myUid() / 100000 != 0

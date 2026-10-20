@@ -150,7 +150,7 @@ final class RecentsLiveTileHooks {
   }
 
   void install(Context app, String apk, ClassLoader loader) throws Exception {
-    if (android.os.Build.VERSION.SDK_INT != 36)
+    if (!HookCompatibility.isCurrentSupported())
       throw new IllegalStateException("Live tile requires renewed OS validation");
     Class<?> manager =
         type(loader, "com.honeyspace.gesture.recentsanimation.RecentsAnimationManager");

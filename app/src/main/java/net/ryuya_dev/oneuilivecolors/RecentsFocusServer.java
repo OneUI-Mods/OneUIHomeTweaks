@@ -11,8 +11,6 @@ import java.util.*;
 @android.annotation.SuppressLint(
     "NewApi") // Discovery is gated to the exact verified Android 16 build.
 final class RecentsFocusServer {
-  private static final String FINGERPRINT =
-      "samsung/m3qjpnw/m3q:16/BP4A.251205.006/S948QOPS1AZHL_SJP1AZHL:user/release-keys";
   private static final String KEY = "stay_focus_activity";
   private static RecentsFocusServer instance;
   private final Object atm, lock, lifecycle, core, root;
@@ -48,8 +46,7 @@ final class RecentsFocusServer {
   }
 
   static void install(ClassLoader loader) throws Exception {
-    if (Build.VERSION.SDK_INT != 36
-        || !FINGERPRINT.equals(Build.FINGERPRINT)
+    if (!HookCompatibility.supportsRecentsFocus(Build.VERSION.SDK_INT, Build.FINGERPRINT)
         || android.os.Process.myUid() != 1000) return;
     Class<?> type =
         Class.forName("com.android.server.wm.ActivityTaskManagerService", false, loader);
