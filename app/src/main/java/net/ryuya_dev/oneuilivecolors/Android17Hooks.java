@@ -17,8 +17,12 @@ final class Android17Hooks {
 
   static boolean supports(
       int sdk, String manufacturer, String model, String device, String display) {
-    // A ROM name alone does not establish the runtime hook contracts.
-    // Remains off until its classes, signatures and data flow have been reviewed.
-    return false;
+    // BZI9 contracts were reviewed against ROM and matching installed APKs.
+    // Each feature still resolves its full runtime contract before changing behavior.
+    return sdk == 37
+        && "samsung".equalsIgnoreCase(manufacturer)
+        && "SM-S948Q".equals(model)
+        && "m3q".equals(device)
+        && BUILD.equals(display);
   }
 }

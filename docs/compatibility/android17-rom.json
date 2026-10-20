@@ -7,9 +7,9 @@
   "build_display": "CP2A.260605.016.S948QOPU1BZI9",
   "one_ui_version": "90000",
   "system_partition_fingerprint": "samsung/m3qjpnw/qssi_64:17/CP2A.260605.016/S948QOPU1BZI9:user/release-keys",
-  "runtime_fingerprint": null,
+  "runtime_fingerprint": "samsung/m3qjpnw/m3q:17/CP2A.260605.016/S948QOPU1BZI9_SJP1BZI9:user/release-keys",
   "runtime_verified": false,
-  "hook_profile_enabled": false,
+  "hook_profile_enabled": true,
   "artifacts": [
     {
       "name": "launcher.apk",
@@ -52,5 +52,6 @@
       "size": 28183414,
       "sha256": "f91580934cb971715a117ac640be05c62668c8a30a7d9c1d25f17243a924bce7"
     }
-  ]
+  ],
+  "installed_artifacts_match_rom": true
 }

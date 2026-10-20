@@ -53,7 +53,7 @@
   <string name="clear_guard_note">rootでこのモジュールの保護ファイルだけを削除します。原因を確認してから、停止したプロセスを起動し直してください。</string>
   <string name="guard_reset_done">保護を解除しました。対象プロセスを起動し直すと再試行します。</string>
   <string name="guard_reset_failed">保護を解除できませんでした。root権限を確認してください。</string>
-  <string name="help_text">必要なスコープ：文字色・履歴の縦向き固定・ページ通知はOne UI Home、音量パネルはSystem UI、プレビューは壁紙とスタイルです。\n\n確認環境：SM-S948Q、Android 16、One UI Home 17.5.03.27、Vector 2.2。構造が確認できない機能は適用しません。Android 17以降は再調査が必要です。\n\nホームの自動色は壁紙の黒文字ヒントに従います。色通知がない画像変更は検出できません。\n\n連続した不安定な起動ではフックを停止します。Vector自体の障害や、アプリが接続される前の障害を防ぐ機能ではありません。</string>
+  <string name="help_text">必要なスコープ：文字色・履歴の縦向き固定・ページ通知はOne UI Home、音量パネルはSystem UI、プレビューは壁紙とスタイルです。\n\n確認環境：SM-S948Q、Android 16、One UI Home 17.5.03.27、Vector 2.2。構造が確認できない機能は適用しません。Android 17は専用の互換処理を使います。それ以降の版は再調査が必要です。\n\nホームの自動色は壁紙の黒文字ヒントに従います。色通知がない画像変更は検出できません。\n\n連続した不安定な起動ではフックを停止します。Vector自体の障害や、アプリが接続される前の障害を防ぐ機能ではありません。</string>
   <string name="status_details">詳細</string>
   <string name="scope_home">One UI Home</string>
   <string name="scope_volume">System UI</string>
@@ -97,7 +97,7 @@
   <string name="app_theme">アプリのテーマ</string>
   <string name="dynamic_ui">壁紙の色をアプリに使う</string>
   <string name="recents_live_tile">履歴で最後のアプリの描画を続ける</string>
-  <string name="recents_live_tile_note">標準の縦画面・横画面の履歴で、最後のアプリだけ描画を続けます。画面の向きと遷移はSamsung標準の処理に従います。Home Upの配置を維持し、遠近変形中は一時的に標準の静止画を使います。保護されたアプリや非対応の構成は標準動作に戻します。実験的機能：Android 16 / One UI 8.5、ジェスチャー操作のみ。アプリ側の再生・音声の制御は変更しません。</string>
+  <string name="recents_live_tile_note">標準の縦画面・横画面の履歴で、最後のアプリだけ描画を続けます。画面の向きと遷移はSamsung標準の処理に従います。Home Upの配置を維持し、遠近変形中は一時的に標準の静止画を使います。保護されたアプリや非対応の構成は標準動作に戻します。実験的機能：Android 16・17 / One UI 8・9、ジェスチャー操作のみ。アプリ側の再生・音声の制御は変更しません。</string>
   <string name="status_ready">準備完了</string>
   <string name="recents_focus_mode">履歴中のフォーカス通知</string>
   <string name="focus_native">標準（MultiStarに従う）</string>

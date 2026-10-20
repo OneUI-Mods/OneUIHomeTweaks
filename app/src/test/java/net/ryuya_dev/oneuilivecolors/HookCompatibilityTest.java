@@ -18,7 +18,18 @@ public class HookCompatibilityTest {
     assertFalse(
         HookCompatibility.supports(
             37, "samsung", "SM-S948Q", "m3q", Android17Hooks.CANDIDATE_FIRMWARE));
-    assertFalse(HookCompatibility.supports(37, "samsung", "SM-S948Q", "m3q", Android17Hooks.BUILD));
+    assertTrue(HookCompatibility.supports(37, "samsung", "SM-S948Q", "m3q", Android17Hooks.BUILD));
+  }
+
+  @Test
+  public void android17AdmissionRejectsOtherHardwareAndBuilds() {
+    assertFalse(HookCompatibility.supports(37, "other", "SM-S948Q", "m3q", Android17Hooks.BUILD));
+    assertFalse(HookCompatibility.supports(37, "samsung", "other", "m3q", Android17Hooks.BUILD));
+    assertFalse(
+        HookCompatibility.supports(37, "samsung", "SM-S948Q", "other", Android17Hooks.BUILD));
+    assertFalse(HookCompatibility.supports(37, "samsung", "SM-S948Q", "m3q", "other-firmware"));
+    // Android 16 deliberately retains its original SDK-only admission rule.
+    assertTrue(HookCompatibility.supports(36, "samsung", "SM-S948Q", "m3q", Android17Hooks.BUILD));
   }
 
   @Test

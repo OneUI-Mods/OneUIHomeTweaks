@@ -53,7 +53,7 @@
   <string name="clear_guard_note">root로 이 모듈의 보호 파일만 삭제합니다. 원인을 확인한 후 대상 프로세스를 다시 시작하세요.</string>
   <string name="guard_reset_done">충돌 보호를 초기화했습니다. 다시 시도하려면 대상 프로세스를 다시 시작하세요.</string>
   <string name="guard_reset_failed">보호를 초기화하지 못했습니다. root 권한을 확인하세요.</string>
-  <string name="help_text">범위: 앱 이름, 최근 앱 세로 고정 및 페이지 알림은 One UI Home, 음량 패널은 System UI, 라이브 미리보기는 배경화면 및 스타일입니다.\n\n기준 환경: SM-S948Q, Android 16, One UI Home 17.5.03.27, Vector 2.2. 호환되지 않는 구조에서는 기능을 중지합니다. Android 17 이상은 재조사가 필요합니다.\n\n홈 자동 색상은 배경화면의 어두운 글자 힌트를 따릅니다. 색상 알림이 없는 이미지 변경은 감지할 수 없습니다.\n\n불안정한 시작이 반복되면 모듈을 중지할 수 있습니다. Vector 내부나 앱 연결 전의 오류는 방지할 수 없습니다.</string>
+  <string name="help_text">범위: 앱 이름, 최근 앱 세로 고정 및 페이지 알림은 One UI Home, 음량 패널은 System UI, 라이브 미리보기는 배경화면 및 스타일입니다.\n\n기준 환경: SM-S948Q, Android 16, One UI Home 17.5.03.27, Vector 2.2. 호환되지 않는 구조에서는 기능을 중지합니다. Android 17은 별도 호환 처리를 사용하며 이후 버전은 재검토가 필요합니다.\n\n홈 자동 색상은 배경화면의 어두운 글자 힌트를 따릅니다. 색상 알림이 없는 이미지 변경은 감지할 수 없습니다.\n\n불안정한 시작이 반복되면 모듈을 중지할 수 있습니다. Vector 내부나 앱 연결 전의 오류는 방지할 수 없습니다.</string>
   <string name="status_details">세부 정보</string>
   <string name="scope_home">One UI Home</string>
   <string name="scope_volume">System UI</string>
@@ -97,7 +97,7 @@
   <string name="app_theme">앱 테마</string>
   <string name="dynamic_ui">배경화면 색상 사용</string>
   <string name="recents_live_tile">최근 앱에서 마지막 앱 계속 그리기</string>
-  <string name="recents_live_tile_note">기본 세로 및 가로 최근 앱 화면에서 마지막 앱만 계속 그리며 Home Up 배치를 유지합니다. 화면 방향과 전환은 Samsung의 기본 동작을 따릅니다. 원근 애니메이션 중에는 일시적으로 기본 스냅샷을 사용합니다. 보호된 앱이나 호환되지 않는 구성은 기본 동작을 사용합니다. 실험 기능: Android 16 / One UI 8.5, 제스처 탐색 전용. 앱의 재생 및 오디오 정책은 변경하지 않습니다.</string>
+  <string name="recents_live_tile_note">기본 세로 및 가로 최근 앱 화면에서 마지막 앱만 계속 그리며 Home Up 배치를 유지합니다. 화면 방향과 전환은 Samsung의 기본 동작을 따릅니다. 원근 애니메이션 중에는 일시적으로 기본 스냅샷을 사용합니다. 보호된 앱이나 호환되지 않는 구성은 기본 동작을 사용합니다. 실험 기능: Android 16・17 / One UI 8・9, 제스처 탐색 전용. 앱의 재생 및 오디오 정책은 변경하지 않습니다.</string>
   <string name="status_ready">준비됨</string>
   <string name="recents_focus_mode">최근 앱의 포커스 알림</string>
   <string name="focus_native">기본값(MultiStar 설정)</string>

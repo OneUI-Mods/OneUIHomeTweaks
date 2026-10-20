@@ -53,7 +53,7 @@
   <string name="clear_guard_note">Root removes only this module’s guard files. Restart the affected process after checking the cause.</string>
   <string name="guard_reset_done">Crash protection reset. Reload the affected process to retry.</string>
   <string name="guard_reset_failed">Could not reset protection. Check root access.</string>
-  <string name="help_text">Scope: One UI Home for labels, portrait recents and page notifications; System UI for the optional volume panel; Wallpaper and style for the optional live preview.\n\nVerified baseline: SM-S948Q, Android 16, One UI Home 17.5.03.27, Vector 2.2. Incompatible structures are skipped. Android 17 and later require a new compatibility review.\n\nAutomatic home colors follow the wallpaper’s dark-text hint. Image changes without a color notification cannot be detected.\n\nCrash protection can stop this module after repeated unstable starts. It cannot prevent failures inside Vector or failures before the app attaches.</string>
+  <string name="help_text">Scope: One UI Home for labels, portrait recents and page notifications; System UI for the optional volume panel; Wallpaper and style for the optional live preview.\n\nVerified baseline: SM-S948Q, Android 16, One UI Home 17.5.03.27, Vector 2.2. Incompatible structures are skipped. Android 17 uses a separate compatibility profile; later versions require review.\n\nAutomatic home colors follow the wallpaper’s dark-text hint. Image changes without a color notification cannot be detected.\n\nCrash protection can stop this module after repeated unstable starts. It cannot prevent failures inside Vector or failures before the app attaches.</string>
   <string name="status_details">Details</string>
   <string name="scope_home">One UI Home</string>
   <string name="scope_volume">System UI</string>
@@ -97,7 +97,7 @@
   <string name="app_theme">App theme</string>
   <string name="dynamic_ui">Dynamic colors</string>
   <string name="recents_live_tile">Keep the last app live in Recents</string>
-  <string name="recents_live_tile_note">Continues rendering only the last app in native portrait or landscape Recents, preserving the Home Up layout. Perspective animations temporarily use the native snapshot. Protected or incompatible tasks use standard behavior. Experimental: Android 16 / One UI 8.5, gesture navigation only. App playback and audio policies are unchanged.</string>
+  <string name="recents_live_tile_note">Continues rendering only the last app in native portrait or landscape Recents, preserving the Home Up layout. Perspective animations temporarily use the native snapshot. Protected or incompatible tasks use standard behavior. Experimental: Android 16・17 / One UI 8・9, gesture navigation only. App playback and audio policies are unchanged.</string>
   <string name="status_ready">Ready</string>
   <string name="recents_focus_mode">Focus notifications in Recents</string>
   <string name="focus_native">Standard (follow MultiStar)</string>
