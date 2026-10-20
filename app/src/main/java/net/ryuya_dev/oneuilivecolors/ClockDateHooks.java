@@ -28,7 +28,7 @@ final class ClockDateHooks {
     context = app;
     try {
       // This feature uses the verified firmware contract, independently of launcher/volume hooks.
-      if (!"BP4A.251205.006.S948QOPS1AZHL".equals(Build.DISPLAY))
+      if (!HookCompatibility.matchesClockBuild(Build.VERSION.SDK_INT, Build.DISPLAY))
         throw new UnsupportedOperationException("Unverified SystemUI build");
       Class<?> clock =
           Class.forName(

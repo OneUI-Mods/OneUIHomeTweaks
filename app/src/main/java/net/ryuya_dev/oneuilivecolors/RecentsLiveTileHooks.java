@@ -165,7 +165,14 @@ final class RecentsLiveTileHooks {
     gestureDisplay = field(gestureType, "displayId", int.class);
     Class<?> top = type(loader, "com.honeyspace.gesture.usecase.TopTaskUseCase");
     topSource = field(manager, "topTaskUseCase", top);
-    topTask = method(top, "getTopTask", ActivityManager.RunningTaskInfo.class);
+    HookCompatibility.RecentsCalls recentsCalls =
+        HookCompatibility.recentsCalls(android.os.Build.VERSION.SDK_INT);
+    topTask =
+        method(
+            top,
+            recentsCalls.topTaskMethod(),
+            ActivityManager.RunningTaskInfo.class,
+            recentsCalls.topTaskTakesDisplay() ? new Class<?>[] {int.class} : new Class<?>[0]);
     Class<?> window = type(loader, "android.app.WindowConfiguration");
     taskConfig =
         method(
@@ -221,7 +228,12 @@ final class RecentsLiveTileHooks {
             boolean.class,
             boolean.class);
     Method decision = method(manager, "needRecentsActivityCall", boolean.class, boolean.class);
-    Method request = method(gestureType, "requestFinishRecentAnimation", void.class);
+    Method request =
+        method(
+            gestureType,
+            "requestFinishRecentAnimation",
+            void.class,
+            recentsCalls.finishTakesToHome() ? new Class<?>[] {boolean.class} : new Class<?>[0]);
     Method finishController =
         method(manager, "finishController", void.class, boolean.class, boolean.class);
     Method gestureLaunch =
@@ -599,7 +611,11 @@ final class RecentsLiveTileHooks {
         || managerDisplay.getInt(p.thisObject) != 0
         || Boolean.TRUE.equals(desktop.invoke(p.thisObject))
         || sessions.containsKey(p.thisObject)) return;
-    Object task = topTask.invoke(topSource.get(p.thisObject));
+    Object source = topSource.get(p.thisObject);
+    Object task =
+        topTask.getParameterCount() == 0
+            ? topTask.invoke(source)
+            : topTask.invoke(source, managerDisplay.getInt(p.thisObject));
     if (task == null
         || task.getClass().getField("taskId").getInt(task) != (Integer) p.args[0]
         || task.getClass().getField("displayId").getInt(task) != 0

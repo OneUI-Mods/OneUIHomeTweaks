@@ -18,6 +18,7 @@ public class HookCompatibilityTest {
     assertFalse(
         HookCompatibility.supports(
             37, "samsung", "SM-S948Q", "m3q", Android17Hooks.CANDIDATE_FIRMWARE));
+    assertFalse(HookCompatibility.supports(37, "samsung", "SM-S948Q", "m3q", Android17Hooks.BUILD));
   }
 
   @Test
@@ -34,5 +35,43 @@ public class HookCompatibilityTest {
     assertTrue(HookCompatibility.supportsRecentsFocus(36, Android16Hooks.FINGERPRINT));
     assertFalse(HookCompatibility.supportsRecentsFocus(36, "other-firmware"));
     assertFalse(HookCompatibility.supportsRecentsFocus(37, Android16Hooks.FINGERPRINT));
+  }
+
+  @Test
+  public void launcherArtifactsNeverCrossMatchVersions() {
+    assertTrue(HookCompatibility.matchesLauncherVersion(36, 1750305027L));
+    assertTrue(HookCompatibility.matchesLauncherVersion(37, 1800705053L));
+    assertFalse(HookCompatibility.matchesLauncherVersion(36, 1800705053L));
+    assertFalse(HookCompatibility.matchesLauncherVersion(37, 1750305027L));
+    assertFalse(HookCompatibility.matchesLauncherVersion(38, 1800705053L));
+  }
+
+  @Test
+  public void taskSceneRelocationIsVersionSpecific() {
+    assertEquals(
+        "com.honeyspace.ui.common.taskScene.TaskSceneView", HookCompatibility.taskSceneView(36));
+    assertEquals(
+        "com.honeyspace.common.taskscene.TaskSceneView", HookCompatibility.taskSceneView(37));
+    assertEquals(
+        "com.honeyspace.common.taskscene.TaskSceneData", HookCompatibility.taskSceneData(37));
+  }
+
+  @Test
+  public void clockBuildsRemainSeparated() {
+    assertTrue(HookCompatibility.matchesClockBuild(36, Android16Hooks.BUILD));
+    assertTrue(HookCompatibility.matchesClockBuild(37, Android17Hooks.BUILD));
+    assertFalse(HookCompatibility.matchesClockBuild(37, Android16Hooks.BUILD));
+  }
+
+  @Test
+  public void recentsCallsRetainAndroid16ArityAndUseAndroid17DisplayAwareLookup() {
+    var old = HookCompatibility.recentsCalls(36);
+    assertEquals("getTopTask", old.topTaskMethod());
+    assertFalse(old.topTaskTakesDisplay());
+    assertFalse(old.finishTakesToHome());
+    var current = HookCompatibility.recentsCalls(37);
+    assertEquals("runningTaskForDisplayId", current.topTaskMethod());
+    assertTrue(current.topTaskTakesDisplay());
+    assertTrue(current.finishTakesToHome());
   }
 }

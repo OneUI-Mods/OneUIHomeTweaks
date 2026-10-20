@@ -119,7 +119,8 @@ final class RecentsLiveSurface {
     taskId = taskType.getMethod("getFirstTaskId");
     taskScene = taskType.getMethod("getTaskSceneView");
     Class<?> sceneType =
-        Class.forName("com.honeyspace.ui.common.taskScene.TaskSceneView", false, loader);
+        Class.forName(
+            HookCompatibility.taskSceneView(android.os.Build.VERSION.SDK_INT), false, loader);
     paints = sceneType.getMethod("getForegroundPaints");
     hasTaskId = sceneType.getMethod("hasTaskId", int.class);
     tiltPath =
@@ -129,7 +130,8 @@ final class RecentsLiveSurface {
     tilt = sceneType.getMethod("getTiltRadian");
     sceneData = sceneType.getMethod("getTaskSceneData");
     Class<?> dataType =
-        Class.forName("com.honeyspace.ui.common.taskScene.TaskSceneData", false, loader);
+        Class.forName(
+            HookCompatibility.taskSceneData(android.os.Build.VERSION.SDK_INT), false, loader);
     bitmap = dataType.getMethod("getThumbnail");
     snapshotScale = dataType.getMethod("getScale");
     snapshotRotation = dataType.getMethod("getRotation");

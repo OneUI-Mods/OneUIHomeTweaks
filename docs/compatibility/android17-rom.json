@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "recorded_on": "2026-10-20",
+  "android": 17,
+  "sdk": 37,
+  "firmware": "S948QOPU1BZI9",
+  "build_display": "CP2A.260605.016.S948QOPU1BZI9",
+  "one_ui_version": "90000",
+  "system_partition_fingerprint": "samsung/m3qjpnw/qssi_64:17/CP2A.260605.016/S948QOPU1BZI9:user/release-keys",
+  "runtime_fingerprint": null,
+  "runtime_verified": false,
+  "hook_profile_enabled": false,
+  "artifacts": [
+    {
+      "name": "launcher.apk",
+      "image": "system_a.img",
+      "path": "/system/priv-app/TouchWizHome_2017/TouchWizHome_2017.apk",
+      "size": 62503052,
+      "sha256": "ab25e50e9701a0f77c2277d3c02902a3f757cbd732bd65434ca346efd2252dbc",
+      "version_name": "18.0.07.53",
+      "version_code": 1800705053
+    },
+    {
+      "name": "systemui.apk",
+      "image": "system_ext_a.img",
+      "path": "/priv-app/SystemUI/SystemUI.apk",
+      "size": 64866348,
+      "sha256": "d3b4d96eab96a7b536628c448031fc8f0f61ef0eb1612ca4f82b5a6a3672f6ae",
+      "version_name": "17",
+      "version_code": 37
+    },
+    {
+      "name": "dressroom.apk",
+      "image": "system_a.img",
+      "path": "/system/priv-app/DressRoom/DressRoom.apk",
+      "size": 68124083,
+      "sha256": "9d64aec8bcb76cb5de6882aaac46759f2ec38b2ecfa3f75c1e2be11da35a64b5",
+      "version_name": "3.0.10.35",
+      "version_code": 301035000
+    },
+    {
+      "name": "framework.jar",
+      "image": "system_a.img",
+      "path": "/system/framework/framework.jar",
+      "size": 54707468,
+      "sha256": "a895cb27bf6be0cfe9f9b21ee091e17b53d926aa467ff9bbebe77fe8f101d30a"
+    },
+    {
+      "name": "services.jar",
+      "image": "system_a.img",
+      "path": "/system/framework/services.jar",
+      "size": 28183414,
+      "sha256": "f91580934cb971715a117ac640be05c62668c8a30a7d9c1d25f17243a924bce7"
+    }
+  ]
+}
