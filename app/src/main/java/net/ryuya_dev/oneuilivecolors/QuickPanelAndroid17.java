@@ -10,8 +10,9 @@ final class QuickPanelAndroid17 implements QuickPanelHooks.Adapter {
   private static final String TILES = "com.android.systemui.samsung.quicksetting.ui.tiles.";
   private final QuickPanelHooks owner;
 
-  private record BarFrame(int kind, float nativeDp) {}
+  private record BarFrame(int kind, float nativeDp, boolean grouped) {}
 
+  private final Map<Object, Boolean> groupedScopes = new WeakHashMap<>();
   private final ThreadLocal<BarFrame> barFrame = new ThreadLocal<>();
   private final ThreadLocal<Integer> buttonKind = new ThreadLocal<>();
   private final Set<String> evidence = new HashSet<>();
@@ -29,11 +30,17 @@ final class QuickPanelAndroid17 implements QuickPanelHooks.Adapter {
     requiredHeight = sizes.getDeclaredMethod("requiredHeight-3ABfNKs", modifier, float.class);
     installButtons(loader, modifier, sizes);
     installBars(loader, modifier);
+    try {
+      new QuickPanelLegacyLayout(owner, loader);
+    } catch (Throwable error) {
+      owner.stopLegacy(error);
+    }
   }
 
   private void installButtons(ClassLoader loader, Class<?> modifier, Class<?> sizes)
       throws Exception {
     Method size = sizes.getDeclaredMethod("size-3ABfNKs", modifier, float.class);
+    Method requiredSize = sizes.getDeclaredMethod("requiredSize-3ABfNKs", modifier, float.class);
     Class<?> tile =
         Class.forName(
             "com.android.systemui.samsung.quicksetting.domain.model.items.QuickTile",
@@ -119,9 +126,18 @@ final class QuickPanelAndroid17 implements QuickPanelHooks.Adapter {
                 Integer kind = buttonKind.get();
                 if (kind == null || owner.size(kind) == 100) return;
                 float nativeDp = (float) p.args[1];
-                if (nativeDp < 48) return;
-                p.args[1] = QuickPanelPolicy.dimension(nativeDp, owner.size(kind));
-                evidence(kind, nativeDp, (float) p.args[1]);
+                if (!Float.isFinite(nativeDp) || nativeDp <= 0) return;
+                float target =
+                    owner.legacy()
+                        ? QuickPanelPolicy.legacyDimension(nativeDp, owner.size(kind))
+                        : QuickPanelPolicy.dimension(nativeDp, owner.size(kind));
+                try {
+                  Object sized = requiredSize.invoke(null, emptyModifier, target);
+                  p.setResult(then.invoke(sized, p.args[0]));
+                  evidence(kind, nativeDp, target);
+                } catch (Throwable error) {
+                  owner.stopLegacy(error);
+                }
               }
             }));
     for (String caller :
@@ -149,6 +165,8 @@ final class QuickPanelAndroid17 implements QuickPanelHooks.Adapter {
         || content.getDeclaredField("f$2").getType() != modifier)
       throw new UnsupportedOperationException("Slider closure contract");
     Field verticalField = content.getDeclaredField("f$0");
+    Field scopeField = content.getDeclaredField("f$8");
+    Field contextField = content.getDeclaredField("f$20");
     Class<?> constraints =
         Class.forName(
             "androidx.compose.foundation.layout.BoxWithConstraintsScopeImpl", false, loader);
@@ -173,7 +191,21 @@ final class QuickPanelAndroid17 implements QuickPanelHooks.Adapter {
                                   ? maxWidth
                                   : maxHeight)
                               .invoke(args[0]);
-                  barFrame.set(new BarFrame(kind, dp));
+                  boolean grouped =
+                      owner.legacy()
+                          && groupedScopes.containsKey(scopeField.get(chain.getThisObject()));
+                  if (grouped) {
+                    android.content.Context context =
+                        (android.content.Context) contextField.get(chain.getThisObject());
+                    android.content.res.Resources resources = context.getResources();
+                    int dimension =
+                        resources.getIdentifier(
+                            "sec_style_qs_slider_tile_size", "dimen", "com.android.systemui");
+                    if (dimension == 0)
+                      throw new UnsupportedOperationException("Legacy bar dimension");
+                    dp = resources.getDimension(dimension) / resources.getDisplayMetrics().density;
+                  }
+                  barFrame.set(new BarFrame(kind, dp, grouped));
                   args[2] = (int) args[2] | 1;
                 } else barFrame.remove();
                 return chain.proceed(args);
@@ -198,7 +230,7 @@ final class QuickPanelAndroid17 implements QuickPanelHooks.Adapter {
               @Override
               protected void beforeHookedMethod(ModernHook.Param p) {
                 BarFrame frame = barFrame.get();
-                if (frame == null || owner.size(frame.kind) == 100) return;
+                if (frame == null || (owner.size(frame.kind) == 100 && !frame.grouped)) return;
                 int kind = frame.kind;
                 try {
                   float nativeDp = frame.nativeDp;
@@ -213,7 +245,10 @@ final class QuickPanelAndroid17 implements QuickPanelHooks.Adapter {
                             + nativeDp
                             + " vertical="
                             + p.args[4]);
-                  float targetDp = QuickPanelPolicy.dimension(nativeDp, owner.size(kind));
+                  float targetDp =
+                      frame.grouped
+                          ? QuickPanelPolicy.legacyDimension(nativeDp, owner.size(kind))
+                          : QuickPanelPolicy.dimension(nativeDp, owner.size(kind));
                   boolean vertical = (boolean) p.args[4];
                   Object next =
                       (vertical ? requiredWidth : requiredHeight)
@@ -241,6 +276,8 @@ final class QuickPanelAndroid17 implements QuickPanelHooks.Adapter {
               new ModernHook.Callback() {
                 @Override
                 protected void beforeHookedMethod(ModernHook.Param p) {
+                  if (name.endsWith("WithTile") && owner.legacy())
+                    groupedScopes.put(p.args[0], true);
                   if (owner.needsRefresh()) p.args[4] = (int) p.args[4] | 1;
                 }
               }));

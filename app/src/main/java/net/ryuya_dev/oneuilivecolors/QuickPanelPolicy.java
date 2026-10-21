@@ -14,6 +14,11 @@ final class QuickPanelPolicy {
     return Math.max(48f, nativeDp * percent(percent) / 100f);
   }
 
+  static float legacyDimension(float nativeDp, int percent) {
+    if (!Float.isFinite(nativeDp) || nativeDp <= 0) return nativeDp;
+    return Math.max(24f, nativeDp * percent(percent) / 100f);
+  }
+
   static long thickness(long size, boolean vertical, float ratio) {
     float width = Float.intBitsToFloat((int) (size >>> 32));
     float height = Float.intBitsToFloat((int) size);

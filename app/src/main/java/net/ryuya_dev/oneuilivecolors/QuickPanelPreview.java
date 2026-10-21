@@ -9,6 +9,13 @@ import com.google.android.material.color.MaterialColors;
 /** Illustrative size preview; never reads or changes actual device brightness or audio volume. */
 public final class QuickPanelPreview extends View {
   private final Paint paint = new Paint(3);
+  private boolean legacy;
+
+  void setLegacy(boolean value) {
+    legacy = value;
+    invalidate();
+  }
+
   private int[] sizes = {100, 100, 100, 100};
 
   public QuickPanelPreview(Context context, AttributeSet attrs) {
@@ -41,7 +48,16 @@ public final class QuickPanelPreview extends View {
     int fill = color(androidx.appcompat.R.attr.colorPrimary);
     int fg = color(com.google.android.material.R.attr.colorOnPrimary);
     for (int i = 0; i < 2; i++) {
-      float cx = 108 + i * 104, w = 56 * sizes[i] / 100f;
+      float cx = 108 + i * 104;
+      if (legacy)
+        rounded(
+            canvas,
+            cx - 40,
+            0,
+            80,
+            180,
+            color(com.google.android.material.R.attr.colorSurfaceContainerHigh));
+      float w = (legacy ? 34 : 56) * sizes[i] / 100f;
       rounded(canvas, cx - w / 2, 12, w, 104, track);
       rounded(
           canvas,
@@ -50,7 +66,7 @@ public final class QuickPanelPreview extends View {
           w,
           104 * (i == 0 ? .7f : .45f),
           fill);
-      float r = 22 * sizes[i + 2] / 100f;
+      float r = (legacy ? 17 : 22) * sizes[i + 2] / 100f;
       rounded(canvas, cx - r, 150 - r, 2 * r, 2 * r, fill);
       paint.setColor(fg);
       paint.setTextAlign(Paint.Align.CENTER);

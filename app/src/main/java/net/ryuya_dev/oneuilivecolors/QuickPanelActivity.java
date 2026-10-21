@@ -88,6 +88,16 @@ public final class QuickPanelActivity extends AppCompatActivity {
           notifyConfig();
           setControls(checked);
         });
+    MaterialSwitch design = findViewById(R.id.qs_legacy_design);
+    design.setChecked(
+        android.os.Build.VERSION.SDK_INT == 36 || prefs.getBoolean("qs_legacy_design", false));
+    design.setEnabled(android.os.Build.VERSION.SDK_INT == 37);
+    design.setOnCheckedChangeListener(
+        (button, checked) -> {
+          prefs.edit().putBoolean("qs_legacy_design", checked).apply();
+          notifyConfig();
+          updatePreview();
+        });
     setControls(master.isChecked());
     findViewById(R.id.qs_reset)
         .setOnClickListener(
@@ -115,6 +125,8 @@ public final class QuickPanelActivity extends AppCompatActivity {
 
   private void setControls(boolean enabled) {
     for (Slider slider : sliders) slider.setEnabled(enabled);
+    findViewById(R.id.qs_legacy_design)
+        .setEnabled(enabled && android.os.Build.VERSION.SDK_INT == 37);
   }
 
   private void updatePreview() {
@@ -124,6 +136,8 @@ public final class QuickPanelActivity extends AppCompatActivity {
       sizes[i] = (int) sliders[i].getValue();
       labels[i].setText(getString(R.string.qs_percent, sizes[i]));
     }
+    preview.setLegacy(
+        android.os.Build.VERSION.SDK_INT == 36 || prefs.getBoolean("qs_legacy_design", false));
     preview.setSizes(sizes);
   }
 
@@ -135,6 +149,7 @@ public final class QuickPanelActivity extends AppCompatActivity {
     int message =
         switch (state) {
           case "ACTIVE" -> R.string.qs_active;
+          case "PARTIAL" -> R.string.qs_legacy_unavailable;
           case "OFF" -> R.string.qs_off;
           case "UNSUPPORTED", "ERROR", "CRASH_GUARD" -> R.string.qs_unavailable;
           default -> R.string.qs_waiting;

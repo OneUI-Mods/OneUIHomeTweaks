@@ -72,6 +72,33 @@
           android:layout_height="wrap_content"
           android:orientation="vertical"
           android:padding="20dp" >
+          <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/qs_legacy_design"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="56dp"
+            android:text="@string/qs_legacy_design"
+            android:textAppearance="@style/TextAppearance.Material3.TitleMedium" />
+          <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/qs_legacy_note"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
+        </LinearLayout>
+      </com.google.android.material.card.MaterialCardView>
+      <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        app:cardCornerRadius="28dp"
+        app:strokeWidth="0dp"
+        app:cardBackgroundColor="?attr/colorSurfaceContainerLow" >
+        <LinearLayout
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:orientation="vertical"
+          android:padding="20dp" >
           <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

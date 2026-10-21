@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.0 (2026-10-22)
+
+- Add an Android 16 design switch for brightness, volume, dark/light mode and sound mode on the reviewed Android 17 firmware.
+- Use native grouped controls through a read-only presentation list; preserve saved layout and use the standard editor.
+- Keep four independent size settings across design changes, including enlargement of the old-style round buttons.
+- Bound presentation caches and isolate design failures from the existing size controls. Add nine geometry and sizing tests.
+
 ## 0.13.0 (2026-10-22)
 
 - Add a dedicated Quick Panel page with a live size preview and four independent controls: brightness and volume bar thickness, dark/light mode button size, and sound-mode button size.

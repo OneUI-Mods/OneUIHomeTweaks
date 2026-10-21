@@ -1,14 +1,14 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
   <string name="qs_title">クイックパネル</string>
-  <string name="qs_enable">サイズをカスタマイズ</string>
+  <string name="qs_enable">クイックパネルをカスタマイズ</string>
   <string name="qs_brightness_label">明るさバーの太さ</string>
   <string name="qs_volume_label">音量バーの太さ</string>
   <string name="qs_dark_label">ダーク／ライトモードのボタン</string>
   <string name="qs_sound_label">サウンドモードのボタン</string>
   <string name="qs_percent">%1$d%%</string>
   <string name="qs_reset_label">標準サイズに戻す</string>
-  <string name="qs_note">クイックパネルを開き直すと反映されます。100%が標準サイズです。バーの長さ、本体の明るさ・音量は変わりません。</string>
+  <string name="qs_note">クイックパネルを開き直すと反映されます。100%は選んだデザインの標準サイズです。本体の明るさ・音量は変わりません。</string>
   <string name="qs_preview_label">プレビュー</string>
   <string name="qs_active">クイックパネルのカスタマイズは有効です。</string>
   <string name="qs_off">標準のクイックパネルサイズです。</string>
@@ -17,4 +17,7 @@
   <string name="qs_bars">バー</string>
   <string name="qs_buttons">ボタン</string>
   <string name="qs_scope_note">アプリ全体とSystem UIのスイッチがONのときに適用します。</string>
+  <string name="qs_legacy_design">Android 16のデザイン</string>
+  <string name="qs_legacy_note">バーとボタンを共通の背景にまとめます。ボタンがバーのすぐ下・右にある配置で適用します。編集時は標準表示に戻ります。</string>
+  <string name="qs_legacy_unavailable">Android 16のデザインを適用できませんでした。サイズ調整は引き続き利用できます。</string>
 </resources>

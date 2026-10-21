@@ -1,14 +1,14 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
   <string name="qs_title">Quick Panel</string>
-  <string name="qs_enable">Customize sizes</string>
+  <string name="qs_enable">Customize Quick Panel</string>
   <string name="qs_brightness_label">Brightness bar thickness</string>
   <string name="qs_volume_label">Volume bar thickness</string>
   <string name="qs_dark_label">Dark / light mode button</string>
   <string name="qs_sound_label">Sound mode button</string>
   <string name="qs_percent">%1$d%%</string>
   <string name="qs_reset_label">Restore standard sizes</string>
-  <string name="qs_note">Changes apply when you reopen Quick Panel. 100% uses the standard size. The slider length and system brightness / volume stay unchanged.</string>
+  <string name="qs_note">Changes apply when you reopen Quick Panel. 100% is the selected design’s standard size. Device brightness and volume stay unchanged.</string>
   <string name="qs_preview_label">Preview</string>
   <string name="qs_active">Quick Panel customization is active.</string>
   <string name="qs_off">Standard Quick Panel sizes.</string>
@@ -17,4 +17,7 @@
   <string name="qs_bars">Sliders</string>
   <string name="qs_buttons">Buttons</string>
   <string name="qs_scope_note">Quick Panel settings follow the main and System UI switches.</string>
+  <string name="qs_legacy_design">Android 16 design</string>
+  <string name="qs_legacy_note">Group each bar with its companion button in one background. Applies when the button is directly below or to the right of its bar. Editing keeps the standard layout.</string>
+  <string name="qs_legacy_unavailable">Android 16 design is unavailable. Size controls remain active.</string>
 </resources>

@@ -21,11 +21,17 @@ final class QuickPanelHooks {
   private volatile boolean failed;
   private volatile int[] sizes = {100, 100, 100, 100};
   private volatile boolean enabled;
+  private volatile boolean legacy;
+  private volatile boolean legacyFailed;
   private boolean touched;
   private String lastReport = "";
 
   int size(int index) {
     return enabled && !failed ? sizes[index] : 100;
+  }
+
+  boolean legacy() {
+    return enabled && legacy && !failed && !legacyFailed;
   }
 
   boolean needsRefresh() {
@@ -86,6 +92,7 @@ final class QuickPanelHooks {
           c.getInt(c.getColumnIndexOrThrow("enabled")) != 0
               && c.getInt(c.getColumnIndexOrThrow("systemui_enabled")) != 0
               && c.getInt(c.getColumnIndexOrThrow("qs_enabled")) != 0;
+      boolean oldDesign = c.getInt(c.getColumnIndexOrThrow("qs_legacy_design")) != 0;
       int[] next = new int[4];
       for (int i = 0; i < 4; i++)
         next[i] =
@@ -96,10 +103,12 @@ final class QuickPanelHooks {
             touched |= on;
             sizes = next;
             enabled = on;
+            legacy = oldDesign;
             try {
               adapter.refresh();
               report(
-                  on ? "ACTIVE" : "OFF", on ? Arrays.toString(next) : "Native Quick Panel sizes");
+                  on && oldDesign && legacyFailed ? "PARTIAL" : on ? "ACTIVE" : "OFF",
+                  on ? Arrays.toString(next) : "Native Quick Panel sizes");
             } catch (Throwable error) {
               fail(error);
             }
@@ -124,6 +133,12 @@ final class QuickPanelHooks {
     if (value.equals(lastReport)) return;
     lastReport = value;
     HostStatus.reportFeature(context, "quick_panel", state, detail);
+  }
+
+  void stopLegacy(Throwable error) {
+    legacyFailed = true;
+    report("PARTIAL", "Legacy design unavailable; size controls remain active");
+    HookEntry.log("QUICK_PANEL_LEGACY_DISABLED " + error);
   }
 
   void fail(Throwable error) {

@@ -61,7 +61,8 @@ public final class ConfigProvider extends ContentProvider {
               "qs_brightness",
               "qs_volume",
               "qs_dark",
-              "qs_sound"
+              "qs_sound",
+              "qs_legacy_design"
             });
     c.addRow(
         new Object[] {
@@ -85,7 +86,8 @@ public final class ConfigProvider extends ContentProvider {
           QuickPanelPolicy.percent(p.getInt("qs_brightness", 100)),
           QuickPanelPolicy.percent(p.getInt("qs_volume", 100)),
           QuickPanelPolicy.percent(p.getInt("qs_dark", 100)),
-          QuickPanelPolicy.percent(p.getInt("qs_sound", 100))
+          QuickPanelPolicy.percent(p.getInt("qs_sound", 100)),
+          p.getBoolean("qs_legacy_design", false) ? 1 : 0
         });
     return c;
   }

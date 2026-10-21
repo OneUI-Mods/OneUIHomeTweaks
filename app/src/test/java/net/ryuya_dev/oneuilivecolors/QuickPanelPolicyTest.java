@@ -9,6 +9,13 @@ public class QuickPanelPolicyTest {
   }
 
   @Test
+  public void legacyStandardRetainsNativeSmallButtonAndBarSize() {
+    assertEquals(44, QuickPanelPolicy.legacyDimension(44, 100), 0);
+    assertEquals(35.2f, QuickPanelPolicy.legacyDimension(44, 80), .001f);
+    assertEquals(52.8f, QuickPanelPolicy.legacyDimension(44, 120), .001f);
+  }
+
+  @Test
   public void verticalOnlyChangesThicknessAndPreservesLength() {
     long actual = QuickPanelPolicy.thickness(size(280, 600), true, .6f);
     assertEquals(168, Float.intBitsToFloat((int) (actual >>> 32)), .001f);
