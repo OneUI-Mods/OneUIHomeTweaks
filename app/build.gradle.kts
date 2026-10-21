@@ -18,8 +18,8 @@ android {
         applicationId = "net.ryuya_dev.oneuilivecolors"
         minSdk = 31
         targetSdk = 37
-        versionCode = 21
-        versionName = "0.12.3"
+        versionCode = 22
+        versionName = "0.13.0"
         // Live-card diagnostics are opt-in for local investigation, never default release behavior.
         buildConfigField("boolean", "RECENTS_LIVE_TRACE", providers.gradleProperty("recentsLiveTrace").map { (it == "true").toString() }.getOrElse("false"))
     }

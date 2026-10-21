@@ -16,6 +16,7 @@ jobs:
           packages: 'platform-tools platforms;android-37.0 build-tools;37.0.0'
           log-accepted-android-sdk-licenses: false
       - run: ./gradlew :app:assembleRelease :app:testDebugUnitTest :app:lintRelease
+      - run: python3 tools/package_release.py --check-release-apk app/build/outputs/apk/release/app-release-unsigned.apk
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: OneUiHomeTweaks-release-unsigned

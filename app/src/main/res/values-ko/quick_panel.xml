@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+  <string name="qs_title">빠른 설정 패널</string>
+  <string name="qs_enable">크기 맞춤설정</string>
+  <string name="qs_brightness_label">밝기 막대 두께</string>
+  <string name="qs_volume_label">음량 막대 두께</string>
+  <string name="qs_dark_label">다크 / 라이트 모드 버튼</string>
+  <string name="qs_sound_label">소리 모드 버튼</string>
+  <string name="qs_percent">%1$d%%</string>
+  <string name="qs_reset_label">기본 크기로 복원</string>
+  <string name="qs_note">빠른 설정 패널을 다시 열면 적용됩니다. 100%는 기본 크기입니다. 막대 길이와 기기 밝기 / 음량은 바뀌지 않습니다.</string>
+  <string name="qs_preview_label">미리보기</string>
+  <string name="qs_active">빠른 설정 패널 맞춤설정이 활성화되었습니다.</string>
+  <string name="qs_off">기본 빠른 설정 패널 크기입니다.</string>
+  <string name="qs_unavailable">이 펌웨어에서는 빠른 설정 패널 맞춤설정을 활성화할 수 없습니다. 다른 기능은 계속 사용할 수 있습니다.</string>
+  <string name="qs_waiting">업데이트 후 SystemUI를 한 번 다시 불러오세요.</string>
+  <string name="qs_bars">막대</string>
+  <string name="qs_buttons">버튼</string>
+  <string name="qs_scope_note">앱 전체 및 System UI 스위치가 켜져 있을 때 적용됩니다.</string>
+</resources>

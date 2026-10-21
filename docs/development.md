@@ -59,7 +59,7 @@ export ONEUI_SIGNING_PROPERTIES=/absolute/path/to/private-signing.properties
 - [実機確認記録・検証手順・切り戻し](testing.md)
 - [変更履歴](../CHANGELOG.md)
 
-実機で未確認の項目は検証資料に残し、フック登録やログ出力の確認と、画面上の動作確認を区別します。Android 17 / One UI 9は再解析まで無効です。
+実機で未確認の項目は検証資料に残し、フック登録やログ出力の確認と、画面上の動作確認を区別します。Android 17 / One UI 9はSM-S948Q / BZI9の専用処理を使用します。クイックパネルの構造・実機結果は[技術記録](quick-panel.md)を参照してください。
 
 ## ログと調査ツール
 

@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+  xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:app="http://schemas.android.com/apk/res-auto"
+  android:id="@+id/qs_root"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:orientation="vertical"
+  android:background="?attr/colorSurface" >
+  <com.google.android.material.appbar.MaterialToolbar
+    android:id="@+id/qs_toolbar"
+    android:layout_width="match_parent"
+    android:layout_height="?attr/actionBarSize"
+    app:title="@string/qs_title"
+    app:navigationIcon="@drawable/ic_back"
+    app:navigationContentDescription="@string/back" />
+  <androidx.core.widget.NestedScrollView
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_weight="1"
+    android:fillViewport="true" >
+    <LinearLayout
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:orientation="vertical"
+      android:padding="20dp" >
+      <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        app:cardCornerRadius="28dp"
+        app:strokeWidth="0dp"
+        app:cardBackgroundColor="?attr/colorSurfaceContainerLow" >
+        <LinearLayout
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:orientation="vertical"
+          android:padding="20dp" >
+          <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/qs_preview_label"
+            android:textAppearance="@style/TextAppearance.Material3.LabelLarge" />
+          <net.ryuya_dev.oneuilivecolors.QuickPanelPreview
+            android:id="@+id/qs_preview"
+            android:layout_width="match_parent"
+            android:layout_height="180dp" />
+          <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/qs_enabled"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="56dp"
+            android:text="@string/qs_enable"
+            android:textAppearance="@style/TextAppearance.Material3.TitleMedium" />
+          <TextView
+            android:id="@+id/qs_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+            android:textColor="?attr/colorOnSurfaceVariant" />
+        </LinearLayout>
+      </com.google.android.material.card.MaterialCardView>
+      <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        app:cardCornerRadius="28dp"
+        app:strokeWidth="0dp"
+        app:cardBackgroundColor="?attr/colorSurfaceContainerLow" >
+        <LinearLayout
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:orientation="vertical"
+          android:padding="20dp" >
+          <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/qs_bars"
+            android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
+            android:layout_marginBottom="16dp" />
+          <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="8dp" >
+            <TextView
+              android:layout_width="0dp"
+              android:layout_weight="1"
+              android:layout_height="wrap_content"
+              android:text="@string/qs_brightness_label"
+              android:labelFor="@id/qs_brightness"
+              android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+            <TextView
+              android:id="@+id/qs_brightness_value"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+              android:textColor="?attr/colorPrimary" />
+          </LinearLayout>
+          <com.google.android.material.slider.Slider
+            android:id="@+id/qs_brightness"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:contentDescription="@string/qs_brightness_label"
+            android:valueFrom="50"
+            android:valueTo="120"
+            android:stepSize="5"
+            android:value="100" />
+          <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="8dp" >
+            <TextView
+              android:layout_width="0dp"
+              android:layout_weight="1"
+              android:layout_height="wrap_content"
+              android:text="@string/qs_volume_label"
+              android:labelFor="@id/qs_volume"
+              android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+            <TextView
+              android:id="@+id/qs_volume_value"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+              android:textColor="?attr/colorPrimary" />
+          </LinearLayout>
+          <com.google.android.material.slider.Slider
+            android:id="@+id/qs_volume"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:contentDescription="@string/qs_volume_label"
+            android:valueFrom="50"
+            android:valueTo="120"
+            android:stepSize="5"
+            android:value="100" />
+        </LinearLayout>
+      </com.google.android.material.card.MaterialCardView>
+      <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        app:cardCornerRadius="28dp"
+        app:strokeWidth="0dp"
+        app:cardBackgroundColor="?attr/colorSurfaceContainerLow" >
+        <LinearLayout
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:orientation="vertical"
+          android:padding="20dp" >
+          <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/qs_buttons"
+            android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
+            android:layout_marginBottom="16dp" />
+          <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="8dp" >
+            <TextView
+              android:layout_width="0dp"
+              android:layout_weight="1"
+              android:layout_height="wrap_content"
+              android:text="@string/qs_dark_label"
+              android:labelFor="@id/qs_dark"
+              android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+            <TextView
+              android:id="@+id/qs_dark_value"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+              android:textColor="?attr/colorPrimary" />
+          </LinearLayout>
+          <com.google.android.material.slider.Slider
+            android:id="@+id/qs_dark"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:contentDescription="@string/qs_dark_label"
+            android:valueFrom="50"
+            android:valueTo="120"
+            android:stepSize="5"
+            android:value="100" />
+          <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="8dp" >
+            <TextView
+              android:layout_width="0dp"
+              android:layout_weight="1"
+              android:layout_height="wrap_content"
+              android:text="@string/qs_sound_label"
+              android:labelFor="@id/qs_sound"
+              android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+            <TextView
+              android:id="@+id/qs_sound_value"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+              android:textColor="?attr/colorPrimary" />
+          </LinearLayout>
+          <com.google.android.material.slider.Slider
+            android:id="@+id/qs_sound"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:contentDescription="@string/qs_sound_label"
+            android:valueFrom="50"
+            android:valueTo="120"
+            android:stepSize="5"
+            android:value="100" />
+        </LinearLayout>
+      </com.google.android.material.card.MaterialCardView>
+      <com.google.android.material.button.MaterialButton
+        android:id="@+id/qs_reset"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="52dp"
+        android:text="@string/qs_reset_label"
+        style="@style/Widget.Material3.Button.TonalButton" />
+      <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/qs_note"
+        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+        android:textColor="?attr/colorOnSurfaceVariant" />
+      <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="@string/qs_scope_note"
+        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+        android:textColor="?attr/colorOnSurfaceVariant" />
+    </LinearLayout>
+  </androidx.core.widget.NestedScrollView>
+</LinearLayout>

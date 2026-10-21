@@ -25,6 +25,7 @@ final class CrashGuard {
     }
     long now = System.currentTimeMillis(), elapsed = SystemClock.elapsedRealtime();
     int count = Integer.parseInt(guard.state.getProperty("attempts", "0"));
+    if (!"2".equals(guard.state.getProperty("schema"))) count = Math.max(0, count - 1);
     long previous = Long.parseLong(guard.state.getProperty("started", "0"));
     int previousPid = Integer.parseInt(guard.state.getProperty("pid", "0"));
     boolean healthy = Boolean.parseBoolean(guard.state.getProperty("healthy", "true"));
@@ -59,7 +60,13 @@ final class CrashGuard {
               elapsed,
               lastExit);
       guard.state.setProperty("blocked", Boolean.toString(count >= 3));
+      if (count >= 3) {
+        guard.state.setProperty("blockedSince", Long.toString(now));
+        guard.state.setProperty("blockedReason", lastExit.name());
+      }
+      guard.state.setProperty("lastExit", lastExit.name());
     }
+    guard.state.setProperty("schema", "2");
     guard.state.setProperty("attempts", Integer.toString(count));
     guard.state.setProperty("started", Long.toString(now));
     guard.state.setProperty("elapsed", Long.toString(elapsed));

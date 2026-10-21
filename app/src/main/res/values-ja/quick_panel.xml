@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+  <string name="qs_title">クイックパネル</string>
+  <string name="qs_enable">サイズをカスタマイズ</string>
+  <string name="qs_brightness_label">明るさバーの太さ</string>
+  <string name="qs_volume_label">音量バーの太さ</string>
+  <string name="qs_dark_label">ダーク／ライトモードのボタン</string>
+  <string name="qs_sound_label">サウンドモードのボタン</string>
+  <string name="qs_percent">%1$d%%</string>
+  <string name="qs_reset_label">標準サイズに戻す</string>
+  <string name="qs_note">クイックパネルを開き直すと反映されます。100%が標準サイズです。バーの長さ、本体の明るさ・音量は変わりません。</string>
+  <string name="qs_preview_label">プレビュー</string>
+  <string name="qs_active">クイックパネルのカスタマイズは有効です。</string>
+  <string name="qs_off">標準のクイックパネルサイズです。</string>
+  <string name="qs_unavailable">この環境ではクイックパネルの変更を有効にできませんでした。他の機能は引き続き使用できます。</string>
+  <string name="qs_waiting">更新後にSystemUIを一度再読み込みすると利用できます。</string>
+  <string name="qs_bars">バー</string>
+  <string name="qs_buttons">ボタン</string>
+  <string name="qs_scope_note">アプリ全体とSystem UIのスイッチがONのときに適用します。</string>
+</resources>

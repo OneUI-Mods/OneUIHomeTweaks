@@ -16,3 +16,5 @@ research/
 signing.properties
 *.p12
 *.pfx
+
+__pycache__/

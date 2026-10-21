@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.13.0 (2026-10-22)
+
+- Add a dedicated Quick Panel page with a live size preview and four independent controls: brightness and volume bar thickness, dark/light mode button size, and sound-mode button size.
+- Keep standard sizes at 100%, restore them on disable, and apply changes on the next panel opening. Separate Android 16 View and Android 17 Compose adapters.
+- Count confirmed early crashes rather than startup attempts; keep intentional restarts and unknown exit reasons out of the crash count. Show host crash protection on the new page.
+- Add a reproducible signed-release packaging and verification tool.
+
 ## 0.12.0 (2026-10-18, experimental)
 
 - Add Recents-only focus notification modes through a shared system_server backend. Require the common Vector `system` scope and One UI Home, with no source-app scopes or hooks.

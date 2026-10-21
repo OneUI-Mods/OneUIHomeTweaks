@@ -139,11 +139,15 @@ public final class HookEntry extends XposedModule {
                     app,
                     "CRASH_GUARD",
                     "Three confirmed crash starts; clear protection before retrying");
+                if ("com.android.systemui".equals(p.packageName))
+                  HostStatus.reportFeature(
+                      app, "quick_panel", "CRASH_GUARD", "Host startup protection is active");
                 log("CRASH_GUARD blocked " + p.packageName);
                 return;
               }
               if (LAUNCHER.equals(p.packageName)) installLauncher(p, app);
               else if ("com.android.systemui".equals(p.packageName)) {
+                new QuickPanelHooks().install(app, p.classLoader);
                 new ClockDateHooks().install(app, p.classLoader);
                 new VolumeHooks().install(app, p.classLoader);
               } else new PreviewHooks().install(app, p.classLoader);

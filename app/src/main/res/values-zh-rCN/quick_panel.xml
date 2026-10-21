@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+  <string name="qs_title">快捷面板</string>
+  <string name="qs_enable">自定义大小</string>
+  <string name="qs_brightness_label">亮度条粗细</string>
+  <string name="qs_volume_label">音量条粗细</string>
+  <string name="qs_dark_label">深色／浅色模式按钮</string>
+  <string name="qs_sound_label">声音模式按钮</string>
+  <string name="qs_percent">%1$d%%</string>
+  <string name="qs_reset_label">恢复标准大小</string>
+  <string name="qs_note">重新打开快捷面板后生效。100%为标准大小。不会改变滑块长度、设备亮度或音量。</string>
+  <string name="qs_preview_label">预览</string>
+  <string name="qs_active">快捷面板自定义已启用。</string>
+  <string name="qs_off">使用标准快捷面板大小。</string>
+  <string name="qs_unavailable">当前固件无法启用快捷面板自定义。其他功能仍可使用。</string>
+  <string name="qs_waiting">更新后请重新加载一次SystemUI。</string>
+  <string name="qs_bars">滑块</string>
+  <string name="qs_buttons">按钮</string>
+  <string name="qs_scope_note">仅在应用总开关和System UI开关开启时应用。</string>
+</resources>

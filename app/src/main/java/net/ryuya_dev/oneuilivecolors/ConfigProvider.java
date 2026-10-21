@@ -56,7 +56,12 @@ public final class ConfigProvider extends ContentProvider {
               "clock_date_left",
               "diy_icon_grid",
               "recents_live_tile",
-              "recents_focus_mode"
+              "recents_focus_mode",
+              "qs_enabled",
+              "qs_brightness",
+              "qs_volume",
+              "qs_dark",
+              "qs_sound"
             });
     c.addRow(
         new Object[] {
@@ -75,7 +80,12 @@ public final class ConfigProvider extends ContentProvider {
           p.getBoolean("clock_date_left", false) ? 1 : 0,
           p.getBoolean("diy_icon_grid", false) ? 1 : 0,
           p.getBoolean("recents_live_tile", false) ? 1 : 0,
-          RecentsFocusPolicy.mode(p.getInt("recents_focus_mode", 0))
+          RecentsFocusPolicy.mode(p.getInt("recents_focus_mode", 0)),
+          p.getBoolean("qs_enabled", false) ? 1 : 0,
+          QuickPanelPolicy.percent(p.getInt("qs_brightness", 100)),
+          QuickPanelPolicy.percent(p.getInt("qs_volume", 100)),
+          QuickPanelPolicy.percent(p.getInt("qs_dark", 100)),
+          QuickPanelPolicy.percent(p.getInt("qs_sound", 100))
         });
     return c;
   }
@@ -108,7 +118,8 @@ public final class ConfigProvider extends ContentProvider {
     if (!host.equals(extras.getString("host"))) throw new SecurityException("Host mismatch");
     String feature = extras.getString("feature");
     if (feature != null) {
-      if (!"com.android.systemui".equals(host) || !"clock_date".equals(feature))
+      if (!"com.android.systemui".equals(host)
+          || (!"clock_date".equals(feature) && !"quick_panel".equals(feature)))
         throw new SecurityException("Unsupported feature");
       host += "." + feature;
     }

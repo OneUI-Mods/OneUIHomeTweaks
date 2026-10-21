@@ -201,6 +201,8 @@ public final class MainActivity extends AppCompatActivity {
                       .show());
     }
 
+    findViewById(R.id.quick_panel_settings)
+        .setOnClickListener(v -> startActivity(new Intent(this, QuickPanelActivity.class)));
     BottomNavigationView navigation = findViewById(R.id.navigation);
     int[] pageIds = {R.id.page_0, R.id.page_1, R.id.page_2, R.id.page_3};
     int[] navigationIds = {R.id.nav_home, R.id.nav_appearance, R.id.nav_status, R.id.nav_settings};
