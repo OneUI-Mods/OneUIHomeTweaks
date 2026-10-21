@@ -8,7 +8,7 @@
   <string name="qs_sound_label">소리 모드 버튼</string>
   <string name="qs_percent">%1$d%%</string>
   <string name="qs_reset_label">기본 크기로 복원</string>
-  <string name="qs_note">빠른 설정 패널을 다시 열면 적용됩니다. 100%는 선택한 디자인의 기본 크기입니다. 기기 밝기와 음량은 바뀌지 않습니다.</string>
+  <string name="qs_note" formatted="false">빠른 설정 패널을 다시 열면 적용됩니다. 25~200%로 조절할 수 있으며 100%는 선택한 디자인의 기본 크기입니다. 기기의 밝기와 음량은 바뀌지 않습니다. 크게 설정하면 주변 항목과 겹치거나 잘릴 수 있습니다.</string>
   <string name="qs_preview_label">미리보기</string>
   <string name="qs_active">빠른 설정 패널 맞춤설정이 활성화되었습니다.</string>
   <string name="qs_off">기본 빠른 설정 패널 크기입니다.</string>
@@ -20,4 +20,5 @@
   <string name="qs_legacy_design">Android 16 디자인</string>
   <string name="qs_legacy_note">각 막대와 바로 아래 또는 오른쪽 버튼을 하나의 배경으로 묶습니다. 편집 중에는 기본 레이아웃을 사용합니다.</string>
   <string name="qs_legacy_unavailable">Android 16 디자인을 적용할 수 없습니다. 크기 조절은 계속 사용할 수 있습니다.</string>
+  <string name="qs_legacy_preset" formatted="false">바 110% · 버튼 105% 적용</string>
 </resources>

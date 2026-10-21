@@ -3,7 +3,7 @@ package net.ryuya_dev.oneuilivecolors;
 /** Limits are independent of density, rotation, and the two firmware implementations. */
 final class QuickPanelPolicy {
   static final String[] KEYS = {"qs_brightness", "qs_volume", "qs_dark", "qs_sound"};
-  static final int MIN = 50, MAX = 120;
+  static final int MIN = 25, MAX = 200, STEP = 5;
 
   static int percent(int value) {
     return Math.max(MIN, Math.min(MAX, value));
@@ -11,12 +11,11 @@ final class QuickPanelPolicy {
 
   static float dimension(float nativeDp, int percent) {
     if (!Float.isFinite(nativeDp) || nativeDp <= 0) return nativeDp;
-    return Math.max(48f, nativeDp * percent(percent) / 100f);
+    return nativeDp * percent(percent) / 100f;
   }
 
   static float legacyDimension(float nativeDp, int percent) {
-    if (!Float.isFinite(nativeDp) || nativeDp <= 0) return nativeDp;
-    return Math.max(24f, nativeDp * percent(percent) / 100f);
+    return dimension(nativeDp, percent);
   }
 
   static long thickness(long size, boolean vertical, float ratio) {

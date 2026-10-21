@@ -36,9 +36,13 @@ public class QuickPanelPolicyTest {
   }
 
   @Test
-  public void touchableThicknessHasLowerBound() {
-    assertEquals(48, QuickPanelPolicy.dimension(80, 50), 0);
-    assertEquals(110.4f, QuickPanelPolicy.dimension(92, 120), .001f);
+  public void expandedRangeScalesBothDesignsWithoutThePreviousMinimum() {
+    for (float nativeDp : new float[] {44, 80, 92}) {
+      assertEquals(nativeDp / 4, QuickPanelPolicy.dimension(nativeDp, 25), .001f);
+      assertEquals(nativeDp * 2, QuickPanelPolicy.dimension(nativeDp, 200), .001f);
+      assertEquals(nativeDp / 4, QuickPanelPolicy.legacyDimension(nativeDp, 25), .001f);
+      assertEquals(nativeDp * 2, QuickPanelPolicy.legacyDimension(nativeDp, 200), .001f);
+    }
   }
 
   @Test
@@ -47,12 +51,16 @@ public class QuickPanelPolicyTest {
     assertEquals(original, QuickPanelPolicy.thickness(original, true, .5f));
     assertEquals(size(200, 600), QuickPanelPolicy.thickness(size(200, 600), true, Float.NaN));
     assertTrue(Float.isNaN(QuickPanelPolicy.dimension(Float.NaN, 50)));
+    assertEquals(0, QuickPanelPolicy.dimension(0, 25), 0);
+    assertEquals(
+        Float.POSITIVE_INFINITY, QuickPanelPolicy.dimension(Float.POSITIVE_INFINITY, 200), 0);
   }
 
   @Test
   public void corruptPreferencesStayInsideReviewedBounds() {
-    assertEquals(50, QuickPanelPolicy.percent(Integer.MIN_VALUE));
-    assertEquals(120, QuickPanelPolicy.percent(Integer.MAX_VALUE));
-    assertEquals(100, QuickPanelPolicy.percent(100));
+    assertEquals(25, QuickPanelPolicy.percent(Integer.MIN_VALUE));
+    assertEquals(200, QuickPanelPolicy.percent(Integer.MAX_VALUE));
+    for (int value : new int[] {25, 50, 60, 80, 100, 105, 110, 120, 150, 200})
+      assertEquals(value, QuickPanelPolicy.percent(value));
   }
 }

@@ -40,15 +40,26 @@ public final class QuickPanelPreview extends View {
   @Override
   protected void onDraw(Canvas canvas) {
     super.onDraw(canvas);
-    float unit = Math.min(getWidth() / 320f, getHeight() / 180f);
+    float largestWidth = 80;
+    float largestRadius = 0;
+    for (int i = 0; i < 2; i++) {
+      largestWidth = Math.max(largestWidth, (legacy ? 34 : 56) * sizes[i] / 100f);
+      float radius = (legacy ? 17 : 22) * sizes[i + 2] / 100f;
+      largestRadius = Math.max(largestRadius, radius);
+      largestWidth = Math.max(largestWidth, 2 * radius);
+    }
+    float spacing = Math.max(104, largestWidth + 16);
+    float width = Math.max(320, spacing + largestWidth + 32);
+    float height = Math.max(180, 158 + largestRadius);
+    float unit = Math.min(getWidth() / width, getHeight() / height);
     canvas.save();
-    canvas.translate((getWidth() - 320 * unit) / 2, (getHeight() - 180 * unit) / 2);
+    canvas.translate((getWidth() - width * unit) / 2, (getHeight() - height * unit) / 2);
     canvas.scale(unit, unit);
     int track = color(com.google.android.material.R.attr.colorSurfaceContainerHighest);
     int fill = color(androidx.appcompat.R.attr.colorPrimary);
     int fg = color(com.google.android.material.R.attr.colorOnPrimary);
     for (int i = 0; i < 2; i++) {
-      float cx = 108 + i * 104;
+      float cx = width / 2 + (i == 0 ? -spacing / 2 : spacing / 2);
       if (legacy)
         rounded(
             canvas,
@@ -71,8 +82,8 @@ public final class QuickPanelPreview extends View {
       paint.setColor(fg);
       paint.setTextAlign(Paint.Align.CENTER);
       paint.setTypeface(Typeface.DEFAULT);
-      paint.setTextSize(22);
-      canvas.drawText(i == 0 ? "☾" : "♪", cx, 158, paint);
+      paint.setTextSize(22 * sizes[i + 2] / 100f);
+      canvas.drawText(i == 0 ? "☾" : "♪", cx, 150 + paint.getTextSize() * .36f, paint);
     }
     canvas.restore();
   }

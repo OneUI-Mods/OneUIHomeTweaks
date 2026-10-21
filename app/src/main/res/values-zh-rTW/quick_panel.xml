@@ -8,7 +8,7 @@
   <string name="qs_sound_label">聲音模式按鈕</string>
   <string name="qs_percent">%1$d%%</string>
   <string name="qs_reset_label">還原標準大小</string>
-  <string name="qs_note">重新開啟快速面板後套用。100%為所選設計的標準大小。不會改變裝置亮度與音量。</string>
+  <string name="qs_note" formatted="false">重新開啟快捷面板後生效。可在 25% 至 200% 之間調整，100% 為所選設計的標準大小。不會改變裝置亮度或音量。較大的尺寸可能與附近控制項重疊或被裁切。</string>
   <string name="qs_preview_label">預覽</string>
   <string name="qs_active">快速面板自訂已啟用。</string>
   <string name="qs_off">使用標準快速面板大小。</string>
@@ -20,4 +20,5 @@
   <string name="qs_legacy_design">Android 16設計</string>
   <string name="qs_legacy_note">將滑桿及其正下方或右側的按鈕放入同一背景。編輯時使用標準配置。</string>
   <string name="qs_legacy_unavailable">無法套用Android 16設計。仍可調整大小。</string>
+  <string name="qs_legacy_preset" formatted="false">使用 110% 滑桿 / 105% 按鈕</string>
 </resources>

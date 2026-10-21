@@ -8,7 +8,7 @@
   <string name="qs_sound_label">サウンドモードのボタン</string>
   <string name="qs_percent">%1$d%%</string>
   <string name="qs_reset_label">標準サイズに戻す</string>
-  <string name="qs_note">クイックパネルを開き直すと反映されます。100%は選んだデザインの標準サイズです。本体の明るさ・音量は変わりません。</string>
+  <string name="qs_note" formatted="false">クイックパネルを開き直すと反映されます。25〜200%で調整でき、100%は選んだデザインの標準サイズです。本体の明るさ・音量は変わりません。大きい値では周囲と重なったり、表示が切れることがあります。</string>
   <string name="qs_preview_label">プレビュー</string>
   <string name="qs_active">クイックパネルのカスタマイズは有効です。</string>
   <string name="qs_off">標準のクイックパネルサイズです。</string>
@@ -20,4 +20,5 @@
   <string name="qs_legacy_design">Android 16のデザイン</string>
   <string name="qs_legacy_note">バーとボタンを共通の背景にまとめます。ボタンがバーのすぐ下・右にある配置で適用します。編集時は標準表示に戻ります。</string>
   <string name="qs_legacy_unavailable">Android 16のデザインを適用できませんでした。サイズ調整は引き続き利用できます。</string>
+  <string name="qs_legacy_preset" formatted="false">バー110%・ボタン105%にする</string>
 </resources>

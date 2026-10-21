@@ -8,7 +8,7 @@
   <string name="qs_sound_label">声音模式按钮</string>
   <string name="qs_percent">%1$d%%</string>
   <string name="qs_reset_label">恢复标准大小</string>
-  <string name="qs_note">重新打开快捷面板后生效。100%是所选设计的标准大小。不会改变设备亮度和音量。</string>
+  <string name="qs_note" formatted="false">重新打开快捷面板后生效。可在 25% 至 200% 之间调整，100% 为所选设计的标准大小。不会改变设备亮度或音量。较大的尺寸可能与附近控件重叠或被裁切。</string>
   <string name="qs_preview_label">预览</string>
   <string name="qs_active">快捷面板自定义已启用。</string>
   <string name="qs_off">使用标准快捷面板大小。</string>
@@ -20,4 +20,5 @@
   <string name="qs_legacy_design">Android 16设计</string>
   <string name="qs_legacy_note">将滑块及其正下方或右侧的按钮放入同一背景。编辑时使用标准布局。</string>
   <string name="qs_legacy_unavailable">无法应用Android 16设计。大小调整仍可使用。</string>
+  <string name="qs_legacy_preset" formatted="false">使用 110% 滑条 / 105% 按钮</string>
 </resources>

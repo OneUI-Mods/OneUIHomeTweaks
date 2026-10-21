@@ -85,6 +85,14 @@
             android:text="@string/qs_legacy_note"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
+          <com.google.android.material.button.MaterialButton
+            android:id="@+id/qs_legacy_preset"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:minHeight="52dp"
+            android:text="@string/qs_legacy_preset"
+            style="@style/Widget.Material3.Button.TonalButton" />
         </LinearLayout>
       </com.google.android.material.card.MaterialCardView>
       <com.google.android.material.card.MaterialCardView
@@ -130,8 +138,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:contentDescription="@string/qs_brightness_label"
-            android:valueFrom="50"
-            android:valueTo="120"
+            android:valueFrom="25"
+            android:valueTo="200"
             android:stepSize="5"
             android:value="100" />
           <LinearLayout
@@ -159,8 +167,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:contentDescription="@string/qs_volume_label"
-            android:valueFrom="50"
-            android:valueTo="120"
+            android:valueFrom="25"
+            android:valueTo="200"
             android:stepSize="5"
             android:value="100" />
         </LinearLayout>
@@ -208,8 +216,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:contentDescription="@string/qs_dark_label"
-            android:valueFrom="50"
-            android:valueTo="120"
+            android:valueFrom="25"
+            android:valueTo="200"
             android:stepSize="5"
             android:value="100" />
           <LinearLayout
@@ -237,8 +245,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:contentDescription="@string/qs_sound_label"
-            android:valueFrom="50"
-            android:valueTo="120"
+            android:valueFrom="25"
+            android:valueTo="200"
             android:stepSize="5"
             android:value="100" />
         </LinearLayout>

@@ -58,6 +58,9 @@ public final class QuickPanelActivity extends AppCompatActivity {
       Slider slider = findViewById(ids[i]);
       sliders[i] = slider;
       labels[i] = findViewById(values[i]);
+      slider.setValueFrom(QuickPanelPolicy.MIN);
+      slider.setValueTo(QuickPanelPolicy.MAX);
+      slider.setStepSize(QuickPanelPolicy.STEP);
       slider.setValue(QuickPanelPolicy.percent(prefs.getInt(QuickPanelPolicy.KEYS[i], 100)));
       slider.setLabelFormatter(value -> getString(R.string.qs_percent, (int) value));
       slider.addOnChangeListener((s, value, user) -> updatePreview());
@@ -96,21 +99,24 @@ public final class QuickPanelActivity extends AppCompatActivity {
         (button, checked) -> {
           prefs.edit().putBoolean("qs_legacy_design", checked).apply();
           notifyConfig();
+          setControls(master.isChecked());
           updatePreview();
         });
+    findViewById(R.id.qs_legacy_preset)
+        .setOnClickListener(v -> applySizes(new int[] {110, 110, 105, 105}));
     setControls(master.isChecked());
-    findViewById(R.id.qs_reset)
-        .setOnClickListener(
-            v -> {
-              SharedPreferences.Editor edit = prefs.edit();
-              for (int i = 0; i < 4; i++) {
-                sliders[i].setValue(100);
-                edit.putInt(QuickPanelPolicy.KEYS[i], 100);
-              }
-              edit.apply();
-              notifyConfig();
-              updatePreview();
-            });
+    findViewById(R.id.qs_reset).setOnClickListener(v -> applySizes(new int[] {100, 100, 100, 100}));
+    updatePreview();
+  }
+
+  private void applySizes(int[] values) {
+    SharedPreferences.Editor edit = prefs.edit();
+    for (int i = 0; i < sliders.length; i++) {
+      sliders[i].setValue(values[i]);
+      edit.putInt(QuickPanelPolicy.KEYS[i], values[i]);
+    }
+    edit.apply();
+    notifyConfig();
     updatePreview();
   }
 
@@ -127,6 +133,11 @@ public final class QuickPanelActivity extends AppCompatActivity {
     for (Slider slider : sliders) slider.setEnabled(enabled);
     findViewById(R.id.qs_legacy_design)
         .setEnabled(enabled && android.os.Build.VERSION.SDK_INT == 37);
+    findViewById(R.id.qs_legacy_preset)
+        .setEnabled(
+            enabled
+                && (android.os.Build.VERSION.SDK_INT == 36
+                    || prefs.getBoolean("qs_legacy_design", false)));
   }
 
   private void updatePreview() {
