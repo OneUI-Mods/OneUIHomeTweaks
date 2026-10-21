@@ -1,90 +1,174 @@
 package net.ryuya_dev.oneuilivecolors;
 
-import android.content.Context;
-import android.graphics.*;
+import android.content.*;
+import android.database.ContentObserver;
+import android.graphics.PixelFormat;
+import android.os.*;
 import android.util.AttributeSet;
-import android.view.View;
-import com.google.android.material.color.MaterialColors;
+import android.view.*;
+import android.widget.*;
 
-/** Illustrative size preview; never reads or changes actual device brightness or audio volume. */
-public final class QuickPanelPreview extends View {
-  private final Paint paint = new Paint(3);
-  private boolean legacy;
-
-  void setLegacy(boolean value) {
-    legacy = value;
-    invalidate();
-  }
-
-  private int[] sizes = {100, 100, 100, 100};
+/** Embeds SystemUI's own native rendering surface; contains no imitation of its controls. */
+public final class QuickPanelPreview extends FrameLayout implements SurfaceHolder.Callback {
+  private final SurfaceView surface;
+  private final TextView message;
+  private final Handler main = new Handler(Looper.getMainLooper());
+  private final HandlerThread thread = new HandlerThread("QuickPanelPreviewClient");
+  private final Handler worker;
+  private final IBinder client = new Binder();
+  private IBinder backend;
+  private int generation;
+  private boolean active, created;
+  private final ContentObserver observer =
+      new ContentObserver(main) {
+        @Override
+        public void onChange(boolean self) {
+          connect();
+        }
+      };
 
   public QuickPanelPreview(Context context, AttributeSet attrs) {
     super(context, attrs);
-    setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
+    setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+    surface = new SurfaceView(context);
+    surface.setZOrderOnTop(true);
+    surface.getHolder().setFormat(PixelFormat.TRANSLUCENT);
+    surface.getHolder().addCallback(this);
+    addView(surface, new LayoutParams(-1, -1));
+    message = new TextView(context);
+    message.setGravity(Gravity.CENTER);
+    message.setText(R.string.qs_preview_loading);
+    addView(message, new LayoutParams(-1, -1));
+    thread.start();
+    worker = new Handler(thread.getLooper());
   }
 
-  void setSizes(int[] value) {
-    sizes = value.clone();
-    invalidate();
+  void start() {
+    if (active) return;
+    active = true;
+    getContext()
+        .getContentResolver()
+        .registerContentObserver(ConfigProvider.STATUS_URI, false, observer);
+    getContext().getContentResolver().notifyChange(ConfigProvider.URI, null);
+    connect();
   }
 
-  private int color(int attr) {
-    return MaterialColors.getColor(this, attr);
+  void stop() {
+    if (!active) return;
+    active = false;
+    generation++;
+    getContext().getContentResolver().unregisterContentObserver(observer);
+    worker.post(this::release);
   }
 
-  private void rounded(Canvas c, float x, float y, float w, float h, int color) {
-    paint.setColor(color);
-    c.drawRoundRect(x, y, x + w, y + h, Math.min(w, h) / 2, Math.min(w, h) / 2, paint);
+  void destroy() {
+    stop();
+    worker.post(thread::quitSafely);
+  }
+
+  private void connect() {
+    if (!active || !created || !hasWindowFocus() || getWidth() <= 0 || getHeight() <= 0) return;
+    int request = ++generation, width = getWidth(), height = getHeight();
+    IBinder hostToken = surface.getHostToken();
+    int display = getDisplay().getDisplayId();
+    worker.post(
+        () -> {
+          SurfaceControlViewHost.SurfacePackage pkg = null;
+          String state = "UNAVAILABLE";
+          try {
+            Bundle b =
+                getContext()
+                    .getContentResolver()
+                    .call(ConfigProvider.URI, QuickPanelPreviewIpc.BACKEND, null, null);
+            IBinder next = b == null ? null : b.getBinder("backend");
+            if (next != null && next.isBinderAlive()) {
+              release();
+              backend = next;
+              Parcel data = Parcel.obtain(), reply = Parcel.obtain();
+              try {
+                data.writeInterfaceToken(QuickPanelPreviewIpc.DESCRIPTOR);
+                data.writeStrongBinder(client);
+                data.writeStrongBinder(hostToken);
+                data.writeInt(display);
+                data.writeInt(width);
+                data.writeInt(height);
+                if (!backend.transact(QuickPanelPreviewIpc.CREATE, data, reply, 0))
+                  throw new RemoteException("Preview unavailable");
+                reply.readException();
+                state = reply.readString();
+                pkg = reply.readTypedObject(SurfaceControlViewHost.SurfacePackage.CREATOR);
+              } finally {
+                data.recycle();
+                reply.recycle();
+              }
+            }
+          } catch (Exception e) {
+            state = "UNAVAILABLE";
+            release();
+          }
+          final var result = pkg;
+          final String status = state;
+          main.post(
+              () -> {
+                try {
+                  if (request != generation || !active || !created) return;
+                  if (result != null) {
+                    surface.setChildSurfacePackage(result);
+                    message.setVisibility(GONE);
+                  } else {
+                    message.setVisibility(VISIBLE);
+                    message.setText(
+                        "WAITING".equals(status)
+                            ? R.string.qs_preview_loading
+                            : R.string.qs_preview_unavailable);
+                  }
+                } finally {
+                  if (result != null) result.release();
+                }
+              });
+        });
+  }
+
+  private void release() {
+    if (backend == null) return;
+    Parcel data = Parcel.obtain(), reply = Parcel.obtain();
+    try {
+      data.writeInterfaceToken(QuickPanelPreviewIpc.DESCRIPTOR);
+      data.writeStrongBinder(client);
+      backend.transact(QuickPanelPreviewIpc.RELEASE, data, reply, 0);
+    } catch (RemoteException ignored) {
+    } finally {
+      data.recycle();
+      reply.recycle();
+      backend = null;
+    }
   }
 
   @Override
-  protected void onDraw(Canvas canvas) {
-    super.onDraw(canvas);
-    float largestWidth = 80;
-    float largestRadius = 0;
-    for (int i = 0; i < 2; i++) {
-      largestWidth = Math.max(largestWidth, (legacy ? 34 : 56) * sizes[i] / 100f);
-      float radius = (legacy ? 17 : 22) * sizes[i + 2] / 100f;
-      largestRadius = Math.max(largestRadius, radius);
-      largestWidth = Math.max(largestWidth, 2 * radius);
+  public void onWindowFocusChanged(boolean focused) {
+    super.onWindowFocusChanged(focused);
+    if (focused) connect();
+    else {
+      generation++;
+      worker.post(this::release);
     }
-    float spacing = Math.max(104, largestWidth + 16);
-    float width = Math.max(320, spacing + largestWidth + 32);
-    float height = Math.max(180, 158 + largestRadius);
-    float unit = Math.min(getWidth() / width, getHeight() / height);
-    canvas.save();
-    canvas.translate((getWidth() - width * unit) / 2, (getHeight() - height * unit) / 2);
-    canvas.scale(unit, unit);
-    int track = color(com.google.android.material.R.attr.colorSurfaceContainerHighest);
-    int fill = color(androidx.appcompat.R.attr.colorPrimary);
-    int fg = color(com.google.android.material.R.attr.colorOnPrimary);
-    for (int i = 0; i < 2; i++) {
-      float cx = width / 2 + (i == 0 ? -spacing / 2 : spacing / 2);
-      if (legacy)
-        rounded(
-            canvas,
-            cx - 40,
-            0,
-            80,
-            180,
-            color(com.google.android.material.R.attr.colorSurfaceContainerHigh));
-      float w = (legacy ? 34 : 56) * sizes[i] / 100f;
-      rounded(canvas, cx - w / 2, 12, w, 104, track);
-      rounded(
-          canvas,
-          cx - w / 2,
-          12 + 104 * (i == 0 ? .3f : .55f),
-          w,
-          104 * (i == 0 ? .7f : .45f),
-          fill);
-      float r = (legacy ? 17 : 22) * sizes[i + 2] / 100f;
-      rounded(canvas, cx - r, 150 - r, 2 * r, 2 * r, fill);
-      paint.setColor(fg);
-      paint.setTextAlign(Paint.Align.CENTER);
-      paint.setTypeface(Typeface.DEFAULT);
-      paint.setTextSize(22 * sizes[i + 2] / 100f);
-      canvas.drawText(i == 0 ? "☾" : "♪", cx, 150 + paint.getTextSize() * .36f, paint);
-    }
-    canvas.restore();
+  }
+
+  @Override
+  public void surfaceCreated(SurfaceHolder holder) {
+    created = true;
+    connect();
+  }
+
+  @Override
+  public void surfaceChanged(SurfaceHolder holder, int format, int w, int h) {
+    connect();
+  }
+
+  @Override
+  public void surfaceDestroyed(SurfaceHolder holder) {
+    created = false;
+    generation++;
+    worker.post(this::release);
   }
 }

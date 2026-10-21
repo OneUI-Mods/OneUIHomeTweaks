@@ -18,6 +18,7 @@ final class QuickPanelHooks {
   private final Handler main = new Handler(Looper.getMainLooper());
   private Context context;
   private Adapter adapter;
+  private QuickPanelNativePreview preview;
   private volatile boolean failed;
   private volatile int[] sizes = {100, 100, 100, 100};
   private volatile boolean enabled;
@@ -53,6 +54,11 @@ final class QuickPanelHooks {
             case 37 -> new QuickPanelAndroid17(this, loader);
             default -> throw new UnsupportedOperationException("Unreviewed Quick Panel platform");
           };
+      try {
+        preview = new QuickPanelNativePreview(context, loader, adapter);
+      } catch (Throwable error) {
+        HookEntry.log("QUICK_PANEL_PREVIEW_UNAVAILABLE " + error.getClass().getSimpleName());
+      }
       HandlerThread thread = new HandlerThread("OneUiQuickPanelConfig");
       thread.start();
       Handler worker = new Handler(thread.getLooper());
@@ -106,6 +112,7 @@ final class QuickPanelHooks {
             legacy = oldDesign;
             try {
               adapter.refresh();
+              if (preview != null) preview.refresh();
               report(
                   on && oldDesign && legacyFailed ? "PARTIAL" : on ? "ACTIVE" : "OFF",
                   on ? Arrays.toString(next) : "Native Quick Panel sizes");

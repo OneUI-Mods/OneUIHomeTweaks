@@ -8,6 +8,7 @@ final class QuickPanelLegacyLayout {
   private static final String MODEL = "com.android.systemui.samsung.quicksetting.domain.model.";
   private static final String PANEL = "com.android.systemui.samsung.quicksetting.ui.panel.";
   private final QuickPanelHooks owner;
+  private Object previewState;
   private final Field item, width, height, offset, id, spec;
   private final Method type, copy, stateValue, flowValue;
   private final Class<?> stateInterface, quickTile;
@@ -64,9 +65,10 @@ final class QuickPanelLegacyLayout {
             new ModernHook.Callback() {
               @Override
               protected void beforeHookedMethod(ModernHook.Param p) {
-                if (!owner.needsRefresh()) return;
                 try {
                   Object original = unwrap(p.args[3]);
+                  previewState = original;
+                  if (!owner.needsRefresh()) return;
                   if (owner.legacy()) p.args[3] = wrap(original, loader);
                   else p.args[3] = original;
                   // The State argument changed; keep the original composition's native read
@@ -115,6 +117,12 @@ final class QuickPanelLegacyLayout {
                 }
               }
             }));
+  }
+
+  List<?> previewEntries() throws Exception {
+    Object value = previewState == null ? null : stateValue.invoke(previewState);
+    if (!(value instanceof List<?> source)) return List.of();
+    return owner.legacy() ? present(source) : source;
   }
 
   private Object unwrap(Object value) {

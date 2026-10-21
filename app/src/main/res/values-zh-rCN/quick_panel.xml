@@ -21,4 +21,6 @@
   <string name="qs_legacy_note">将滑块及其正下方或右侧的按钮放入同一背景。编辑时使用标准布局。</string>
   <string name="qs_legacy_unavailable">无法应用Android 16设计。大小调整仍可使用。</string>
   <string name="qs_legacy_preset" formatted="false">使用 110% 滑条 / 105% 按钮</string>
+  <string name="qs_preview_loading">正在准备原生控件。更新后首次打开快捷面板即可初始化。</string>
+  <string name="qs_preview_unavailable">无法显示预览。请启用模块并重新加载 SystemUI。</string>
 </resources>

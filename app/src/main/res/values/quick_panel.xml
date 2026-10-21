@@ -21,4 +21,6 @@
   <string name="qs_legacy_note">Group each bar with its companion button in one background. Applies when the button is directly below or to the right of its bar. Editing keeps the standard layout.</string>
   <string name="qs_legacy_unavailable">Android 16 design is unavailable. Size controls remain active.</string>
   <string name="qs_legacy_preset" formatted="false">Use 110% bars / 105% buttons</string>
+  <string name="qs_preview_loading">Preparing native controls. After an update, open Quick Panel once to initialize them.</string>
+  <string name="qs_preview_unavailable">Preview unavailable. Enable the module and reload SystemUI.</string>
 </resources>

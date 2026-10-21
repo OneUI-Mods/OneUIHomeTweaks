@@ -21,4 +21,6 @@
   <string name="qs_legacy_note">バーとボタンを共通の背景にまとめます。ボタンがバーのすぐ下・右にある配置で適用します。編集時は標準表示に戻ります。</string>
   <string name="qs_legacy_unavailable">Android 16のデザインを適用できませんでした。サイズ調整は引き続き利用できます。</string>
   <string name="qs_legacy_preset" formatted="false">バー110%・ボタン105%にする</string>
+  <string name="qs_preview_loading">純正パーツを準備中です。更新直後はクイックパネルを一度開くと読み込まれます。</string>
+  <string name="qs_preview_unavailable">プレビューを表示できません。モジュールを有効にしてSystemUIを再読み込みしてください。</string>
 </resources>

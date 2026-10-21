@@ -1,11 +1,11 @@
 # Changelog
 
-## 0.14.1 (2026-10-22)
+## 0.15.0 (2026-10-22)
 
 - Expand all four Quick Panel size and thickness controls to 25–200%, retaining 5% steps and existing values.
 - Remove the previous visual minimum that prevented lower percentages from taking effect.
 - Add an Android 16 design preset with 110% bars and 105% buttons, while retaining native 100% and independent controls.
-- Fit the live preview to the expanded range.
+- Replace the hand-drawn preview with a private embedded SystemUI surface, using native controls and live tile state. Stop its rendering and listeners when the app loses focus or closes.
 
 ## 0.14.0 (2026-10-22)
 

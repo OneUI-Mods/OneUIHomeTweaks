@@ -21,4 +21,6 @@
   <string name="qs_legacy_note">각 막대와 바로 아래 또는 오른쪽 버튼을 하나의 배경으로 묶습니다. 편집 중에는 기본 레이아웃을 사용합니다.</string>
   <string name="qs_legacy_unavailable">Android 16 디자인을 적용할 수 없습니다. 크기 조절은 계속 사용할 수 있습니다.</string>
   <string name="qs_legacy_preset" formatted="false">바 110% · 버튼 105% 적용</string>
+  <string name="qs_preview_loading">기본 컨트롤을 준비 중입니다. 업데이트 후 빠른 설정 패널을 한 번 열면 초기화됩니다.</string>
+  <string name="qs_preview_unavailable">미리 보기를 표시할 수 없습니다. 모듈을 활성화하고 SystemUI를 다시 불러오세요.</string>
 </resources>

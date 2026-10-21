@@ -63,7 +63,7 @@ public final class QuickPanelActivity extends AppCompatActivity {
       slider.setStepSize(QuickPanelPolicy.STEP);
       slider.setValue(QuickPanelPolicy.percent(prefs.getInt(QuickPanelPolicy.KEYS[i], 100)));
       slider.setLabelFormatter(value -> getString(R.string.qs_percent, (int) value));
-      slider.addOnChangeListener((s, value, user) -> updatePreview());
+      slider.addOnChangeListener((s, value, user) -> updateLabels());
       slider.addOnSliderTouchListener(
           new Slider.OnSliderTouchListener() {
             @Override
@@ -100,13 +100,13 @@ public final class QuickPanelActivity extends AppCompatActivity {
           prefs.edit().putBoolean("qs_legacy_design", checked).apply();
           notifyConfig();
           setControls(master.isChecked());
-          updatePreview();
+          updateLabels();
         });
     findViewById(R.id.qs_legacy_preset)
         .setOnClickListener(v -> applySizes(new int[] {110, 110, 105, 105}));
     setControls(master.isChecked());
     findViewById(R.id.qs_reset).setOnClickListener(v -> applySizes(new int[] {100, 100, 100, 100}));
-    updatePreview();
+    updateLabels();
   }
 
   private void applySizes(int[] values) {
@@ -117,7 +117,7 @@ public final class QuickPanelActivity extends AppCompatActivity {
     }
     edit.apply();
     notifyConfig();
-    updatePreview();
+    updateLabels();
   }
 
   private void save(int index) {
@@ -140,16 +140,11 @@ public final class QuickPanelActivity extends AppCompatActivity {
                     || prefs.getBoolean("qs_legacy_design", false)));
   }
 
-  private void updatePreview() {
-    int[] sizes = new int[4];
-    for (int i = 0; i < 4; i++) {
+  private void updateLabels() {
+    for (int i = 0; i < sliders.length; i++) {
       if (sliders[i] == null) return;
-      sizes[i] = (int) sliders[i].getValue();
-      labels[i].setText(getString(R.string.qs_percent, sizes[i]));
+      labels[i].setText(getString(R.string.qs_percent, (int) sliders[i].getValue()));
     }
-    preview.setLegacy(
-        android.os.Build.VERSION.SDK_INT == 36 || prefs.getBoolean("qs_legacy_design", false));
-    preview.setSizes(sizes);
   }
 
   private void showStatus() {
@@ -173,10 +168,18 @@ public final class QuickPanelActivity extends AppCompatActivity {
     super.onStart();
     getContentResolver().registerContentObserver(ConfigProvider.STATUS_URI, false, status);
     showStatus();
+    preview.start();
+  }
+
+  @Override
+  protected void onDestroy() {
+    preview.destroy();
+    super.onDestroy();
   }
 
   @Override
   protected void onStop() {
+    preview.stop();
     getContentResolver().unregisterContentObserver(status);
     super.onStop();
   }

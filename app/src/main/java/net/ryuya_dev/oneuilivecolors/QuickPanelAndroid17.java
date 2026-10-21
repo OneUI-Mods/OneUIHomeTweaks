@@ -9,10 +9,12 @@ import java.util.*;
 final class QuickPanelAndroid17 implements QuickPanelHooks.Adapter {
   private static final String TILES = "com.android.systemui.samsung.quicksetting.ui.tiles.";
   private final QuickPanelHooks owner;
+  private QuickPanelLegacyLayout legacyLayout;
 
   private record BarFrame(int kind, float nativeDp, boolean grouped) {}
 
   private final Map<Object, Boolean> groupedScopes = new WeakHashMap<>();
+  private final Map<Object, Integer> previewScopes = new WeakHashMap<>();
   private final ThreadLocal<BarFrame> barFrame = new ThreadLocal<>();
   private final ThreadLocal<Integer> buttonKind = new ThreadLocal<>();
   private final Set<String> evidence = new HashSet<>();
@@ -31,10 +33,19 @@ final class QuickPanelAndroid17 implements QuickPanelHooks.Adapter {
     installButtons(loader, modifier, sizes);
     installBars(loader, modifier);
     try {
-      new QuickPanelLegacyLayout(owner, loader);
+      legacyLayout = new QuickPanelLegacyLayout(owner, loader);
     } catch (Throwable error) {
       owner.stopLegacy(error);
     }
+  }
+
+  void previewScope(Object scope, int kind, boolean grouped) {
+    previewScopes.put(scope, kind);
+    if (grouped) groupedScopes.put(scope, true);
+  }
+
+  java.util.List<?> previewEntries() throws Exception {
+    return legacyLayout == null ? java.util.List.of() : legacyLayout.previewEntries();
   }
 
   private void installButtons(ClassLoader loader, Class<?> modifier, Class<?> sizes)
@@ -184,6 +195,8 @@ final class QuickPanelAndroid17 implements QuickPanelHooks.Adapter {
                 if (evidence.add("bar:" + discriminator))
                   HookEntry.log("QUICK_PANEL_BAR " + discriminator);
                 int kind = discriminator == 100 ? 0 : discriminator == 150 ? 1 : -1;
+                Integer previewKind = previewScopes.get(scopeField.get(chain.getThisObject()));
+                if (previewKind != null) kind = previewKind;
                 if (kind >= 0 && owner.needsRefresh()) {
                   float dp =
                       (float)

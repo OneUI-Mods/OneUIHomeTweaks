@@ -9,6 +9,7 @@ public final class ConfigProvider extends ContentProvider {
   static final Uri URI = Uri.parse("content://net.ryuya_dev.oneuilivecolors.config/modes");
   static final Uri STATUS_URI = Uri.parse("content://net.ryuya_dev.oneuilivecolors.config/status");
   private RecentsFocusRegistry focus;
+  private volatile IBinder quickPanelPreview;
   static final String PREFS = "modes";
   static final String[] HOSTS = {
     "com.sec.android.app.launcher", "com.android.systemui", "com.samsung.android.app.dressroom"
@@ -94,6 +95,22 @@ public final class ConfigProvider extends ContentProvider {
 
   @Override
   public Bundle call(String method, String arg, Bundle extras) {
+    if (QuickPanelPreviewIpc.REGISTER.equals(method)) {
+      if (!"com.android.systemui".equals(hostCaller()))
+        throw new SecurityException("SystemUI only");
+      IBinder backend = extras == null ? null : extras.getBinder("backend");
+      if (backend == null) throw new IllegalArgumentException("Missing preview backend");
+      quickPanelPreview = backend;
+      getContext().getContentResolver().notifyChange(STATUS_URI, null);
+      return Bundle.EMPTY;
+    }
+    if (QuickPanelPreviewIpc.BACKEND.equals(method)) {
+      if (Binder.getCallingUid() != android.os.Process.myUid())
+        throw new SecurityException("Module app only");
+      Bundle result = new Bundle();
+      result.putBinder("backend", quickPanelPreview);
+      return result;
+    }
     if ("focus_register".equals(method)) {
       if (!HookEntry.LAUNCHER.equals(hostCaller())) throw new SecurityException("Launcher only");
       try {
