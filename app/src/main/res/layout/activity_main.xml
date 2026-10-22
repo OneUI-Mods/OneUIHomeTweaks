@@ -172,6 +172,35 @@
             android:orientation="vertical"
             android:padding="20dp">
             <com.google.android.material.materialswitch.MaterialSwitch
+              android:id="@+id/folder_return"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:minHeight="56dp"
+              android:text="@string/folder_return"
+              android:textAppearance="@style/TextAppearance.Material3.TitleMedium" />
+            <TextView
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:text="@string/folder_return_note"
+              android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+              android:textColor="?attr/colorOnSurfaceVariant"
+              android:lineSpacingExtra="2dp" />
+          </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+        <com.google.android.material.card.MaterialCardView
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:layout_marginBottom="12dp"
+          app:cardCornerRadius="28dp"
+          app:strokeWidth="0dp"
+          app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
+          style="?attr/materialCardViewFilledStyle">
+          <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp">
+            <com.google.android.material.materialswitch.MaterialSwitch
               android:id="@+id/diy_icon_grid"
               android:layout_width="match_parent"
               android:layout_height="wrap_content"

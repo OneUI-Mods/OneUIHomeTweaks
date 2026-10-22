@@ -108,4 +108,6 @@
   <string name="focus_backend_missing">Android側が未読み込み</string>
   <string name="focus_disarmed">有効化が必要</string>
   <string name="focus_dispatched">設定送信済み（通知は未検証）</string>
+  <string name="folder_return">アプリを閉じたらフォルダ内へ戻る</string>
+  <string name="folder_return_note">ONではホームジェスチャーで起動元のフォルダへ戻ります。OFFではフォルダを閉じたホームへ戻ります。次のホームジェスチャーから反映され、ホームの変更をOFFにすると純正の動作へ戻ります。</string>
 </resources>

@@ -39,6 +39,7 @@ public final class HookEntry extends XposedModule {
   private final DrawerBridge drawer = new DrawerBridge();
   private final HomeLabelBridge homeLabels = new HomeLabelBridge();
   private final RecentsBar recentsBar = new RecentsBar();
+  private final FolderHooks folders = new FolderHooks();
   private boolean initialized;
   private boolean hostAttached;
   private boolean earlyPages;
@@ -353,6 +354,11 @@ public final class HookEntry extends XposedModule {
     } catch (Throwable t) {
       log("RECENTS_LIVE_UNSUPPORTED " + t);
     }
+    try {
+      folders.install(launcherLoader);
+    } catch (Throwable t) {
+      log("FOLDER_UNSUPPORTED " + t);
+    }
     // Samsung's actual WhichChecker and public constants were verified on this device.
     Class<?> wc = Class.forName("com.samsung.android.wallpaper.utils.WhichChecker");
     if (!Integer.valueOf(1).equals(wc.getMethod("getType", int.class).invoke(null, 5))
@@ -448,6 +454,7 @@ public final class HookEntry extends XposedModule {
     try {
       int label = ColorPolicy.OFF, status = ColorPolicy.OFF, drawerMode = ColorPolicy.AUTO;
       int focusMode = 0;
+      boolean folderReturn = true;
       boolean master = false,
           pageMode = false,
           hideRecentsBar = false,
@@ -460,6 +467,8 @@ public final class HookEntry extends XposedModule {
         master =
             cursor.getInt(cursor.getColumnIndexOrThrow("enabled")) != 0
                 && cursor.getInt(cursor.getColumnIndexOrThrow("home_enabled")) != 0;
+        int folderColumn = cursor.getColumnIndex("folder_return");
+        folderReturn = folderColumn < 0 || cursor.getInt(folderColumn) != 0;
         pageMode = cursor.getInt(cursor.getColumnIndexOrThrow("pages")) != 0;
         hideRecentsBar =
             master && cursor.getInt(cursor.getColumnIndexOrThrow("recents_hide_bar")) != 0;
@@ -489,6 +498,7 @@ public final class HookEntry extends XposedModule {
       int currentFocusMode = focusMode;
       liveRecents.connectFocus(context);
       boolean currentMaster = master;
+      boolean currentFolderReturn = folderReturn;
       boolean currentDiyGrid = diyGridMode;
       Bundle gridRequest =
           context.getContentResolver().call(ConfigProvider.URI, "take_grid_request", null, null);
@@ -501,6 +511,7 @@ public final class HookEntry extends XposedModule {
             liveRecents.setFocusMode(currentFocusMode);
             liveRecents.setEnabled(currentLiveRecents);
             recentsBar.setEnabled(currentHideRecentsBar);
+            folders.configure(currentMaster, currentFolderReturn);
             diyGrid.setEnabled(currentDiyGrid);
             gridSave.accept(context, gridRequest);
             HostStatus.report(
@@ -519,7 +530,9 @@ public final class HookEntry extends XposedModule {
                     + "; focusBridge="
                     + liveRecents.focusDiagnostic()
                     + "; diyGrid="
-                    + diyGrid.diagnostic());
+                    + diyGrid.diagnostic()
+                    + "; folders="
+                    + folders.diagnostic());
           });
       Snapshot next =
           new Snapshot(

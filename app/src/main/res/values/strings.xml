@@ -108,4 +108,6 @@
   <string name="focus_backend_missing">Android backend not loaded</string>
   <string name="focus_disarmed">Enable required</string>
   <string name="focus_dispatched">State dispatched (notification unverified)</string>
+  <string name="folder_return">Return to the folder after closing an app</string>
+  <string name="folder_return_note">When enabled, a Home gesture returns to the folder used to launch the app. When disabled, it returns to Home with the folder closed. Applies to the next Home gesture; turning off launcher tweaks restores the original behavior.</string>
 </resources>

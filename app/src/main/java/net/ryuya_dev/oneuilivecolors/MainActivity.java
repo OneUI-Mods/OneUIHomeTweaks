@@ -42,7 +42,8 @@ public final class MainActivity extends AppCompatActivity {
     "recents_hide_bar",
     "recents_live_tile",
     "clock_date_left",
-    "diy_icon_grid"
+    "diy_icon_grid",
+    "folder_return"
   };
   private final int[] switchIds = {
     R.id.master,
@@ -54,7 +55,8 @@ public final class MainActivity extends AppCompatActivity {
     R.id.recents_hide_bar,
     R.id.recents_live_tile,
     R.id.clock_date_left,
-    R.id.diy_icon_grid
+    R.id.diy_icon_grid,
+    R.id.folder_return
   };
   private final ContentObserver reports =
       new ContentObserver(new Handler(Looper.getMainLooper())) {

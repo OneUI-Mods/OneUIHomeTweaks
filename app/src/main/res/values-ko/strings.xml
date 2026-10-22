@@ -108,4 +108,6 @@
   <string name="focus_backend_missing">Android 백엔드가 로드되지 않음</string>
   <string name="focus_disarmed">활성화 필요</string>
   <string name="focus_dispatched">설정 전송됨(알림 미검증)</string>
+  <string name="folder_return">앱을 닫으면 폴더로 돌아가기</string>
+  <string name="folder_return_note">켜면 홈 제스처로 앱을 실행한 폴더로 돌아갑니다. 끄면 폴더를 닫은 홈 화면으로 돌아갑니다. 다음 홈 제스처부터 적용되며 홈 변경을 끄면 기본 동작으로 돌아갑니다.</string>
 </resources>

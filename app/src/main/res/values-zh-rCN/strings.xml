@@ -108,4 +108,6 @@
   <string name="focus_backend_missing">Android 后端未加载</string>
   <string name="focus_disarmed">需要启用</string>
   <string name="focus_dispatched">已发送设置（通知未经验证）</string>
+  <string name="folder_return">关闭应用后返回文件夹</string>
+  <string name="folder_return_note">开启时，主页手势会返回启动应用的文件夹。关闭时，会返回文件夹已关闭的主屏幕。从下次主页手势起生效；关闭主屏幕修改后恢复原有行为。</string>
 </resources>

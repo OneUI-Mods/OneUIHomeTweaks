@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.16.0
+
+- フォルダから起動したアプリのジェスチャー終了時に、フォルダ内へ戻るかを選択。
+- 復帰後のフォルダ閉じ描画を最新の縮尺から準備し、ホームへの二度目のジェスチャーは純正アニメーションへ渡す。
+- Android 16 / 17のフォルダ契約を個別に照合。
+
+
 ## 0.15.0 (2026-10-22)
 
 - Expand all four Quick Panel size and thickness controls to 25–200%, retaining 5% steps and existing values.
