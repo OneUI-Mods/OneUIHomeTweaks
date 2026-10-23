@@ -64,7 +64,7 @@
           android:textAppearance="@style/TextAppearance.Material3.HeadlineLarge"
           android:layout_marginTop="8dp"
           android:layout_marginBottom="20dp" />
-        <net.ryuya_dev.oneuilivecolors.HomeAppearancePreview
+        <dev.ryuya.oneuihometweaks.HomeAppearancePreview
           android:id="@+id/appearance_preview"
           android:layout_width="match_parent"
           android:layout_height="128dp"

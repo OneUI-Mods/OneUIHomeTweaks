@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <style name="Theme.OneUiLiveColors" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.OneUIHomeTweaks" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">#C6BFFF</item>
         <item name="colorOnPrimary">#2A1B87</item>
         <item name="colorPrimaryContainer">#413CBC</item>

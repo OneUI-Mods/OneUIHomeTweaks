@@ -41,7 +41,7 @@
             android:layout_height="wrap_content"
             android:text="@string/qs_preview_label"
             android:textAppearance="@style/TextAppearance.Material3.LabelLarge" />
-          <net.ryuya_dev.oneuilivecolors.QuickPanelPreview
+          <dev.ryuya.oneuihometweaks.QuickPanelPreview
             android:id="@+id/qs_preview"
             android:layout_width="match_parent"
             android:layout_height="260dp" />

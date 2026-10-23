@@ -6,13 +6,13 @@
 
 ## ビルド
 
-JDK 21とAndroid SDK 37を用意し、Android Studioでプロジェクトを開きます。開発用チェックアウトは `~/Documents/OneUiLiveColors` に置いています。
+JDK 21とAndroid SDK 37を用意し、Android Studioでプロジェクトを開きます。開発用チェックアウトは `~/Documents/OneUIHomeTweaks` に置いています。
 
 ```sh
 ./gradlew :app:assembleRelease :app:testDebugUnitTest :app:lintRelease
 ```
 
-Gradle Wrapperを同梱しています。独自コードのパッケージ名はドメイン `ryuya-dev.net` をJavaの識別子に合わせた `net.ryuya_dev.oneuilivecolors` です。
+Gradle Wrapperを同梱しています。独自コードのパッケージ名はドメイン `ryuya-dev.net` をJavaの識別子に合わせた `dev.ryuya.oneuihometweaks` です。
 
 モジュールは`io.github.libxposed:api:102.0.0`をcompile-onlyで使用します。エントリ、固定スコープ、API要件は`app/src/main/resources/META-INF/xposed/`で登録し、legacy API 82のjarや`assets/xposed_init`は使用しません。
 
@@ -64,7 +64,7 @@ export ONEUI_SIGNING_PROPERTIES=/absolute/path/to/private-signing.properties
 ## ログと調査ツール
 
 ```sh
-adb logcat -s OneUiLiveColors:I '*:S'
+adb logcat -s OneUIHomeTweaks:I '*:S'
 ```
 
 `tools/WallpaperProbe.java` は端末の標準／Samsung壁紙APIを読み取り確認する調査用ソース、`tools/DexReferences.java` は取得済みAPK内の実際の参照を調べるデスクトップ用ソースです。

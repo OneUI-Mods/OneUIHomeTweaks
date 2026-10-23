@@ -80,7 +80,7 @@ ON/OFF自体では保存済み配置を更新しない。利用者が対象を�
 ## ログと復旧
 
 ```sh
-adb logcat -s OneUiLiveColors
+adb logcat -s OneUIHomeTweaks
 ```
 
 GRID_SAVE preview / saved / error、DIY_GRID loading / active / off、DIY_GRID_DEX_VERIFIED、DIY_GRID_EDIT、DIY_GRID_PAGE_UNAVAILABLE、DIY_GRID_DISABLEDで状況を追える。移動ログはジェスチャー先頭の少数回に限定する。

@@ -22,7 +22,7 @@ def run(*args, capture=False):
 def validate(apk, tools):
     badging = run(tools / "aapt2", "dump", "badging", apk, capture=True).stdout
     if (
-        "package: name='net.ryuya_dev.oneuilivecolors'" not in badging
+        "package: name='dev.ryuya.oneuihometweaks'" not in badging
         or "application-debuggable" in badging
     ):
         raise RuntimeError("Unexpected or debuggable APK")
@@ -41,7 +41,7 @@ def validate(apk, tools):
             raise RuntimeError("API 102 metadata missing")
         if (
             archive.read(prefix + "java_init.list").decode().strip()
-            != "net.ryuya_dev.oneuilivecolors.HookEntry"
+            != "dev.ryuya.oneuihometweaks.HookEntry"
         ):
             raise RuntimeError("Unexpected module entry")
         scopes = set(archive.read(prefix + "scope.list").decode().split())
@@ -92,7 +92,7 @@ def main():
         raise RuntimeError("Release certificate does not match existing installations")
     destination = ROOT / "artifacts/release" / item["versionName"]
     destination.mkdir(parents=True, exist_ok=True)
-    name = "OneUiHomeTweaks-" + item["versionName"]
+    name = "OneUIHomeTweaks-" + item["versionName"]
     target = destination / (name + "-release.apk")
     shutil.copy2(apk, target)
     source = destination / (name + "-source.zip")

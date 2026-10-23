@@ -45,7 +45,7 @@ rootの要求はアプリ起動時に表示されます。許可しなくても�
 
 ## インストールと設定
 
-1. [Releases](https://github.com/ryuya0124/oneui-live-colors/releases)で配布されているAPKをインストールします。
+1. [Releases](https://github.com/OneUI-Mods/OneUIHomeTweaks/releases)で配布されているAPKをインストールします。
 2. VectorでOne UI Home Tweaksを有効にし、下表から使う機能の対象だけを選びます。
 3. アプリを開き、必要に応じて既存のroot管理アプリの権限要求を許可します。
 4. 初回導入・APK更新後は、アプリ内のボタンなどで対象アプリを再読み込みします。SystemUIの再読み込みでは一時的に画面が閉じ、ロック画面に戻る場合があります。
@@ -80,7 +80,7 @@ rootの要求はアプリ起動時に表示されます。許可しなくても�
 
 不安定な起動が繰り返された場合に、対象ごとにフックを停止する起動保護があります。原因を解消してから、設定内の「クラッシュ保護を解除」で解除できます。Vector内部の障害や、すべてのブートループを防げる機能ではありません。
 
-改善要望・不具合は[Issues](https://github.com/ryuya0124/oneui-live-colors/issues)へ。端末名、Android／One UIのバージョン、対象アプリのバージョン、再現手順を添えてください。個人情報を含むログや壁紙画像をそのまま公開しないでください。
+改善要望・不具合は[Issues](https://github.com/OneUI-Mods/OneUIHomeTweaks/issues)へ。端末名、Android／One UIのバージョン、対象アプリのバージョン、再現手順を添えてください。個人情報を含むログや壁紙画像をそのまま公開しないでください。
 
 ## 開発・技術情報
 

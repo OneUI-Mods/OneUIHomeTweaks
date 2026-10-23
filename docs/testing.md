@@ -53,7 +53,7 @@ Home Up ON／継続描画ONの元の設定に戻し、今回の検証用アプ�
 8. 必要に応じて静止画でも既存の文字色処理を確認する。テストのために壁紙を切り替えた場合は元のコンポーネントへ戻す。
 
 ```sh
-adb logcat -s OneUiLiveColors:I '*:S'
+adb logcat -s OneUIHomeTweaks:I '*:S'
 adb shell getprop ro.build.version.oneui
 adb shell getprop ro.build.fingerprint
 adb shell dumpsys wallpaper
@@ -70,14 +70,14 @@ adb shell settings get system need_dark_statusbar
 通常は全体または対象スイッチをオフ。登録されたフックも除去する場合はVectorでモジュール／対象スコープを無効にして対象プロセスを起動し直す。
 
 ```sh
-adb shell su -c '/data/adb/lspd/cli modules disable net.ryuya_dev.oneuilivecolors'
+adb shell su -c '/data/adb/lspd/cli modules disable dev.ryuya.oneuihometweaks'
 adb shell am force-stop --user 0 com.sec.android.app.launcher
 adb shell am start --user 0 -a android.intent.action.MAIN -c android.intent.category.HOME
 ```
 
 SystemUIやWallpaper and styleの再読み込みは一時的に画面を閉じる。アプリ内の対象別ボタンを使う。端末再起動・データ消去は不要。
 
-起動保護ファイルは各対象のprivate files内の`net.ryuya_dev.oneuilivecolors.guard`。クラッシュ保護で停止した場合は原因を直し、アプリの「クラッシュ保護を解除」でこのファイルだけを削除して、対象を再読み込みする。自動解除はしない。直前PIDに対応するApplicationExitInfoが`CRASH`、`NATIVE_CRASH`、`ANR`のいずれかの場合だけ連続回数を加算する。正常な手動再起動、終了理由が未確定の起動、90秒安定稼働した起動、10分以上離れた起動、端末起動し直し後は連続回数をリセットする。
+起動保護ファイルは各対象のprivate files内の`dev.ryuya.oneuihometweaks.guard`。クラッシュ保護で停止した場合は原因を直し、アプリの「クラッシュ保護を解除」でこのファイルだけを削除して、対象を再読み込みする。自動解除はしない。直前PIDに対応するApplicationExitInfoが`CRASH`、`NATIVE_CRASH`、`ANR`のいずれかの場合だけ連続回数を加算する。正常な手動再起動、終了理由が未確定の起動、90秒安定稼働した起動、10分以上離れた起動、端末起動し直し後は連続回数をリセットする。
 
 Launcherデータや壁紙画像の削除、既存root／Vectorの再設定は行わない。
 
