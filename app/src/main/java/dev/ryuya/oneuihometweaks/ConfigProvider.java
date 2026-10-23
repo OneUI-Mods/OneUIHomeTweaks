@@ -163,7 +163,7 @@ public final class ConfigProvider extends ContentProvider {
 
   @Override
   public String getType(Uri u) {
-    return "vnd.android.cursor.item/vnd.oneuilivecolors.modes";
+    return "vnd.android.cursor.item/vnd.oneuihometweaks.modes";
   }
 
   @Override

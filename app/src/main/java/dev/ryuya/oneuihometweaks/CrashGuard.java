@@ -95,7 +95,7 @@ final class CrashGuard {
     FileOutputStream out = null;
     try {
       out = file.startWrite();
-      state.store(out, "One UI Live Colors startup protection");
+      state.store(out, "One UI Home Tweaks startup protection");
       file.finishWrite(out);
     } catch (IOException e) {
       if (out != null) file.failWrite(out);

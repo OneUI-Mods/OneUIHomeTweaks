@@ -1,18 +1,18 @@
 # 開発者向けガイド
 
-表示名は0.6.0からOne UI Home Tweaks（旧One UI Live Colors）。更新互換性のためapplication ID、provider authority、署名鍵、ログタグと開発フォルダは継続する。Gradleのプロジェクト名と配布APK名は新名称を使う。
+0.17.0からapplication ID、Javaパッケージ、provider authority、ログタグ、プロセス間通信の識別名をOne UI Home Tweaksへ統一した。配布署名鍵は継続する。旧パッケージとの互換providerや別名は設けず、既存設定は[移行手順](package-migration.md)で引き継ぐ。Android 16・17のフック契約は別々に維持する。
 
 利用者向けの機能説明・導入手順は[README](../README.md)を参照してください。
 
 ## ビルド
 
-JDK 21とAndroid SDK 37を用意し、Android Studioでプロジェクトを開きます。開発用チェックアウトは `~/Documents/OneUIHomeTweaks` に置いています。
+JDK 21とAndroid SDK 37を用意し、Android Studioでプロジェクトを開きます。チェックアウト先のフォルダ名には依存しません。
 
 ```sh
 ./gradlew :app:assembleRelease :app:testDebugUnitTest :app:lintRelease
 ```
 
-Gradle Wrapperを同梱しています。独自コードのパッケージ名はドメイン `ryuya-dev.net` をJavaの識別子に合わせた `dev.ryuya.oneuihometweaks` です。
+Gradle Wrapperを同梱しています。独自コードのパッケージ名とapplication IDは `dev.ryuya.oneuihometweaks` です。
 
 モジュールは`io.github.libxposed:api:102.0.0`をcompile-onlyで使用します。エントリ、固定スコープ、API要件は`app/src/main/resources/META-INF/xposed/`で登録し、legacy API 82のjarや`assets/xposed_init`は使用しません。
 
@@ -36,7 +36,7 @@ export ONEUI_SIGNING_PROPERTIES=/absolute/path/to/private-signing.properties
 
 署名済みAPKは `app/build/outputs/apk/release/app-release.apk` です。`debuggable=false`、コードの難読化は無効です。外部フック・reflectionで使う名前を保持する必要があるため、releaseビルドでも無条件に難読化しません。
 
-署名鍵とパスワードはGitに追加しないでください。現在のローカル配布鍵は `~/.android/keystores/oneui-live-colors-release.jks`、設定は同ディレクトリの `oneui-live-colors-signing.properties` で、それぞれ読み書きを本人だけに制限しています。更新に必要なため、この2ファイルは別途安全にバックアップしてください。GitHubへ鍵をアップロードする自動設定は行っていません。
+署名鍵とパスワードはGitに追加しないでください。鍵と設定ファイルはリポジトリ外で読み書きを本人だけに制限し、安全にバックアップしてください。GitHubへ鍵をアップロードする自動設定は行っていません。
 
 配布鍵の証明書SHA-256：`7938e1850451b95c45c8f138a768c9da7c5d9db7fb61a883ac8dc724077ddb03`。
 
@@ -50,7 +50,7 @@ export ONEUI_SIGNING_PROPERTIES=/absolute/path/to/private-signing.properties
 - Home UpはLauncher内に動的ロードされたクラスを扱います。壁紙アプリやHome Up本体のプロセスには適用しません。
 - クラス構造・シグネチャ・実際のDEX呼び出し関係を検証し、互換性を確認できない機能は停止します。難読化された名前だけに依存する探索は避けます。
 - 色、壁紙、ページ、設定のイベントを使用し、定期ポーリングは行いません。
-- システムパーティション、root実装、壁紙画像は変更しません。ホーム配置の保存は利用者が専用操作で確認した場合だけ行います。端末再起動は行いません。
+- システムパーティション、root実装、壁紙画像は変更しません。ホーム配置の保存は利用者が専用操作で確認した場合だけ行います。アプリや移行スクリプトが端末を自動再起動することはありません。初回導入・パッケージ移行でsystem_server側の変更を読み込む場合は、利用者が最後にシステムを起動し直します。
 
 ## 調査・検証資料
 
