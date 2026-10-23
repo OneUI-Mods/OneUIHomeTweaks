@@ -75,8 +75,8 @@ class Migration:
 
         self.adb('install', '--no-incremental', '-r', str(self.arguments.apk.resolve()))
         self.adb('shell', f'am force-stop {NEW_PACKAGE}')
-        package_info = self.adb('shell', f'dumpsys package {NEW_PACKAGE}')
-        user = re.search(r'\buserId=(\d+)\b', package_info)
+        package_info = self.adb('shell', f'cmd package list packages -U {NEW_PACKAGE}')
+        user = re.search(r'\buid:(\d+)\b', package_info)
         if not user:
             raise RuntimeError('Cannot resolve the new app UID; the old app has been retained')
         uid = int(user.group(1))
