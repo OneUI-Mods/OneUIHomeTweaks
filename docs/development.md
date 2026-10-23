@@ -101,3 +101,10 @@ adb logcat -s OneUIHomeTweaks:I '*:S'
 ## 履歴のフォーカス通知（0.12.0検証版）
 
 [共通バックエンドの設計と検証記録](recents-focus.md)を参照。`system`スコープを追加し、`onSystemServerStarting`で読み込む。通常のホストとは異なり起動時は無効で、手動有効化が必要。対象アプリを追加する方式は撤回した。ゲームの処理や音声の直接フックは行わない。
+
+## ドキュメント一覧
+
+- [署名・配布手順](releasing.md)
+- [試験記録](testing.md)
+- [Android 16の互換性](compatibility/android16.md)
+- [Android 17の互換性](compatibility/android17.md)

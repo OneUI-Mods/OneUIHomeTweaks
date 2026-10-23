@@ -9,9 +9,7 @@ final class RecentsFocusWire {
   // Outside the verified ATMS transaction range, inside Binder's application transaction range.
   static final int DISCOVER = 0x00f04f55;
   static final int STATUS = 1, ARM = 2, BEGIN = 3, END = 4, STOP = 5;
-  // Keep the existing wire name so a package migration does not invalidate
-  // already loaded system_server / Launcher endpoints.
-  static final String DESCRIPTOR = "net.ryuya_dev.oneuilivecolors.recents.focus.v1";
+  static final String DESCRIPTOR = "dev.ryuya.oneuihometweaks.recents.focus.v1";
 
   static Bundle call(IBinder endpoint, int code, Bundle data) throws Exception {
     Parcel in = Parcel.obtain(), out = Parcel.obtain();
