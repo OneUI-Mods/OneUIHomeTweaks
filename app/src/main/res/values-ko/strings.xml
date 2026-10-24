@@ -53,7 +53,7 @@
   <string name="clear_guard_note">root로 이 모듈의 보호 파일만 삭제합니다. 원인을 확인한 후 대상 프로세스를 다시 시작하세요.</string>
   <string name="guard_reset_done">충돌 보호를 초기화했습니다. 다시 시도하려면 대상 프로세스를 다시 시작하세요.</string>
   <string name="guard_reset_failed">보호를 초기화하지 못했습니다. root 권한을 확인하세요.</string>
-  <string name="help_text">범위: 앱 이름, 최근 앱 및 페이지 알림은 One UI Home, 음량 및 빠른 설정 패널은 System UI, 라이브 미리보기는 배경화면 및 스타일입니다.\n\n기준 환경: SM-S948Q, Android 16, One UI Home 17.5.03.27, Vector 2.2. 호환되지 않는 구조에서는 기능을 중지합니다. Android 17은 별도 호환 처리를 사용하며 이후 버전은 재검토가 필요합니다.\n\n홈 자동 색상은 배경화면의 어두운 글자 힌트를 따릅니다. 색상 알림이 없는 이미지 변경은 감지할 수 없습니다.\n\n불안정한 시작이 반복되면 모듈을 중지할 수 있습니다. Vector 내부나 앱 연결 전의 오류는 방지할 수 없습니다.</string>
+  <string name="help_text">애니메이션 배율 편집에는 설정도 대상에 추가하세요. 범위: 앱 이름, 최근 앱 및 페이지 알림은 One UI Home, 음량 및 빠른 설정 패널은 System UI, 라이브 미리보기는 배경화면 및 스타일입니다.\n\n기준 환경: SM-S948Q, Android 16, One UI Home 17.5.03.27, Vector 2.2. 호환되지 않는 구조에서는 기능을 중지합니다. Android 17은 별도 호환 처리를 사용하며 이후 버전은 재검토가 필요합니다.\n\n홈 자동 색상은 배경화면의 어두운 글자 힌트를 따릅니다. 색상 알림이 없는 이미지 변경은 감지할 수 없습니다.\n\n불안정한 시작이 반복되면 모듈을 중지할 수 있습니다. Vector 내부나 앱 연결 전의 오류는 방지할 수 없습니다.</string>
   <string name="status_details">세부 정보</string>
   <string name="scope_home">One UI Home</string>
   <string name="scope_volume">System UI</string>
@@ -110,4 +110,16 @@
   <string name="focus_dispatched">설정 전송됨(알림 미검증)</string>
   <string name="folder_return">앱을 닫으면 폴더로 돌아가기</string>
   <string name="folder_return_note">켜면 홈 제스처로 앱을 실행한 폴더로 돌아갑니다. 끄면 폴더를 닫은 홈 화면으로 돌아갑니다. 다음 홈 제스처부터 적용되며 홈 변경을 끄면 기본 동작으로 돌아갑니다.</string>
+
+  <string name="scope_settings">개발자 애니메이션 배율</string>
+  <string name="animation_scale_note">개발자 옵션의 애니메이션 배율 3개를 0.01 단위로 설정합니다. Vector 대상에 설정을 추가한 뒤 설정 앱을 다시 여세요. Android 17 / One UI 9 BZI9를 지원합니다. 끄면 저장된 배율을 유지하고 기본 선택 화면으로 돌아갑니다.</string>
+  <string name="open_developer_options">개발자 옵션 열기</string>
+  <string name="animation_scale_hint">0.00~10.00배를 0.01 단위로 설정합니다. 작을수록 빠르며 0은 애니메이션을 끕니다. 저장 후 적용됩니다.</string>
+  <string name="animation_scale_decrease">0.01 줄이기</string>
+  <string name="animation_scale_increase">0.01 늘리기</string>
+  <string name="animation_scale_value">애니메이션 배율</string>
+  <string name="animation_scale_save">저장</string>
+  <string name="animation_scale_default">기본값</string>
+  <string name="animation_scale_invalid">0.00~10.00을 소수점 둘째 자리까지 입력하세요.</string>
+  <string name="animation_scale_failed">저장하지 못했습니다. 다시 시도하세요.</string>
 </resources>

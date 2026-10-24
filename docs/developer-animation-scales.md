@@ -1,0 +1,27 @@
+# 開発者向けアニメーション倍率 — 0.18.0
+
+## 範囲と契約
+
+SM-S948Q / Android 17 / One UI 9 BZI9の実機SecSettings（versionName=17）を確認した。Android 16の既存のホーム・パネル処理は変更しない。新しいSettings入力UIはAndroid 17の契約だけを登録し、未知の版では標準UIへ戻す。
+
+SettingsのWindowAnimationScalePreferenceController、TransitionAnimationScalePreferenceController、AnimatorDurationScalePreferenceControllerを別々に扱う。preference key、更新メソッド、mPreference、mWindowManager、onPreferenceChangeの型を確認してから登録する。3項目のIWindowManager selectorは順に0/1/2。Animatorのpreference keyはglobal keyと異なる点に注意する。
+
+標準の更新処理後に実値を読み、一覧summaryへ小数点以下2桁で表示する。クリックは実際にこのcontrollerへ結び付いたDialogPreferenceだけを差し替える。保存時は元のcontrollerのonPreferenceChangeを呼び、読戻しを確認する。Settings.Globalの直接書換え、独自タイマー、system_server側のアニメーション変更は行わない。開発者向けオプションの全体OFFによる純正リセットも維持する。
+
+## UIと設定
+
+入力値は0〜1000の整数hundredthsで扱う。±操作やsliderで浮動小数点の加算を繰り返さず、保存時だけ標準controllerへ小数字符列を渡す。不正・範囲外・小数点以下3桁以上の非ゼロ値は丸めず拒否する。末尾のゼロ、全角数字、localeの小数点とアラビア数字を扱う。
+
+Samsung側のAppCompat AlertDialogとhost themeを使う。SettingsのR8処理で一部のBuilder overloadが削除されているため、確認済みのAlertParams fieldにタイトル・button textを渡す。moduleのMaterial themeをhostへ適用しない。狭い画面では内容をscrollでき、Activity停止時・機能OFFでは未保存のdialogを閉じる。
+
+全体enabledとsettings_enabledの両方がONのときだけ有効。ConfigProviderにSettingsを追加し、caller packageとUIDの照合を維持する。追加hostのスイッチと状態カードは明示的な対応表で結び付け、既存の3host/9cardの位置へ割り込ませない。対象アプリごとの起動保護も既存の仕組みを使う。
+
+## 検証
+
+104 JVM tests、lintRelease、署名済みrelease buildを実行した。新しい数値テストは100回の0.01加算の往復、既存値とlocaleの往復、不正・端数・範囲外・非有限値の拒否を確認する。
+
+実機で3種類それぞれの+0.01保存をglobal値の読取りで確認し、変更した項目以外が変わらないことを照合した。-0.01してキャンセルした場合に値が変わらないこと、その後の保存で元の値へ戻ることも確認した。数値の直接入力、3桁の入力で保存が無効になること、標準値ボタンの未保存時に反映しないことも確認した。OFFで純正dialogとsummaryへ戻り、ONで独自入力へ戻ること、Settingsを離れると未保存dialogを閉じることも確認した。試験後は開始前に記録した3値を復元した。
+
+Settingsの反射契約が合わなかった初期版は、自身のhookを停止し標準の選択画面へ戻った。Settingsのプロセスクラッシュは起きていない。設定アプリだけを強制停止して開き直して検証し、端末本体・SystemUI・One UIホームは再起動しない。
+
+実機APK、逆コンパイル結果、画面、個別の設定値・端末ログはローカル調査資料とし、公開ソース・source ZIP・release assetへ含めない。

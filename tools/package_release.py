@@ -48,6 +48,7 @@ def validate(apk, tools):
         if scopes != {
             "com.sec.android.app.launcher",
             "com.android.systemui",
+            "com.android.settings",
             "com.samsung.android.app.dressroom",
             "system",
         }:

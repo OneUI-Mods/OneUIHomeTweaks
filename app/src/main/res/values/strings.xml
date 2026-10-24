@@ -53,7 +53,7 @@
   <string name="clear_guard_note">Root removes only this module’s guard files. Restart the affected process after checking the cause.</string>
   <string name="guard_reset_done">Crash protection reset. Reload the affected process to retry.</string>
   <string name="guard_reset_failed">Could not reset protection. Check root access.</string>
-  <string name="help_text">Scope: One UI Home for labels, Recents and page notifications; System UI for the volume and Quick Panel options; Wallpaper and style for the optional live preview.\n\nVerified baseline: SM-S948Q, Android 16, One UI Home 17.5.03.27, Vector 2.2. Incompatible structures are skipped. Android 17 uses a separate compatibility profile; later versions require review.\n\nAutomatic home colors follow the wallpaper’s dark-text hint. Image changes without a color notification cannot be detected.\n\nCrash protection can stop this module after repeated unstable starts. It cannot prevent failures inside Vector or failures before the app attaches.</string>
+  <string name="help_text">Animation scale editing also requires Settings in the scope. Scope: One UI Home for labels, Recents and page notifications; System UI for the volume and Quick Panel options; Wallpaper and style for the optional live preview.\n\nVerified baseline: SM-S948Q, Android 16, One UI Home 17.5.03.27, Vector 2.2. Incompatible structures are skipped. Android 17 uses a separate compatibility profile; later versions require review.\n\nAutomatic home colors follow the wallpaper’s dark-text hint. Image changes without a color notification cannot be detected.\n\nCrash protection can stop this module after repeated unstable starts. It cannot prevent failures inside Vector or failures before the app attaches.</string>
   <string name="status_details">Details</string>
   <string name="scope_home">One UI Home</string>
   <string name="scope_volume">System UI</string>
@@ -110,4 +110,16 @@
   <string name="focus_dispatched">State dispatched (notification unverified)</string>
   <string name="folder_return">Return to the folder after closing an app</string>
   <string name="folder_return_note">When enabled, a Home gesture returns to the folder used to launch the app. When disabled, it returns to Home with the folder closed. Applies to the next Home gesture; turning off launcher tweaks restores the original behavior.</string>
+
+  <string name="scope_settings">Developer animation scales</string>
+  <string name="animation_scale_note">Set the three animation scales in Developer options in steps of 0.01. Add Settings to the Vector scope, then reopen Settings. This feature currently supports Android 17 / One UI 9 BZI9. OFF restores the standard selector without resetting saved scales.</string>
+  <string name="open_developer_options">Open Developer options</string>
+  <string name="animation_scale_hint">0.00–10.00×, in steps of 0.01. Smaller values are faster; 0 turns animations off. Changes apply only after saving.</string>
+  <string name="animation_scale_decrease">Decrease by 0.01</string>
+  <string name="animation_scale_increase">Increase by 0.01</string>
+  <string name="animation_scale_value">Animation scale</string>
+  <string name="animation_scale_save">Save</string>
+  <string name="animation_scale_default">Default</string>
+  <string name="animation_scale_invalid">Enter 0.00–10.00 with up to two decimal places.</string>
+  <string name="animation_scale_failed">Could not save. Please try again.</string>
 </resources>

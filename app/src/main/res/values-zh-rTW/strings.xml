@@ -53,7 +53,7 @@
   <string name="clear_guard_note">透過 root 僅刪除本模組的保護檔案。檢查原因後再重新啟動目標程序。</string>
   <string name="guard_reset_done">已重設當機保護。重新啟動目標程序後重試。</string>
   <string name="guard_reset_failed">無法重設保護。請檢查 root 權限。</string>
-  <string name="help_text">作用域：應用程式名稱、最近使用及頁面通知選擇 One UI Home；音量與快速面板選擇 System UI；動態預覽選擇桌布與樣式。\n\n基準環境：SM-S948Q、Android 16、One UI Home 17.5.03.27、Vector 2.2。結構不相容時停用。Android 17 使用獨立相容設定，後續版本需要重新調查。\n\n主畫面自動配色遵循桌布提供的深色文字提示。無法偵測未傳送顏色通知的圖片變更。\n\n多次啟動不穩定時可停用模組。無法防止 Vector 內部或應用程式連接前發生的錯誤。</string>
+  <string name="help_text">編輯動畫縮放時也需將設定加入作用範圍。作用域：應用程式名稱、最近使用及頁面通知選擇 One UI Home；音量與快速面板選擇 System UI；動態預覽選擇桌布與樣式。\n\n基準環境：SM-S948Q、Android 16、One UI Home 17.5.03.27、Vector 2.2。結構不相容時停用。Android 17 使用獨立相容設定，後續版本需要重新調查。\n\n主畫面自動配色遵循桌布提供的深色文字提示。無法偵測未傳送顏色通知的圖片變更。\n\n多次啟動不穩定時可停用模組。無法防止 Vector 內部或應用程式連接前發生的錯誤。</string>
   <string name="status_details">詳細資訊</string>
   <string name="scope_home">One UI Home</string>
   <string name="scope_volume">System UI</string>
@@ -110,4 +110,16 @@
   <string name="focus_dispatched">已傳送設定（通知未驗證）</string>
   <string name="folder_return">關閉應用程式後返回資料夾</string>
   <string name="folder_return_note">開啟時，主畫面手勢會返回啟動應用程式的資料夾。關閉時，會返回資料夾已關閉的主畫面。從下次主畫面手勢起生效；關閉主畫面修改後恢復原有行為。</string>
+
+  <string name="scope_settings">開發人員動畫縮放</string>
+  <string name="animation_scale_note">以0.01為單位設定開發人員選項中的三種動畫縮放。請將設定加入Vector作用範圍並重新開啟設定。此功能支援Android 17 / One UI 9 BZI9。關閉後恢復原有選擇畫面並保留已儲存的縮放值。</string>
+  <string name="open_developer_options">開啟開發人員選項</string>
+  <string name="animation_scale_hint">可設定0.00至10.00倍，步長0.01。數值越小速度越快，0表示關閉動畫。儲存後才會生效。</string>
+  <string name="animation_scale_decrease">減少0.01</string>
+  <string name="animation_scale_increase">增加0.01</string>
+  <string name="animation_scale_value">動畫縮放</string>
+  <string name="animation_scale_save">儲存</string>
+  <string name="animation_scale_default">預設值</string>
+  <string name="animation_scale_invalid">請輸入0.00至10.00，最多兩位小數。</string>
+  <string name="animation_scale_failed">無法儲存，請重試。</string>
 </resources>
