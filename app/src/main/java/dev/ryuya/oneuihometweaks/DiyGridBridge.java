@@ -669,13 +669,14 @@ final class DiyGridBridge {
           if (slot != null) count++;
         }
       }
-      if (!failed)
-        report(
-            !enabled
-                ? "off"
-                : count > 0
-                    ? "active icons=" + count
-                    : invalidGeometry > 0 ? "waiting: native grid geometry mismatch" : "waiting");
+      if (!failed) {
+        String next;
+        if (!enabled) next = "off";
+        else if (count > 0) next = "active icons=" + count;
+        else if (invalidGeometry > 0) next = "waiting: native grid geometry mismatch";
+        else next = "waiting";
+        report(next);
+      }
     } catch (Throwable error) {
       disable(error);
     } finally {
