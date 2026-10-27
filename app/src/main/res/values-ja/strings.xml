@@ -53,7 +53,7 @@
   <string name="clear_guard_note">rootでこのモジュールの保護ファイルだけを削除します。原因を確認してから、停止したプロセスを起動し直してください。</string>
   <string name="guard_reset_done">保護を解除しました。対象プロセスを起動し直すと再試行します。</string>
   <string name="guard_reset_failed">保護を解除できませんでした。root権限を確認してください。</string>
-  <string name="help_text">必要なスコープ：文字色・アプリ履歴・ページ通知はOne UI Home、音量・クイックパネルはSystem UI、プレビューは壁紙とスタイルです。\n\n確認環境：SM-S948Q、Android 16、One UI Home 17.5.03.27、Vector 2.2。構造が確認できない機能は適用しません。Android 17は専用の互換処理を使います。それ以降の版は再調査が必要です。\n\nホームの自動色は壁紙の黒文字ヒントに従います。色通知がない画像変更は検出できません。\n\n連続した不安定な起動ではフックを停止します。Vector自体の障害や、アプリが接続される前の障害を防ぐ機能ではありません。</string>
+  <string name="help_text">アニメーション倍率の入力には「設定」も対象に追加します。必要なスコープ：文字色・アプリ履歴・ページ通知はOne UI Home、音量・クイックパネルはSystem UI、プレビューは壁紙とスタイルです。\n\n確認環境：SM-S948Q、Android 16、One UI Home 17.5.03.27、Vector 2.2。構造が確認できない機能は適用しません。Android 17は専用の互換処理を使います。それ以降の版は再調査が必要です。\n\nホームの自動色は壁紙の黒文字ヒントに従います。色通知がない画像変更は検出できません。\n\n連続した不安定な起動ではフックを停止します。Vector自体の障害や、アプリが接続される前の障害を防ぐ機能ではありません。</string>
   <string name="status_details">詳細</string>
   <string name="scope_home">One UI Home</string>
   <string name="scope_volume">System UI</string>
@@ -110,4 +110,16 @@
   <string name="focus_dispatched">設定送信済み（通知は未検証）</string>
   <string name="folder_return">アプリを閉じたらフォルダ内へ戻る</string>
   <string name="folder_return_note">ONではホームジェスチャーで起動元のフォルダへ戻ります。OFFではフォルダを閉じたホームへ戻ります。次のホームジェスチャーから反映され、ホームの変更をOFFにすると純正の動作へ戻ります。</string>
+
+  <string name="scope_settings">開発者向けアニメーション倍率</string>
+  <string name="animation_scale_note">開発者向けオプションの3種類の倍率を0.01刻みで設定します。Vectorの対象に「設定」を追加し、設定アプリを開き直してください。この機能はAndroid 17 / One UI 9 BZI9に対応します。OFFでは保存値を保ったまま標準の選択画面へ戻ります。</string>
+  <string name="open_developer_options">開発者向けオプションを開く</string>
+  <string name="animation_scale_hint">0.00〜10.00倍を0.01刻みで指定できます。小さいほど速く、0でアニメーションを無効にします。保存するまで反映しません。</string>
+  <string name="animation_scale_decrease">0.01下げる</string>
+  <string name="animation_scale_increase">0.01上げる</string>
+  <string name="animation_scale_value">アニメーション倍率</string>
+  <string name="animation_scale_save">保存</string>
+  <string name="animation_scale_default">標準値</string>
+  <string name="animation_scale_invalid">0.00〜10.00を小数点以下2桁以内で入力してください。</string>
+  <string name="animation_scale_failed">保存できませんでした。もう一度お試しください。</string>
 </resources>

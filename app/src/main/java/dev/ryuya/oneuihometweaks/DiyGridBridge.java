@@ -52,6 +52,7 @@ final class DiyGridBridge {
     if (owners.size() != 1) throw new IllegalStateException("Ambiguous home model");
     State state = owners.iterator().next();
     state.capture();
+    if (!state.valid()) throw new IllegalStateException("Home grid geometry is not ready");
     state.dirty = true;
     state.plan();
     Object vm = state.vm.get();
@@ -189,7 +190,15 @@ final class DiyGridBridge {
               + ":"
               + view.getChildCount()
               + ":"
-              + number(view, "getCurrentPage");
+              + number(view, "getCurrentPage")
+              + ":"
+              + view.getResources().getConfiguration().orientation
+              + ":"
+              + view.getResources().getConfiguration().screenWidthDp
+              + ":"
+              + view.getResources().getConfiguration().screenHeightDp
+              + ":"
+              + view.getResources().getConfiguration().densityDpi;
       if (!replaced && key.equals(observedGeometry)) return;
       observedGeometry = key;
       collect(view);
@@ -243,6 +252,9 @@ final class DiyGridBridge {
                 Method items = vm.getDeclaredMethod("getItems");
                 Method geometry = vm.getDeclaredMethod("getItemPositionData");
                 geometry.setAccessible(true);
+                if (geometry.getReturnType().getDeclaredMethod("isLand").getReturnType()
+                    != boolean.class)
+                  throw new UnsupportedOperationException("DIY geometry orientation changed");
                 params.getDeclaredMethod("setup", Point.class, float.class);
                 model.getDeclaredMethod("getPortX");
                 model.getDeclaredMethod("getPortY");
@@ -590,14 +602,19 @@ final class DiyGridBridge {
   }
 
   private void register(ViewGroup layout) throws ReflectiveOperationException {
-    if (layouts.containsKey(layout)) return;
+    State existing = layouts.get(layout);
+    if (existing != null) {
+      existing.noteViewport(layout);
+      return;
+    }
     Object vm = call(layout, "getViewModel");
     State state = states.get(vm);
     if (state == null) {
-      state = new State(vm, layout.getContext());
+      state = new State(vm, layout);
       states.put(vm, state);
     }
     layouts.put(layout, state);
+    state.noteViewport(layout);
     state.capture();
     queueRender();
   }
@@ -616,13 +633,17 @@ final class DiyGridBridge {
     }
     rendering = true;
     try {
-      int count = 0;
+      int count = 0, invalidGeometry = 0;
       Set<State> captured = Collections.newSetFromMap(new IdentityHashMap<>());
       for (var entry : new ArrayList<>(layouts.entrySet())) {
         ViewGroup layout = entry.getKey();
         State state = entry.getValue();
         if (!layout.isAttachedToWindow()) continue;
         if (captured.add(state)) state.capture();
+        if (enabled && !state.geometryFitsViewport()) {
+          invalidGeometry++;
+          state.reportGeometryMismatch();
+        } else state.lastRejectedGeometry = "";
         boolean use = enabled && !failed && state.valid();
         if (use) state.plan();
         for (var binding : new ArrayList<>(state.models.entrySet())) {
@@ -648,7 +669,14 @@ final class DiyGridBridge {
           if (slot != null) count++;
         }
       }
-      if (!failed) report(!enabled ? "off" : count == 0 ? "waiting" : "active icons=" + count);
+      if (!failed) {
+        String next;
+        if (!enabled) next = "off";
+        else if (count > 0) next = "active icons=" + count;
+        else if (invalidGeometry > 0) next = "waiting: native grid geometry mismatch";
+        else next = "waiting";
+        report(next);
+      }
     } catch (Throwable error) {
       disable(error);
     } finally {
@@ -659,18 +687,62 @@ final class DiyGridBridge {
   private final class State {
     final WeakReference<Object> vm;
     final WeakReference<Context> context;
+    WeakReference<ViewGroup> viewport = new WeakReference<>(null);
     final Map<Integer, WeakReference<Object>> models = new LinkedHashMap<>();
     final Map<Integer, Map<Integer, GridSnapPlan.Slot>> pages = new HashMap<>();
     Map<Integer, GridSnapPlan.Slot> positions = new HashMap<>();
     Map<Integer, GridSnapPlan.Item> sources = new HashMap<>();
     Map<Integer, Integer> sourcePages = new HashMap<>();
     Object geometry;
+    DiyGridGeometry dimensions;
+    String lastRejectedGeometry = "";
     Point grid, cell, offset;
     boolean dirty = true;
 
-    State(Object owner, Context ctx) {
+    State(Object owner, ViewGroup layout) {
       vm = new WeakReference<>(owner);
-      context = new WeakReference<>(ctx);
+      context = new WeakReference<>(layout.getContext());
+      noteViewport(layout);
+    }
+
+    void noteViewport(ViewGroup layout) {
+      ViewGroup current = viewport.get();
+      if (current == null
+          || !current.isAttachedToWindow()
+          || current.getWidth() <= 0
+          || current.getHeight() <= 0) viewport = new WeakReference<>(layout);
+    }
+
+    boolean geometryFitsViewport() {
+      if (dimensions == null) return false;
+      ViewGroup current = viewport.get();
+      if (current == null
+          || !current.isAttachedToWindow()
+          || current.getWidth() <= 0
+          || current.getHeight() <= 0) {
+        // RecyclerView may detach the page that supplied the previous bounds. Reuse an
+        // attached page of this same model, never a preview or a different ViewModel.
+        current = null;
+        for (var entry : layouts.entrySet())
+          if (entry.getValue() == this
+              && entry.getKey().isAttachedToWindow()
+              && entry.getKey().getWidth() > 0
+              && entry.getKey().getHeight() > 0) {
+            current = entry.getKey();
+            viewport = new WeakReference<>(current);
+            break;
+          }
+      }
+      return current != null && dimensions.fits(current.getWidth(), current.getHeight());
+    }
+
+    void reportGeometryMismatch() {
+      ViewGroup current = viewport.get();
+      if (dimensions == null || current == null) return;
+      String signature = dimensions + " viewport=" + current.getWidth() + "x" + current.getHeight();
+      if (signature.equals(lastRejectedGeometry)) return;
+      lastRejectedGeometry = signature;
+      HookEntry.log("DIY_GRID_GEOMETRY_REJECTED " + signature);
     }
 
     boolean valid() throws ReflectiveOperationException {
@@ -685,7 +757,7 @@ final class DiyGridBridge {
               != View.LAYOUT_DIRECTION_LTR) return false;
       Field preview = owner.getClass().getDeclaredField("isPreview");
       preview.setAccessible(true);
-      return !preview.getBoolean(owner);
+      return !preview.getBoolean(owner) && geometryFitsViewport();
     }
 
     void capture() throws ReflectiveOperationException {
@@ -699,12 +771,21 @@ final class DiyGridBridge {
         Object nextGeometry = call(owner, "getItemPositionData");
         Point nextCell = (Point) call(nextGeometry, "getItemSizeBasedOnDefaultGrid");
         Point nextOffset = (Point) call(nextGeometry, "getPositionDiff");
-        if (!nextGrid.equals(grid) || !nextCell.equals(cell) || !nextOffset.equals(offset))
-          dirty = true;
+        DiyGridGeometry nextDimensions =
+            new DiyGridGeometry(
+                nextGrid.x,
+                nextGrid.y,
+                nextCell.x,
+                nextCell.y,
+                nextOffset.x,
+                nextOffset.y,
+                (boolean) call(nextGeometry, "isLand"));
+        if (!nextDimensions.equals(dimensions)) dirty = true;
         grid = new Point(nextGrid);
         cell = new Point(nextCell);
         offset = new Point(nextOffset);
         geometry = nextGeometry;
+        dimensions = nextDimensions;
       } finally {
         gathering = false;
       }

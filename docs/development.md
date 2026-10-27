@@ -108,3 +108,7 @@ adb logcat -s OneUIHomeTweaks:I '*:S'
 - [試験記録](testing.md)
 - [Android 16の互換性](compatibility/android16.md)
 - [Android 17の互換性](compatibility/android17.md)
+
+## 開発者向け倍率入力（0.18.0）
+
+Settingsの追加スコープと実装・試験範囲は[倍率入力の技術記録](developer-animation-scales.md)を参照。Android 17の専用契約として登録し、未検証のAndroid 16へ流用しない。既存のAndroid 16用フック契約は変更しない。

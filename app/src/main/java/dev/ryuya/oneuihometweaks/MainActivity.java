@@ -43,7 +43,8 @@ public final class MainActivity extends AppCompatActivity {
     "recents_live_tile",
     "clock_date_left",
     "diy_icon_grid",
-    "folder_return"
+    "folder_return",
+    "settings_enabled"
   };
   private final int[] switchIds = {
     R.id.master,
@@ -56,7 +57,8 @@ public final class MainActivity extends AppCompatActivity {
     R.id.recents_live_tile,
     R.id.clock_date_left,
     R.id.diy_icon_grid,
-    R.id.folder_return
+    R.id.folder_return,
+    R.id.settings_enabled
   };
   private final ContentObserver reports =
       new ContentObserver(new Handler(Looper.getMainLooper())) {
@@ -296,8 +298,18 @@ public final class MainActivity extends AppCompatActivity {
           uiPrefs.edit().putBoolean("dynamic", on).apply();
           recreate();
         });
+    findViewById(R.id.open_developer_options)
+        .setOnClickListener(
+            v -> {
+              try {
+                startActivity(
+                    new Intent(android.provider.Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS));
+              } catch (ActivityNotFoundException error) {
+                snack(R.string.reload_failed);
+              }
+            });
     LinearLayout cards = findViewById(R.id.status_cards);
-    statusCards = new HookStatusCard[9];
+    statusCards = new HookStatusCard[10];
     int[] titles = {
       R.string.scope_home,
       R.string.volume_theme,
@@ -307,7 +319,8 @@ public final class MainActivity extends AppCompatActivity {
       R.string.clock_date_left,
       R.string.diy_icon_grid,
       R.string.recents_live_tile,
-      R.string.recents_focus_mode
+      R.string.recents_focus_mode,
+      R.string.scope_settings
     };
     for (int i = 0; i < statusCards.length; i++) {
       statusCards[i] = new HookStatusCard(this, titles[i]);
@@ -443,7 +456,9 @@ public final class MainActivity extends AppCompatActivity {
         dateOn && !dateState.isEmpty() ? report.getString(dateKey + ".detail", "") : "");
     for (int i = 0; i < ConfigProvider.HOSTS.length; i++) {
       String host = ConfigProvider.HOSTS[i];
-      boolean on = prefs.getBoolean("enabled", true) && prefs.getBoolean(switches[i + 1], true);
+      boolean on =
+          prefs.getBoolean("enabled", true)
+              && prefs.getBoolean(ConfigProvider.HOST_SWITCHES[i], true);
       String state = report.getString(host + ".state", "");
       long reported = report.getLong(host + ".elapsed", 0);
       // ACTIVE/OFF describe a live process and need a fresh response. Terminal diagnostics remain
@@ -466,7 +481,7 @@ public final class MainActivity extends AppCompatActivity {
                 case "ERROR" -> R.string.status_error;
                 default -> R.string.status_unconfirmed;
               };
-      statusCards[i].update(
+      statusCards[ConfigProvider.HOST_STATUS_CARDS[i]].update(
           label, state, on, on && !state.isEmpty() ? report.getString(host + ".detail", "") : "");
       if (i == 0) {
         String detail = report.getString(host + ".detail", "");

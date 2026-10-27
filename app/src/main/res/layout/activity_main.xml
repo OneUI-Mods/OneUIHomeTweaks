@@ -533,6 +533,24 @@
               android:gravity="start|center_vertical" />
           </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
+        <com.google.android.material.card.MaterialCardView
+          android:layout_width="match_parent" android:layout_height="wrap_content"
+          android:layout_marginBottom="12dp" app:cardCornerRadius="28dp" app:strokeWidth="0dp"
+          app:cardBackgroundColor="?attr/colorSurfaceContainerLow" style="?attr/materialCardViewFilledStyle">
+          <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:padding="20dp">
+            <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/settings_enabled"
+              android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="56dp"
+              android:text="@string/scope_settings" android:textAppearance="@style/TextAppearance.Material3.TitleMedium" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+              android:text="@string/animation_scale_note" android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+              android:layout_marginTop="8dp" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/open_developer_options"
+              android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="52dp"
+              android:text="@string/open_developer_options" android:layout_marginTop="12dp"
+              style="@style/Widget.Material3.Button.TonalButton" />
+          </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
         <TextView
           android:layout_width="match_parent"
           android:layout_height="wrap_content"

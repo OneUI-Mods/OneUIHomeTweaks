@@ -12,8 +12,16 @@ public final class ConfigProvider extends ContentProvider {
   private volatile IBinder quickPanelPreview;
   static final String PREFS = "modes";
   static final String[] HOSTS = {
-    "com.sec.android.app.launcher", "com.android.systemui", "com.samsung.android.app.dressroom"
+    "com.sec.android.app.launcher",
+    "com.android.systemui",
+    "com.samsung.android.app.dressroom",
+    "com.android.settings"
   };
+
+  static final String[] HOST_SWITCHES = {
+    "home_enabled", "systemui_enabled", "preview_enabled", "settings_enabled"
+  };
+  static final int[] HOST_STATUS_CARDS = {0, 1, 2, 9};
 
   @Override
   public boolean onCreate() {
@@ -64,7 +72,8 @@ public final class ConfigProvider extends ContentProvider {
               "qs_dark",
               "qs_sound",
               "qs_legacy_design",
-              "folder_return"
+              "folder_return",
+              "settings_enabled"
             });
     c.addRow(
         new Object[] {
@@ -90,7 +99,8 @@ public final class ConfigProvider extends ContentProvider {
           QuickPanelPolicy.percent(p.getInt("qs_dark", 100)),
           QuickPanelPolicy.percent(p.getInt("qs_sound", 100)),
           p.getBoolean("qs_legacy_design", false) ? 1 : 0,
-          p.getBoolean("folder_return", true) ? 1 : 0
+          p.getBoolean("folder_return", true) ? 1 : 0,
+          p.getBoolean("settings_enabled", true) ? 1 : 0
         });
     return c;
   }

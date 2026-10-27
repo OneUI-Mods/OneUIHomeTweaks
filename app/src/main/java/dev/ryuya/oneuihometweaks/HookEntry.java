@@ -151,6 +151,8 @@ public final class HookEntry extends XposedModule {
                 new QuickPanelHooks().install(app, p.classLoader);
                 new ClockDateHooks().install(app, p.classLoader);
                 new VolumeHooks().install(app, p.classLoader);
+              } else if ("com.android.settings".equals(p.packageName)) {
+                new DeveloperAnimationHooks().install(app, p.classLoader);
               } else new PreviewHooks().install(app, p.classLoader);
               new Handler(Looper.getMainLooper()).postDelayed(guard::healthy, 90000);
             } catch (Throwable t) {
