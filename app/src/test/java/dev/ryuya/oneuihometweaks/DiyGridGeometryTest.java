@@ -23,6 +23,7 @@ public final class DiyGridGeometryTest {
     assertTrue(unchecked.values().stream().anyMatch(slot -> slot.x() > 1330));
     assertFalse(new DiyGridGeometry(7, 7, 394, 117, 0, 0, false).fits(1330, 2375));
     assertFalse(new DiyGridGeometry(7, 7, 394, 117, 110, -21, false).fits(1330, 2375));
+    assertFalse(new DiyGridGeometry(7, 7, 394, 117, 58, -77, false).fits(1330, 2375));
   }
 
   @Test
