@@ -25,3 +25,11 @@ The journal uses four rotating ~1 MiB app-private files. In-memory backlog is bo
 ## Validation
 
 JVM cases cover the observed portrait/landscape cutout mismatch, all four settled orientations, mismatched window sizes and zero bounds. The package workflow also runs the existing JVM suite and release Lint. Device validation is command-only: installation, launcher-only restart, load/journal state and measured geometry. No injected input or forced rotation is authorized for this session; repeated real rotation/drag behavior remains a later manual regression check.
+
+### Command-only device result (2026-10-28)
+
+Signed release 0.19.0 was installed over the existing package. Launcher was restarted without changing SystemUI/system_server processes. The final session emitted `ready`, `repository_observed`, `layout_deferred`, and `callsites_ready` (28 callsites across host/plugin). Native repository writes were captured with item geometry and the `onLoadPartialComplete` caller path. No `repair_disabled`/`unsupported` event occurred in the final session.
+
+While the phone remained Dozing, measured FreeGrid pages were 0×0. The pending update therefore emitted `layout_abandoned` without running the deferred sanitation. No wake/unlock, input injection, forced rotation, DB restoration or preference changes were performed. Live widget reapplication, repeated rotation and the diagnostics screen/export have not been visually exercised in this restricted session. JVM suite: 115 tests, zero failures/errors/skips; release Lint and signed package validation passed.
+
+Raw DEX signatures take precedence over decompiler aliases: the VM accessor is `isPreview`, and `getViewModel` / `getBaseCellSize` are private. The host WindowBounds implementation belongs to the launcher loader; FreeGrid contracts belong to the dynamic Home Up loader.
