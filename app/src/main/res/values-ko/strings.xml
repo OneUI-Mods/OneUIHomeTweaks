@@ -123,7 +123,7 @@
   <string name="animation_scale_invalid">0.00~10.00을 소수점 둘째 자리까지 입력하세요.</string>
   <string name="animation_scale_failed">저장하지 못했습니다. 다시 시도하세요.</string>
     <string name="layout_diagnostics">배치 보호 및 진단</string>
-    <string name="layout_note">회전 중 임시 크기로 DIY Home 배치가 저장되는 것을 막고 안정된 크기로 위젯을 다시 표시합니다. 지원되는 Android 17 / One UI 9 BZI9 버전이 필요합니다. 이미 저장된 위치 변경은 자동으로 되돌리지 않습니다.</string>
+    <string name="layout_note">회전 중 임시 크기로 DIY Home 배치가 저장되는 것을 막고 안정된 상태에서 기본 배치 보정을 진행합니다. 지원되는 Android 17 / One UI 9 BZI9 버전이 필요합니다. 이미 저장된 위치 변경은 자동으로 되돌리지 않습니다.</string>
     <string name="layout_protect">회전 시 배치 보호</string>
     <string name="layout_logging">진단 로그 저장</string>
     <string name="layout_privacy">방향, 크기, 항목 ID와 좌표, 배치 변경 호출 경로, 홈 화면의 탭과 스와이프, 실행한 앱 구성요소를 기록합니다. 스크린샷, 입력 문자, 알림 내용은 저장하지 않습니다. 기기에 약 4MB까지 보관하며 오래된 로그부터 삭제합니다. 자동으로 외부에 전송하지 않습니다.</string>

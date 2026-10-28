@@ -123,7 +123,7 @@
   <string name="animation_scale_invalid">请输入0.00至10.00，最多两位小数。</string>
   <string name="animation_scale_failed">无法保存，请重试。</string>
     <string name="layout_diagnostics">布局保护与诊断</string>
-    <string name="layout_note">防止在旋转期间使用临时尺寸保存 DIY Home 布局，并在布局稳定后重新应用小组件尺寸。需要受支持的 Android 17 / One UI 9 BZI9 版本。不会自动还原已保存的位置更改。</string>
+    <string name="layout_note">防止在旋转期间使用临时尺寸保存 DIY Home 布局。需要受支持的 Android 17 / One UI 9 BZI9 版本。不会自动还原已保存的位置更改。</string>
     <string name="layout_protect">旋转时保护布局</string>
     <string name="layout_logging">保存诊断日志</string>
     <string name="layout_privacy">记录方向、尺寸、项目 ID 和坐标、布局更改的调用来源、主屏幕上的点击和滑动以及启动的应用组件。不保存截图、输入文字或通知内容。仅在设备上保留约 4MB，优先删除旧日志。不会自动上传。</string>
