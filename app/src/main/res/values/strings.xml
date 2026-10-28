@@ -122,4 +122,14 @@
   <string name="animation_scale_default">Default</string>
   <string name="animation_scale_invalid">Enter 0.00–10.00 with up to two decimal places.</string>
   <string name="animation_scale_failed">Could not save. Please try again.</string>
+    <string name="layout_diagnostics">Layout protection and diagnostics</string>
+    <string name="layout_note">Protect DIY Home from temporary rotation dimensions and refresh widget sizes after the layout settles. Requires the supported Android 17 / One UI 9 BZI9 build. Previously saved position changes are not automatically reverted.</string>
+    <string name="layout_protect">Protect layout during rotation</string>
+    <string name="layout_logging">Save diagnostic logs</string>
+    <string name="layout_privacy">Records orientation, sizes, item IDs and coordinates, layout callers, home taps and swipes, and launched app components. No screenshots, typed text or notification contents. Up to about 4 MB is kept locally, replacing oldest logs. Nothing is uploaded automatically.</string>
+    <string name="layout_share">Share diagnostic logs</string>
+    <string name="layout_clear">Delete logs</string>
+    <string name="layout_clear_confirm">Delete saved diagnostic logs?</string>
+    <string name="layout_log_size">Saved: %1$d KB / limit about 4 MB</string>
+    <string name="layout_io_error">Unable to read or write diagnostic logs</string>
 </resources>

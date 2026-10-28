@@ -208,6 +208,13 @@
               android:text="@string/diy_icon_grid"
               android:textAppearance="@style/TextAppearance.Material3.TitleMedium" />
             <com.google.android.material.button.MaterialButton
+              android:id="@+id/layout_diagnostics"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:minHeight="52dp"
+              android:text="@string/layout_diagnostics"
+              style="@style/Widget.Material3.Button.TonalButton" />
+            <com.google.android.material.button.MaterialButton
               android:id="@+id/diy_note_button"
               android:layout_width="match_parent"
               android:layout_height="wrap_content"

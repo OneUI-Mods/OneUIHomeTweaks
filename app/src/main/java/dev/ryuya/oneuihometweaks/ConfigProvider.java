@@ -107,6 +107,28 @@ public final class ConfigProvider extends ContentProvider {
 
   @Override
   public Bundle call(String method, String arg, Bundle extras) {
+    if ("layout_config".equals(method) || "layout_append".equals(method)) {
+      if (Binder.getCallingUid() != android.os.Process.myUid()
+          && !HookEntry.LAUNCHER.equals(hostCaller())) throw new SecurityException("Launcher only");
+      if ("layout_config".equals(method)) {
+        var prefs = getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        Bundle config = new Bundle();
+        config.putBoolean(
+            "protect",
+            prefs.getBoolean("enabled", true)
+                && prefs.getBoolean("home_enabled", true)
+                && prefs.getBoolean("layout_protect", true));
+        config.putBoolean("logging", prefs.getBoolean("layout_logging", true));
+        return config;
+      }
+      try {
+        HomeLayoutJournal.append(getContext(), extras == null ? null : extras.getString("records"));
+        return Bundle.EMPTY;
+      } catch (java.io.IOException error) {
+        throw new IllegalStateException("Journal unavailable", error);
+      }
+    }
+
     if (QuickPanelPreviewIpc.REGISTER.equals(method)) {
       if (!"com.android.systemui".equals(hostCaller()))
         throw new SecurityException("SystemUI only");

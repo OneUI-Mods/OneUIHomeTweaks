@@ -34,6 +34,7 @@ public final class HookEntry extends XposedModule {
   private Context context;
   private WallpaperManager wm;
   private final PageBridge pages = new PageBridge();
+  private final HomeLayoutGuard homeLayout = new HomeLayoutGuard();
   private final DiyGridBridge diyGrid = new DiyGridBridge();
   private final GridSaveCoordinator gridSave = new GridSaveCoordinator(diyGrid);
   private final DrawerBridge drawer = new DrawerBridge();
@@ -55,7 +56,11 @@ public final class HookEntry extends XposedModule {
   @Override
   public void onModuleLoaded(XposedModuleInterface.ModuleLoadedParam param) {
     ModernHook.attach(this);
-    pages.setFreeGridObserver(diyGrid::observe);
+    pages.setFreeGridObserver(
+        view -> {
+          homeLayout.observe(view);
+          diyGrid.observe(view);
+        });
     diyGrid.setChanged(this::requestRefresh);
     processName = param.getProcessName();
     log(
@@ -146,8 +151,10 @@ public final class HookEntry extends XposedModule {
                 log("CRASH_GUARD blocked " + p.packageName);
                 return;
               }
-              if (LAUNCHER.equals(p.packageName)) installLauncher(p, app);
-              else if ("com.android.systemui".equals(p.packageName)) {
+              if (LAUNCHER.equals(p.packageName)) {
+                homeLayout.start(app);
+                installLauncher(p, app);
+              } else if ("com.android.systemui".equals(p.packageName)) {
                 new QuickPanelHooks().install(app, p.classLoader);
                 new ClockDateHooks().install(app, p.classLoader);
                 new VolumeHooks().install(app, p.classLoader);

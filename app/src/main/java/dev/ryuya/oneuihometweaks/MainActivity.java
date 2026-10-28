@@ -94,6 +94,8 @@ public final class MainActivity extends AppCompatActivity {
     controller.setAppearanceLightNavigationBars(!night);
     prefs = getSharedPreferences(ConfigProvider.PREFS, MODE_PRIVATE);
     if (prefs.contains("recents_portrait")) prefs.edit().remove("recents_portrait").apply();
+    findViewById(R.id.layout_diagnostics)
+        .setOnClickListener(view -> startActivity(new Intent(this, HomeLayoutActivity.class)));
     for (int i = 0; i < modeIds.length; i++) {
       final int index = i;
       String[] labels =
