@@ -89,7 +89,7 @@ final class HomeLayoutGuard {
       Set<Object> owners = Collections.newSetFromMap(new IdentityHashMap<>());
       for (ViewGroup layout : new ArrayList<>(layouts)) {
         Object vm = call(layout, "getViewModel");
-        if (Boolean.TRUE.equals(call(vm, "getIsPreview"))) continue;
+        if (Boolean.TRUE.equals(call(vm, "isPreview"))) continue;
         observeRepository(vm);
         if (enabled && owners.add(vm)) updateAll.invoke(vm);
       }
@@ -125,6 +125,7 @@ final class HomeLayoutGuard {
       Class<?> bounds = Class.forName("z5.b", false, app.getClassLoader());
       Method updateBounds = bounds.getDeclaredMethod("j", Context.class, WindowInsets.class);
       getBounds = bounds.getDeclaredMethod("b", android.content.res.Configuration.class);
+      getBounds.setAccessible(true);
       Class<?> vm =
           Class.forName(
               "com.honeyspace.ui.honeypots.freegrid.viewmodel.FreeGridViewModel", false, loader);
@@ -138,12 +139,16 @@ final class HomeLayoutGuard {
               "com.honeyspace.ui.honeypots.freegrid.domain.model.FreeGridItem", false, loader);
       spannableType = Class.forName("com.honeyspace.common.widget.SpannableView", false, loader);
       updateAll = vm.getDeclaredMethod("updateAllItemByLayoutChanged");
+      updateAll.setAccessible(true);
       createParams = layout.getDeclaredMethod("createLayoutParams", itemType);
       updateStyle =
           layout.getDeclaredMethod(
               "updateItemStyle", View.class, itemType, float.class, boolean.class);
+      createParams.setAccessible(true);
+      updateStyle.setAccessible(true);
       vm.getDeclaredMethod("getBaseCellSize");
       vm.getDeclaredField("uiContext");
+      vm.getDeclaredMethod("isPreview");
       // Resolve every repair contract before intercepting any behavior.
       hookBounds(updateBounds);
       hookLayoutUpdate();
@@ -166,7 +171,9 @@ final class HomeLayoutGuard {
           () -> {
             try {
               int count = DexEvidence.deoptimizeLayoutCalls(apk, loader);
-                  count += DexEvidence.deoptimizeLayoutCalls(app.getApplicationInfo().sourceDir, app.getClassLoader());
+              count +=
+                  DexEvidence.deoptimizeLayoutCalls(
+                      app.getApplicationInfo().sourceDir, app.getClassLoader());
               record("callsites_ready", "count", count);
             } catch (Throwable error) {
               main.post(() -> disableRepair(error));
@@ -247,7 +254,7 @@ final class HomeLayoutGuard {
                 if (!enabled || stopped || replaying || Looper.myLooper() != Looper.getMainLooper())
                   return;
                 try {
-                  if (Boolean.TRUE.equals(call(p.thisObject, "getIsPreview"))) return;
+                  if (Boolean.TRUE.equals(call(p.thisObject, "isPreview"))) return;
                   observeRepository(p.thisObject);
                   Pending state = pending.get(p.thisObject);
                   if (state == null) {
@@ -282,8 +289,11 @@ final class HomeLayoutGuard {
               protected void beforeHookedMethod(ModernHook.Param p) {
                 try {
                   Context context = (Context) p.args[0];
-                  boolean valid = metricsValid(context) && nativeGeometryValid(context)
-                  && SystemClock.uptimeMillis() - geometryChanged >= HomeLayoutPolicy.SETTLE_MS;
+                  boolean valid =
+                      metricsValid(context)
+                          && nativeGeometryValid(context)
+                          && SystemClock.uptimeMillis() - geometryChanged
+                              >= HomeLayoutPolicy.SETTLE_MS;
                   record(
                       "sanitize",
                       "reason",
@@ -688,7 +698,9 @@ final class HomeLayoutGuard {
         Method method = type.getDeclaredMethod(name);
         method.setAccessible(true);
         return method.invoke(owner);
-      } catch (NoSuchMethodException missing) { type = type.getSuperclass(); }
+      } catch (NoSuchMethodException missing) {
+        type = type.getSuperclass();
+      }
     }
     throw new NoSuchMethodException(owner.getClass().getName() + "." + name);
   }
@@ -696,7 +708,10 @@ final class HomeLayoutGuard {
   private static Method named(Class<?> type, String name, int parameters)
       throws NoSuchMethodException {
     for (Method method : type.getDeclaredMethods())
-      if (method.getName().equals(name) && method.getParameterCount() == parameters) return method;
+      if (method.getName().equals(name) && method.getParameterCount() == parameters) {
+        method.setAccessible(true);
+        return method;
+      }
     throw new NoSuchMethodException(name);
   }
 
