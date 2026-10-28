@@ -538,7 +538,7 @@ final class HomeLayoutGuard {
   private void activity(Activity activity, String event) {
     record(
         "activity",
-        "event",
+        "phase",
         event,
         "class",
         activity.getClass().getName(),
@@ -682,9 +682,15 @@ final class HomeLayoutGuard {
   }
 
   private static Object call(Object owner, String name) throws ReflectiveOperationException {
-    Method method = owner.getClass().getMethod(name);
-    method.setAccessible(true);
-    return method.invoke(owner);
+    Class<?> type = owner.getClass();
+    while (type != null) {
+      try {
+        Method method = type.getDeclaredMethod(name);
+        method.setAccessible(true);
+        return method.invoke(owner);
+      } catch (NoSuchMethodException missing) { type = type.getSuperclass(); }
+    }
+    throw new NoSuchMethodException(owner.getClass().getName() + "." + name);
   }
 
   private static Method named(Class<?> type, String name, int parameters)
