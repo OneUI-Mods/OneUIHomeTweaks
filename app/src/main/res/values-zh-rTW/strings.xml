@@ -122,4 +122,14 @@
   <string name="animation_scale_default">預設值</string>
   <string name="animation_scale_invalid">請輸入0.00至10.00，最多兩位小數。</string>
   <string name="animation_scale_failed">無法儲存，請重試。</string>
+    <string name="layout_diagnostics">版面保護與診斷</string>
+    <string name="layout_note">防止在旋轉期間以暫時尺寸儲存 DIY Home 版面，並在版面穩定後重新套用小工具尺寸。需要支援的 Android 17 / One UI 9 BZI9 版本。不會自動還原已儲存的位置變更。</string>
+    <string name="layout_protect">旋轉時保護版面</string>
+    <string name="layout_logging">儲存診斷記錄</string>
+    <string name="layout_privacy">記錄方向、尺寸、項目 ID 與座標、版面變更的呼叫來源、主畫面的點選和滑動，以及啟動的應用程式元件。不儲存螢幕截圖、輸入文字或通知內容。僅在裝置上保留約 4MB，優先刪除舊記錄。不會自動上傳。</string>
+    <string name="layout_share">分享診斷記錄</string>
+    <string name="layout_clear">刪除記錄</string>
+    <string name="layout_clear_confirm">刪除已儲存的診斷記錄？</string>
+    <string name="layout_log_size">已儲存：%1$d KB / 上限約 4MB</string>
+    <string name="layout_io_error">無法讀寫診斷記錄</string>
 </resources>

@@ -110,6 +110,48 @@ final class DexEvidence {
     return matches.get(0);
   }
 
+  /** Prevent compiled native callers from bypassing the layout guard and write journal. */
+  static int deoptimizeLayoutCalls(String apk, ClassLoader loader) throws Exception {
+    Set<String> targets =
+        Set.of(
+            "Lz5/b;#j",
+            "Lcom/honeyspace/ui/honeypots/freegrid/viewmodel/FreeGridViewModel;#updateAllItemByLayoutChanged",
+            "Lcom/honeyspace/ui/honeypots/freegrid/domain/model/FreeGridDataSanitizer;#sanitizeOnCellLayoutSizeChanged",
+            "Lcom/honeyspace/ui/honeypots/freegrid/domain/repository/FreeGridRepository;#update");
+    Set<java.lang.reflect.Executable> callers = new HashSet<>();
+    var dex = DexFileFactory.loadDexContainer(new File(apk), Opcodes.getDefault());
+    for (String entry : dex.getDexEntryNames())
+      for (ClassDef type : dex.getEntry(entry).getDexFile().getClasses()) {
+        Set<String> names = new HashSet<>();
+        for (var method : type.getMethods()) {
+          if (method.getImplementation() == null) continue;
+          for (var instruction : method.getImplementation().getInstructions())
+            if (instruction instanceof ReferenceInstruction refInstruction
+                && refInstruction.getReference() instanceof MethodReference ref
+                && targets.contains(ref.getDefiningClass() + "#" + ref.getName()))
+              names.add(method.getName());
+        }
+        if (names.isEmpty()) continue;
+        Class<?> actual =
+            Class.forName(
+                type.getType().substring(1, type.getType().length() - 1).replace('/', '.'),
+                false,
+                loader);
+        if (names.contains("<init>"))
+          callers.addAll(Arrays.asList(actual.getDeclaredConstructors()));
+        for (var method : actual.getDeclaredMethods())
+          if (names.contains(method.getName())
+              && !Modifier.isAbstract(method.getModifiers())
+              && !Modifier.isNative(method.getModifiers())) callers.add(method);
+      }
+    if (callers.isEmpty() || callers.size() > 160)
+      throw new UnsupportedOperationException("Layout caller contract changed");
+    for (var caller : callers)
+      if (!ModernHook.deoptimize(caller))
+        throw new UnsupportedOperationException("Layout caller deoptimization unavailable");
+    return callers.size();
+  }
+
   static void deoptimizeDiyPositions(String apk, ClassLoader loader) throws Exception {
     Set<java.lang.reflect.Executable> callers = new HashSet<>();
     var dex = DexFileFactory.loadDexContainer(new File(apk), Opcodes.getDefault());
