@@ -122,7 +122,7 @@ final class HomeLayoutGuard {
               != 1800005036L)
         throw new UnsupportedOperationException(
             "No reviewed layout-repair profile for this launcher");
-      Class<?> bounds = Class.forName("z5.b", false, loader);
+      Class<?> bounds = Class.forName("z5.b", false, app.getClassLoader());
       Method updateBounds = bounds.getDeclaredMethod("j", Context.class, WindowInsets.class);
       getBounds = bounds.getDeclaredMethod("b", android.content.res.Configuration.class);
       Class<?> vm =
@@ -166,6 +166,7 @@ final class HomeLayoutGuard {
           () -> {
             try {
               int count = DexEvidence.deoptimizeLayoutCalls(apk, loader);
+                  count += DexEvidence.deoptimizeLayoutCalls(app.getApplicationInfo().sourceDir, app.getClassLoader());
               record("callsites_ready", "count", count);
             } catch (Throwable error) {
               main.post(() -> disableRepair(error));
@@ -281,7 +282,8 @@ final class HomeLayoutGuard {
               protected void beforeHookedMethod(ModernHook.Param p) {
                 try {
                   Context context = (Context) p.args[0];
-                  boolean valid = metricsValid(context);
+                  boolean valid = metricsValid(context) && nativeGeometryValid(context)
+                  && SystemClock.uptimeMillis() - geometryChanged >= HomeLayoutPolicy.SETTLE_MS;
                   record(
                       "sanitize",
                       "reason",
