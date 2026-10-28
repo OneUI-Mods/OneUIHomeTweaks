@@ -26,8 +26,8 @@ final class HomeLayoutGuard {
   private final ArrayDeque<String> journal = new ArrayDeque<>();
   private Application app;
   private Handler io;
-  private Class<?> itemType, spannableType;
-  private Method updateAll, createParams, updateStyle, getBounds;
+  private Class<?> itemType;
+  private Method updateAll, getBounds;
   private volatile boolean enabled = true, logging = true;
   private boolean replaying, installing, installed;
   private volatile boolean stopped;
@@ -37,7 +37,8 @@ final class HomeLayoutGuard {
   private long sequence, geometryChanged, dropped;
   private String geometry = "";
   private WeakReference<Object> nativeBounds = new WeakReference<>(null);
-  private boolean touchDown;
+  private boolean touchDown, launcherResumed, recentsResumed;
+  private final Set<Activity> resumedActivities = Collections.newSetFromMap(new WeakHashMap<>());
   private final String session = UUID.randomUUID().toString();
   private final Runnable drain = this::flush;
 
@@ -58,6 +59,37 @@ final class HomeLayoutGuard {
                 readConfig();
               }
             });
+    app.registerActivityLifecycleCallbacks(
+        new Application.ActivityLifecycleCallbacks() {
+          @Override
+          public void onActivityResumed(Activity a) {
+            activity(a, "resumed");
+          }
+
+          @Override
+          public void onActivityPaused(Activity a) {
+            activity(a, "paused");
+          }
+
+          @Override
+          public void onActivityCreated(Activity a, Bundle b) {
+            activity(a, "created");
+          }
+
+          @Override
+          public void onActivityDestroyed(Activity a) {
+            activity(a, "destroyed");
+          }
+
+          @Override
+          public void onActivityStarted(Activity a) {}
+
+          @Override
+          public void onActivityStopped(Activity a) {}
+
+          @Override
+          public void onActivitySaveInstanceState(Activity a, Bundle b) {}
+        });
     io.post(drain);
   }
 
@@ -86,12 +118,11 @@ final class HomeLayoutGuard {
       if (key.equals(observed)) return;
       observed = key;
       collectLayouts(workspace);
-      Set<Object> owners = Collections.newSetFromMap(new IdentityHashMap<>());
+
       for (ViewGroup layout : new ArrayList<>(layouts)) {
         Object vm = call(layout, "getViewModel");
         if (Boolean.TRUE.equals(call(vm, "isPreview"))) continue;
         observeRepository(vm);
-        if (enabled && owners.add(vm)) updateAll.invoke(vm);
       }
     } catch (Throwable error) {
       disableRepair(error);
@@ -137,16 +168,8 @@ final class HomeLayoutGuard {
       itemType =
           Class.forName(
               "com.honeyspace.ui.honeypots.freegrid.domain.model.FreeGridItem", false, loader);
-      spannableType = Class.forName("com.honeyspace.common.widget.SpannableView", false, loader);
       updateAll = vm.getDeclaredMethod("updateAllItemByLayoutChanged");
       updateAll.setAccessible(true);
-      createParams = layout.getDeclaredMethod("createLayoutParams", itemType);
-      updateStyle =
-          layout.getDeclaredMethod(
-              "updateItemStyle", View.class, itemType, float.class, boolean.class);
-      createParams.setAccessible(true);
-      updateStyle.setAccessible(true);
-      vm.getDeclaredMethod("getBaseCellSize");
       vm.getDeclaredField("uiContext");
       vm.getDeclaredMethod("isPreview");
       // Resolve every repair contract before intercepting any behavior.
@@ -198,6 +221,11 @@ final class HomeLayoutGuard {
               @Override
               protected void beforeHookedMethod(ModernHook.Param p) {
                 try {
+                  String windowName = String.valueOf(call(p.thisObject, "getName"));
+                  if (!(app.getPackageName() + ".Launcher").equals(windowName)) {
+                    record("other_window", "name", windowName);
+                    return;
+                  }
                   nativeBounds = new WeakReference<>(p.thisObject);
                   Context context = (Context) p.args[0];
                   Rect bounds = configurationBounds(context);
@@ -290,7 +318,8 @@ final class HomeLayoutGuard {
                 try {
                   Context context = (Context) p.args[0];
                   boolean valid =
-                      metricsValid(context)
+                      !recentsResumed
+                          && metricsValid(context)
                           && nativeGeometryValid(context)
                           && SystemClock.uptimeMillis() - geometryChanged
                               >= HomeLayoutPolicy.SETTLE_MS;
@@ -346,6 +375,12 @@ final class HomeLayoutGuard {
       Object vm = owner.get();
       if (vm == null) return;
       try {
+        if (enabled && !stopped && (!launcherResumed || recentsResumed)) {
+          started = 0;
+          record(
+              "layout_wait_home", "homeResumed", launcherResumed, "recentsResumed", recentsResumed);
+          return;
+        }
         Context context = uiContext(vm);
         Point current = new Point((Point) call(vm, "getCellLayoutSize"));
         boolean stable =
@@ -355,10 +390,24 @@ final class HomeLayoutGuard {
                 && nativeGeometryValid(context)
                 && measuredGeometryValid(vm, current)
                 && !touchDown;
+        stable =
+            HomeLayoutPolicy.canApply(launcherResumed, recentsResumed, focusedHome(vm), stable);
         if (enabled && !stopped && !stable) {
           if (SystemClock.uptimeMillis() - started >= HomeLayoutPolicy.MAX_WAIT_MS) {
             record(
-                "layout_abandoned", "size", current, "reason", "geometry did not settle; no write");
+                "layout_abandoned",
+                "size",
+                current,
+                "reason",
+                "geometry did not settle; no write",
+                "homeResumed",
+                launcherResumed,
+                "recentsResumed",
+                recentsResumed,
+                "measured",
+                measuredSizes(vm),
+                "focused",
+                focusedHome(vm));
             pending.remove(vm);
             return;
           }
@@ -370,7 +419,7 @@ final class HomeLayoutGuard {
         replaying = true;
         try {
           updateAll.invoke(vm);
-          if (enabled && !stopped) refreshWidgets(vm, context);
+
           record("layout_applied", "size", current);
         } finally {
           replaying = false;
@@ -381,72 +430,8 @@ final class HomeLayoutGuard {
     }
   }
 
-  private void refreshWidgets(Object vm, Context context) throws ReflectiveOperationException {
-    Object style = call(vm, "getItemLayoutStyle");
-    Object option = call(call(vm, "getCommonStyleOption"), "getValue");
-    Method refresh = named(style.getClass(), "updateCommonItemStyle", 4);
-    refresh.invoke(style, option, call(vm, "getBaseCellSize"), context, "HomeLayoutGuard-stable");
-    Map<Integer, Object> items = new HashMap<>();
-    for (Object item : (Iterable<?>) call(vm, "getItems")) items.put(number(item, "getId"), item);
-    int count = 0;
-    for (ViewGroup layout : new ArrayList<>(layouts)) {
-      if (!layout.isAttachedToWindow() || call(layout, "getViewModel") != vm) continue;
-      for (int i = 0; i < layout.getChildCount(); i++) {
-        View view = layout.getChildAt(i);
-        if (!spannableType.isInstance(view)) continue;
-        Object item = items.get(number(view, "getItemId"));
-        if (item == null || !item.getClass().getSimpleName().contains("Widget")) continue;
-        ViewGroup.LayoutParams params = (ViewGroup.LayoutParams) createParams.invoke(layout, item);
-        updateStyle.invoke(
-            layout, view, item, ((Number) call(item, "getScale")).floatValue(), false);
-        view.setLayoutParams(params);
-        record(
-            "widget_refreshed",
-            "item",
-            snapshot(item),
-            "width",
-            params.width,
-            "height",
-            params.height);
-        count++;
-      }
-    }
-    record("widgets_refreshed", "count", count);
-  }
-
   private void installDiagnostics(Class<?> vm, ClassLoader loader)
       throws ReflectiveOperationException {
-    app.registerActivityLifecycleCallbacks(
-        new Application.ActivityLifecycleCallbacks() {
-          @Override
-          public void onActivityResumed(Activity a) {
-            activity(a, "resumed");
-          }
-
-          @Override
-          public void onActivityPaused(Activity a) {
-            activity(a, "paused");
-          }
-
-          @Override
-          public void onActivityCreated(Activity a, Bundle b) {
-            activity(a, "created");
-          }
-
-          @Override
-          public void onActivityDestroyed(Activity a) {
-            activity(a, "destroyed");
-          }
-
-          @Override
-          public void onActivityStarted(Activity a) {}
-
-          @Override
-          public void onActivityStopped(Activity a) {}
-
-          @Override
-          public void onActivitySaveInstanceState(Activity a, Bundle b) {}
-        });
     handles.add(
         ModernHook.findAndHookMethod(
             Activity.class,
@@ -509,11 +494,14 @@ final class HomeLayoutGuard {
     Field field = vm.getClass().getDeclaredField("freeGridRepository");
     field.setAccessible(true);
     Object repository = field.get(vm);
-    if (!repositoryTypes.add(repository.getClass())) return;
     for (Object item : (Iterable<?>) call(vm, "getItems")) {
-      previousItems.put(number(item, "getId"), snapshot(item));
-      record("item_baseline", "item", snapshot(item));
+      int id = number(item, "getId");
+      if (!previousItems.containsKey(id)) {
+        previousItems.put(id, snapshot(item));
+        record("item_baseline", "item", snapshot(item));
+      }
     }
+    if (!repositoryTypes.add(repository.getClass())) return;
     for (Method update : repository.getClass().getDeclaredMethods()) {
       if (!update.getName().equals("update")
           || update.getParameterCount() == 0
@@ -546,6 +534,27 @@ final class HomeLayoutGuard {
   }
 
   private void activity(Activity activity, String event) {
+    String name = activity.getClass().getName();
+    if ("resumed".equals(event)) resumedActivities.add(activity);
+    else if ("paused".equals(event) || "destroyed".equals(event))
+      resumedActivities.remove(activity);
+    launcherResumed = false;
+    recentsResumed = false;
+    for (Activity resumed : resumedActivities) {
+      String resumedName = resumed.getClass().getName();
+      if ((app.getPackageName() + ".Launcher").equals(resumedName)) launcherResumed = true;
+      if ("com.android.quickstep.RecentsActivity".equals(resumedName)) recentsResumed = true;
+    }
+    if (launcherResumed && !recentsResumed) {
+      for (Pending state : new ArrayList<>(pending.values())) {
+        try {
+          state.request();
+        } catch (Throwable error) {
+          disableRepair(error);
+        }
+      }
+    }
+
     record(
         "activity",
         "phase",
@@ -644,6 +653,22 @@ final class HomeLayoutGuard {
             current.width(), current.height(), safe.left, safe.top, safe.right, safe.bottom);
   }
 
+  private boolean focusedHome(Object vm) throws ReflectiveOperationException {
+    for (ViewGroup layout : new ArrayList<>(layouts))
+      if (layout.isAttachedToWindow()
+          && call(layout, "getViewModel") == vm
+          && layout.hasWindowFocus()) return true;
+    return false;
+  }
+
+  private String measuredSizes(Object vm) throws ReflectiveOperationException {
+    StringBuilder result = new StringBuilder();
+    for (ViewGroup layout : new ArrayList<>(layouts))
+      if (layout.isAttachedToWindow() && call(layout, "getViewModel") == vm)
+        result.append(layout.getWidth()).append('x').append(layout.getHeight()).append(';');
+    return result.toString();
+  }
+
   private boolean measuredGeometryValid(Object vm, Point expected)
       throws ReflectiveOperationException {
     boolean found = false;
@@ -703,16 +728,6 @@ final class HomeLayoutGuard {
       }
     }
     throw new NoSuchMethodException(owner.getClass().getName() + "." + name);
-  }
-
-  private static Method named(Class<?> type, String name, int parameters)
-      throws NoSuchMethodException {
-    for (Method method : type.getDeclaredMethods())
-      if (method.getName().equals(name) && method.getParameterCount() == parameters) {
-        method.setAccessible(true);
-        return method;
-      }
-    throw new NoSuchMethodException(name);
   }
 
   private static int number(Object item, String name) throws ReflectiveOperationException {

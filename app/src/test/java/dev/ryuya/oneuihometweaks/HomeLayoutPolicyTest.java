@@ -6,6 +6,17 @@ import org.junit.Test;
 
 public final class HomeLayoutPolicyTest {
   @Test
+  public void rejectsObservedOverviewHandoffEvenWithStablePortraitMeasurements() {
+    // 19:03:59: both activities may briefly report resumed during the handoff.
+    assertFalse(HomeLayoutPolicy.canApply(true, true, true, true));
+    // 19:04:02: portrait Recents is resumed and the Home page still measures 1330x2375.
+    assertFalse(HomeLayoutPolicy.canApply(false, true, false, true));
+    assertFalse(HomeLayoutPolicy.canApply(true, false, false, true));
+    assertFalse(HomeLayoutPolicy.canApply(true, false, true, false));
+    assertTrue(HomeLayoutPolicy.canApply(true, false, true, true));
+  }
+
+  @Test
   public void rejectsObservedPortraitWithLandscapeCameraHole() {
     assertFalse(HomeLayoutPolicy.consistent(1440, 3120, 139, 0, 0, 0));
     assertFalse(HomeLayoutPolicy.consistent(1440, 3120, 0, 0, 139, 0));

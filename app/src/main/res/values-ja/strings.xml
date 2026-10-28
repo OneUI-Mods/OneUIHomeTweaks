@@ -123,7 +123,7 @@
   <string name="animation_scale_invalid">0.00〜10.00を小数点以下2桁以内で入力してください。</string>
   <string name="animation_scale_failed">保存できませんでした。もう一度お試しください。</string>
     <string name="layout_diagnostics">配置の保護と診断</string>
-    <string name="layout_note">回転途中の寸法でDIY Homeの配置が保存されるのを防ぎ、安定した寸法でウィジェットを再表示します。Android 17 / One UI 9 BZI9の対応版が対象です。既に保存されたずれは自動で巻き戻しません。</string>
+    <string name="layout_note">回転途中の寸法でDIY Homeの配置が保存されるのを防ぎます。Android 17 / One UI 9 BZI9の対応版が対象です。既に保存されたずれは自動で巻き戻しません。</string>
     <string name="layout_protect">回転時の配置を保護</string>
     <string name="layout_logging">診断ログを保存</string>
     <string name="layout_privacy">向き、寸法、項目IDと座標、配置変更元、ホームでのタップ・スワイプ、起動先のアプリ名を記録します。画面画像・入力文字・通知本文は保存しません。端末内に最大約4MB保存し、古いログから削除します。共有操作をしない限り外部へ送信しません。</string>
