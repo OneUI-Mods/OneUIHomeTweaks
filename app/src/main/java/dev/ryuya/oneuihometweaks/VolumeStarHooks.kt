@@ -136,11 +136,12 @@ class VolumeStarHooks {
                         val ref = i.getReference() as? MethodReference
                         if (
                             ref != null &&
-                                ref.getDefiningClass() == "Landroid/view/SemBlurInfo\$Builder;" &&
-                                ref.getName() == "setColorCurvePreset" &&
-                                !m.getParameterTypes().isEmpty() &&
-                                m.getParameterTypes().get(0) == "Landroid/view/View;" ||
-                                m.getParameterTypes().get(0) == "Landroid/widget/ImageView;"
+                                VolumeStarDexContract.isBlurCall(
+                                    ref.getDefiningClass(),
+                                    ref.getName(),
+                                ) {
+                                    m.getParameterTypes()
+                                }
                         )
                             blurTypes.add(c!!.getType())
                     }

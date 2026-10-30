@@ -208,34 +208,10 @@ object DexEvidence {
             val names = HashSet<String?>()
             for (method in c.getMethods()) {
                 if (method.getImplementation() == null) continue
-                for (instruction in method.getImplementation()!!.getInstructions()) run {
-                    val patternPrefix2 = instruction is ReferenceInstruction
+                for (instruction in method.getImplementation()!!.getInstructions()) {
                     val ref =
-                        if (patternPrefix2) instruction.getReference() as? MethodReference else null
-                    if (
-                        patternPrefix2 &&
-                            ref != null &&
-                            (ref.getDefiningClass()
-                                .startsWith(
-                                    "Lcom/honeyspace/ui/honeypots/freegrid/domain/model/FreeGridItem"
-                                ) &&
-                                (ref.getName() == "getX" || ref.getName() == "getY") &&
-                                ref.getParameterTypes().isEmpty() &&
-                                ref.getReturnType() == "I") ||
-                            ((ref!!.getDefiningClass() ==
-                                "Lcom/honeyspace/ui/honeypots/freegrid/presentation/FreeGridCellLayout;") &&
-                                java.util.Set.of<String?>(
-                                        "prepareSyncPosition",
-                                        "syncPosition",
-                                        "translateTarget",
-                                        "createLayoutParams",
-                                    )
-                                    .contains(ref!!.getName())) ||
-                            ((ref!!.getDefiningClass() ==
-                                "Lcom/honeyspace/ui/honeypots/freegrid/viewmodel/FreeGridViewModel;") &&
-                                ref!!.getName() == "updateToDropPoint")
-                    )
-                        names.add(method.getName())
+                        (instruction as? ReferenceInstruction)?.getReference() as? MethodReference
+                    if (DexCallsitePolicy.isDiyPositionCall(ref)) names.add(method.getName())
                 }
             }
             if (names.isEmpty()) continue
@@ -275,18 +251,10 @@ object DexEvidence {
                 continue
             val methods = HashSet<String?>()
             for (m in c.getMethods()) if (m.getImplementation() != null)
-                for (i in m.getImplementation()!!.getInstructions()) run {
-                    val patternPrefix3 = i is ReferenceInstruction
-                    val ref = if (patternPrefix3) i.getReference() as? MethodReference else null
-                    if (
-                        patternPrefix3 &&
-                            ref != null &&
-                            ref.getDefiningClass() ==
-                                "Lcom/android/systemui/volume/util/BlurEffect;" ||
-                            (ref!!.getDefiningClass() ==
-                                "Lcom/android/systemui/volume/util/ColorUtils;")
-                    )
-                        methods.add(m.getName())
+                for (instruction in m.getImplementation()!!.getInstructions()) {
+                    val ref =
+                        (instruction as? ReferenceInstruction)?.getReference() as? MethodReference
+                    if (DexCallsitePolicy.isVolumeCall(ref)) methods.add(m.getName())
                 }
             if (methods.isEmpty()) continue
             val actual =
