@@ -31,3 +31,9 @@ Google APIsのarm64エミュレータ、Android 16（API 36）とAndroid 17（AP
 - 実際の設定スイッチ1個を変更し、プロセス終了後の保持を確認。同じ設定をJava版で変更してからKotlin版へ上書き更新し、値が残ることも確認し、最後に元へ戻しました。全設定の組合せを網羅した試験ではありません。
 
 この結果は、rootなしでアプリ側の画面と設定が動くことを確認したものです。Samsung SystemUI／One UIホーム／Home Up／Camera／Camera Assistant、Vectorのフック実行、root権限、実際の録画・通話音声・物理デバイスの経路は検証していません。Kotlin化前と全機能が同一と断定するものではありません。
+
+## 実機で判明したProxy引数のnull（2026-10-30）
+
+Android 17のSamsung SystemUIで、クイックパネルのState.getValue()をJava Proxy経由で呼ぶと、InvocationHandlerの引数配列はnullになります。移行後のPresentationが非nullを要求しており、SystemUIがクラッシュしました。クラッシュ保護の作動を確認した上で修正しています。
+
+Proxyの呼び出し規約をAndroid依存のないStatePresentationHandlerへ分け、getValue／hashCode／toStringの引数なし呼び出しと、equalsの参照同一性を維持しました。実際のJava Proxyを使う回帰テスト3件を追加し、既存117件と合わせて120件成功しています。Samsung固有の一覧変換・キャッシュ・失敗時の純正値への復帰は既存処理を維持します。修正版の実機再確認結果は追記します。

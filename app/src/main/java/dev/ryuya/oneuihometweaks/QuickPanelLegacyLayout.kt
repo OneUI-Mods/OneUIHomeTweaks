@@ -3,7 +3,6 @@ package dev.ryuya.oneuihometweaks
 import java.lang.Boolean as JavaBoolean
 import java.lang.reflect.Constructor
 import java.lang.reflect.Field
-import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
 import java.lang.reflect.Proxy
 import java.util.ArrayList
@@ -218,7 +217,7 @@ class QuickPanelLegacyLayout(owner: QuickPanelHooks, loader: ClassLoader?) {
         return proxy
     }
 
-    private inner class Presentation(source: Any) : InvocationHandler {
+    private inner class Presentation(source: Any) : StatePresentationHandler() {
         @JvmField val source: Any
         private var lastSource: MutableList<*>? = null
         private var lastResult: MutableList<*>? = null
@@ -227,28 +226,19 @@ class QuickPanelLegacyLayout(owner: QuickPanelHooks, loader: ClassLoader?) {
             this.source = source
         }
 
-        @Throws(Throwable::class)
-        override fun invoke(proxy: Any?, method: Method, args: Array<Any?>): Any? {
-            return when (method.getName()) {
-                "getValue" -> {
-                    val value = stateValue.invoke(source)
-                    if (!owner.legacy() || value !is MutableList<*>) return value
-                    try {
-                        if (editing(value)) return value
-                        if (value === lastSource) return lastResult
-                        val converted = present(value)
-                        lastSource = value
-                        lastResult = converted
-                        converted
-                    } catch (error: Throwable) {
-                        owner.stopLegacy(error)
-                        value
-                    }
-                }
-                "equals" -> proxy === args[0]
-                "hashCode" -> System.identityHashCode(proxy)
-                "toString" -> "One UI legacy panel presentation"
-                else -> throw UnsupportedOperationException(method.getName())
+        override fun readValue(): Any? {
+            val value = stateValue.invoke(source)
+            if (!owner.legacy() || value !is MutableList<*>) return value
+            return try {
+                if (editing(value)) return value
+                if (value === lastSource) return lastResult
+                val converted = present(value)
+                lastSource = value
+                lastResult = converted
+                converted
+            } catch (error: Throwable) {
+                owner.stopLegacy(error)
+                value
             }
         }
     }
