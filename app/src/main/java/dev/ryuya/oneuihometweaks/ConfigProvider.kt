@@ -129,7 +129,7 @@ class ConfigProvider : ContentProvider() {
             try {
                 HomeLayoutJournal.append(
                     getContext()!!,
-                    if (extras == null) null else extras.getString("records")!!,
+                    extras?.getString("records"),
                 )
                 return Bundle.EMPTY
             } catch (error: IOException) {
@@ -169,7 +169,7 @@ class ConfigProvider : ContentProvider() {
             if ("com.sec.android.app.launcher" != hostCaller())
                 throw SecurityException("Launcher only")
             return if ("take_grid_request" == method) GridSaveStore.take(getContext()!!)
-            else GridSaveStore.result(getContext()!!, extras!!)
+            else GridSaveStore.result(getContext()!!, extras)
         }
         require(!("report_status" != method || extras == null)) { "Unsupported call" }
         var host = hostCaller()
