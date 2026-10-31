@@ -70,3 +70,14 @@ One UIホームのみをアプリ再起動し、フォルダ内からアプリ�
 JVM・Lint・署名検証と実機の再読み込み結果はリリース後の検証追記で記録する。Binder受け取り成功だけをフック機能の正常動作の証拠としない。
 
 履歴の残件は実機で`Focus backend version mismatch`を確認した。0.19.1（build31）から34までのRecentsFocusServer/Wire/Policyは同一ソースであることをGit差分で確認。新サーバーは明示的なprotocol=1を返し、新クライアントはprotocol=1、またはprotocolフィールド導入前の確認済みbuild31〜34だけを受理する。未知の旧版・未知のprotocolは拒否する。Binderの呼び出し元UID、専用descriptor、同期呼び出しの確認は維持する。更新後も起動中の既知サーバーと接続でき、システム再起動なしに復帰できる。自動でフォーカス保持を有効化する処理は追加しない。
+
+### 実機確認結果
+
+署名済みrelease 0.19.4（build34）をインストールし、Vectorの設定更新完了後にホームと壁紙設定だけを読み込み直した。更新直後のホームには一度build33が読み込まれたため、APK更新成功とMODULE_LOADEDの版一致を別々に確認した。OS/ソフトリブート/SystemUI再起動は実行していない。
+
+- JVM試験141件、失敗・エラー0。release Lint、署名・アライメント・API102/スコープ・検証用Activity非混入の検査が成功。
+- 実機の新ホームでDRAWER_HOOK_READY、LOCAL_LABEL_READY、DIY_GRID active、LOCAL_LABEL activeを確認。旧版の連続REFRESH_ERROR/DISABLEDは新版で発生していない。ホームと履歴バーの新しい設定応答も継続する。
+- 壁紙設定を開き、PREVIEW_HOME_MIRROR_ATTACHEDを確認。状態画面でホーム・音量・壁紙・履歴バー・ローカル配色・日付・アイコン整列が稼働中へ戻った。
+- 更新前サーバーとの接続はfocusBridge=disarmedまで復帰。起動中のシステム側の版を変更せず、既存の手動有効化の要件を維持した。フォーカス通知の全アプリ別挙動は今回未再試験。
+- 設定XMLの前後比較で機能設定の差分0。ホーム配置DBへの保存は行っていない。Android16の実機での再試験は未実施。
+- GitHub v0.19.4のAPK・ソースZIP・検証記録・チェックサムの公開後digestがローカルの最終成果物と一致した。
