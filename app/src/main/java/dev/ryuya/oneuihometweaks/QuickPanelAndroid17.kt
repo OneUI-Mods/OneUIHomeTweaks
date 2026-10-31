@@ -152,16 +152,24 @@ class QuickPanelAndroid17(owner: QuickPanelHooks, loader: ClassLoader?) : QuickP
                             else nativeButtonModifiers.getOrDefault(supplied, supplied)
                         if (nativeModifier !== supplied) {
                             args[1] = nativeModifier
+                            args[6] =
+                                ComposeRecomposeFlags.tileModifierChanged(
+                                    args[6] as Int,
+                                    (args[7] as Int and 1) != 0,
+                                )
                             args[7] = args[7] as Int and 1.inv()
-                            args[6] = (args[6] as Int and 112.inv()) or 32 or 1
                         }
                         if (owner.size(kind) != 100) {
                             val ratio: Float = owner.size(kind) / 100f
                             val scaled = scale.invoke(null, emptyModifier, ratio, ratio)
                             args[1] = then.invoke(scaled, nativeModifier)
                             nativeButtonModifiers.put(args[1], nativeModifier)
+                            args[6] =
+                                ComposeRecomposeFlags.tileModifierChanged(
+                                    args[6] as Int,
+                                    (args[7] as Int and 1) != 0,
+                                )
                             args[7] = args[7] as Int and 1.inv()
-                            args[6] = (args[6] as Int and 112.inv()) or 32 or 1
                             evidence(kind, 100f, owner.size(kind).toFloat())
                         }
                     }

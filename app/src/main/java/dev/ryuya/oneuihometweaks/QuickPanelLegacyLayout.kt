@@ -112,7 +112,12 @@ class QuickPanelLegacyLayout(owner: QuickPanelHooks, loader: ClassLoader?) {
             Class.forName(QuickPanelLegacyLayout.PANEL + "QuickSettingTilePanelKt", false, loader)
         val render =
             QuickPanelLegacyLayout.named(panel, "QuickSettingTilePanelScrollableGrid-OzltmbE", 14)
-        if (render!!.getParameterTypes()[3] != stateInterface)
+        if (
+            render!!.parameterTypes[3] != stateInterface ||
+                render.parameterTypes[11].name != "androidx.compose.runtime.Composer" ||
+                render.parameterTypes[12] != Int::class.javaPrimitiveType ||
+                render.parameterTypes[13] != Int::class.javaPrimitiveType
+        )
             throw UnsupportedOperationException("Panel state contract")
         owner.add(
             ModernHook.hookMethod(
@@ -125,10 +130,7 @@ class QuickPanelLegacyLayout(owner: QuickPanelHooks, loader: ClassLoader?) {
                             if (!owner.needsRefresh()) return
                             if (owner.legacy()) p.args[3] = wrap(original, loader)
                             else p.args[3] = original
-                            // The State argument changed; keep the original composition's native
-                            // read
-                            // tracking.
-                            p.args[12] = (p.args[12] as Int and 7168.inv()) or 2048 or 1
+                            p.args[12] = ComposeRecomposeFlags.panelStateChanged(p.args[12] as Int)
                         } catch (error: Throwable) {
                             owner.stopLegacy(error)
                         }
