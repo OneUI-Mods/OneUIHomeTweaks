@@ -68,3 +68,5 @@ One UIホームのみをアプリ再起動し、フォルダ内からアプリ�
 元のJava実装と照合し、Samsungの`Integer`/`Float`参照型契約を`javaObjectType`へ復元した。対象はHomeLabelBridge、DrawerBridge、DiyGridBridge。`int.class`/`boolean.class`だった引数はprimitiveのまま維持する。ホームのDBへ位置保存する処理は今回実行しない。
 
 JVM・Lint・署名検証と実機の再読み込み結果はリリース後の検証追記で記録する。Binder受け取り成功だけをフック機能の正常動作の証拠としない。
+
+履歴の残件は実機で`Focus backend version mismatch`を確認した。0.19.1（build31）から34までのRecentsFocusServer/Wire/Policyは同一ソースであることをGit差分で確認。新サーバーは明示的なprotocol=1を返し、新クライアントはprotocol=1、またはprotocolフィールド導入前の確認済みbuild31〜34だけを受理する。未知の旧版・未知のprotocolは拒否する。Binderの呼び出し元UID、専用descriptor、同期呼び出しの確認は維持する。更新後も起動中の既知サーバーと接続でき、システム再起動なしに復帰できる。自動でフォーカス保持を有効化する処理は追加しない。

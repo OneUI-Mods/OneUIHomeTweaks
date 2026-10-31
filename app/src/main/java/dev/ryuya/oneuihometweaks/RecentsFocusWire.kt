@@ -27,7 +27,13 @@ object RecentsFocusWire {
             check(endpoint.transact(code, `in`, out, 0)) { "Focus backend not loaded" }
             out.readException()
             val reply = out.readBundle(RecentsFocusWire::class.java.getClassLoader())
-            check(!(reply == null || reply.getInt("build", -1) != BuildConfig.VERSION_CODE)) {
+            check(
+                !(reply == null ||
+                    !RecentsFocusCompatibility.accepts(
+                        reply.getInt("protocol", 0),
+                        reply.getInt("build", -1),
+                    ))
+            ) {
                 "Focus backend version mismatch"
             }
             return reply

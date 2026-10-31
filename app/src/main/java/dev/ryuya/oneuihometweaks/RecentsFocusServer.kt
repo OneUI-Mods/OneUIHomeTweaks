@@ -212,6 +212,7 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
     private fun reply(accepted: Boolean): Bundle {
         val reply = Bundle()
         reply.putInt("build", BuildConfig.VERSION_CODE)
+        reply.putInt("protocol", RecentsFocusCompatibility.PROTOCOL_VERSION)
         reply.putString("state", state)
         reply.putBoolean("accepted", accepted)
         reply.putInt("mode", armedMode)
