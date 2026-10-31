@@ -26,3 +26,17 @@ Android 17の独立プロセスで必要な共有メモリとフォント初期�
 HomeLabelBridge.kt:460のNullPointerExceptionを再現した。
 これはLauncher自身をクラッシュさせず、独立プロセスだけで確認した結果である。
 実機上の通常ホーム動作と、Android 16の実機確認とは別に扱う。
+
+## 修正後の検証（2026-10-31）
+
+- 署名済みrelease 0.19.5/build35を同じフィクスチャへ渡し、4項目すべて成功した。
+- JVM試験141件、失敗・エラー0。release Lint、継続署名、アライメント、API102、
+  検証用Activity非混入の検査が成功した。
+- 実機を上書き更新し、One UIホームだけを再起動した。新しいLauncherの
+  `MODULE_LOADED build=35`と`localLabels=active black=27 white=0`を確認した。
+  ホームのスクリーンショットでも黒いラベルの表示を確認した。現在の壁紙は明るいので、
+  暗い壁紙への設定変更は行っていない。白色保持は独立フィクスチャとLocalContrastの
+  JVM試験で確認し、実際の壁紙の明暗切り替えは今回の実機検証には含めない。
+- 設定XMLの前後差分は0。OSのboot_id、system_server、SystemUIのPIDも不変だった。
+  配置DBへの保存、音声再生、OS/ソフトリブート、SystemUI再起動は行っていない。
+- Android16向けの分岐は変更していない。今回の実機確認はAndroid17のみ。
