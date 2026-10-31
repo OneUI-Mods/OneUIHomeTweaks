@@ -67,7 +67,7 @@ export ONEUI_SIGNING_PROPERTIES=/absolute/path/to/private-signing.properties
 adb logcat -s OneUIHomeTweaks:I '*:S'
 ```
 
-`tools/WallpaperProbe.java` は端末の標準／Samsung壁紙APIを読み取り確認する調査用ソース、`tools/DexReferences.java` は取得済みAPK内の実際の参照を調べるデスクトップ用ソースです。
+`tools/WallpaperProbe.kt` は端末の標準／Samsung壁紙APIを読み取り確認する調査用ソース、`tools/DexReferences.java` は取得済みAPK内の実際の参照を調べるデスクトップ用ソースです。
 
 端末のAPK、逆コンパイルしたソース、壁紙画像、個人ログ、端末識別子はリポジトリやリリースへ含めません。ローカルの調査成果物は `.gitignore` の対象です。
 
@@ -116,3 +116,5 @@ Settingsの追加スコープと実装・試験範囲は[倍率入力の技術�
 ## Home layout stabilization
 
 See [repair contracts and diagnostic schema](home-layout-diagnostics.md). Keep native geometry and saved user scale distinct, and never restore a guessed coordinate from logs.
+
+- [Kotlin移行の設計と検証範囲](kotlin-migration.md)

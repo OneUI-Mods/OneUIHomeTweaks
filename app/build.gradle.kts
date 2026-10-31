@@ -18,8 +18,8 @@ android {
         applicationId = "dev.ryuya.oneuihometweaks"
         minSdk = 31
         targetSdk = 37
-        versionCode = 31
-        versionName = "0.19.1"
+        versionCode = 36
+        versionName = "0.19.6"
         // Live-card diagnostics are opt-in for local investigation, never default release behavior.
         buildConfigField("boolean", "RECENTS_LIVE_TRACE", providers.gradleProperty("recentsLiveTrace").map { (it == "true").toString() }.getOrElse("false"))
     }
@@ -46,6 +46,8 @@ android {
     lint { abortOnError = true }
 }
 dependencies {
+    implementation("io.github.libxposed:service:102.0.0")
+
     compileOnly("io.github.libxposed:api:102.0.0")
     implementation("org.smali:dexlib2:2.5.2")
     implementation("com.google.android.material:material:1.14.0")
