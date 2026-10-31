@@ -457,7 +457,9 @@ class HomeLabelBridge {
                     HomeLabelBridge.Target(
                         text,
                         regions,
-                        if (prior == null) null else prior.applied!!,
+                        // A tracked label can still be awaiting its first usable wallpaper frame,
+                        // or have returned to the native color after the capture timeout.
+                        prior?.applied,
                     )
                 target.finder = finder
                 if (finder) finderBackground(text, target)
