@@ -29,6 +29,10 @@ def validate(apk, tools):
     manifest = run(
         tools / "aapt2", "dump", "xmltree", apk, "--file", "AndroidManifest.xml", capture=True
     ).stdout
+    if ("io.github.libxposed.service.XposedProvider" not in manifest
+            or "dev.ryuya.oneuihometweaks.XposedService" not in manifest):
+        raise RuntimeError("Missing official API 102 app-side Binder provider")
+
     if any(
         word in manifest.lower()
         for word in ["testactivity", "probeactivity", "fixtureactivity", "instrumentation"]

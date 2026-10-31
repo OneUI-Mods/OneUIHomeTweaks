@@ -61,3 +61,5 @@ org.jetbrains:annotations:13.0	Apache-2.0	Apache-2.0.txt	http://www.jetbrains.or
 org.jspecify:jspecify:1.0.0	Apache-2.0	Apache-2.0.txt	http://jspecify.org/
 org.smali:dexlib2:2.5.2	BSD-3-Clause	dexlib2-LICENSE.txt	https://github.com/JesusFreke/smali/tree/v2.5.2
 io.github.libxposed:api:102.0.0	Apache-2.0	Apache-2.0.txt	https://github.com/JingMatrix/libxposed-api
+io.github.libxposed:service:102.0.0	Apache-2.0	Apache-2.0.txt	https://github.com/JingMatrix/libxposed-service
+io.github.libxposed:interface:102.0.0	Apache-2.0	Apache-2.0.txt	https://github.com/JingMatrix/libxposed-service
