@@ -101,14 +101,14 @@ class DiyGridBridge {
             )
         info.getDeclaredConstructor(
             Int::class.javaPrimitiveType,
-            Int::class.java,
-            Int::class.java,
-            Int::class.java,
-            Int::class.java,
-            Int::class.java,
-            Float::class.java,
-            Float::class.java,
-            Int::class.java,
+            Int::class.javaObjectType,
+            Int::class.javaObjectType,
+            Int::class.javaObjectType,
+            Int::class.javaObjectType,
+            Int::class.javaObjectType,
+            Float::class.javaObjectType,
+            Float::class.javaObjectType,
+            Int::class.javaObjectType,
             Boolean::class.javaPrimitiveType,
         )
         vm.javaClass.getDeclaredMethod(
@@ -168,14 +168,14 @@ class DiyGridBridge {
         val constructor =
             info.getDeclaredConstructor(
                 Int::class.javaPrimitiveType,
-                Int::class.java,
-                Int::class.java,
-                Int::class.java,
-                Int::class.java,
-                Int::class.java,
-                Float::class.java,
-                Float::class.java,
-                Int::class.java,
+                Int::class.javaObjectType,
+                Int::class.javaObjectType,
+                Int::class.javaObjectType,
+                Int::class.javaObjectType,
+                Int::class.javaObjectType,
+                Float::class.javaObjectType,
+                Float::class.javaObjectType,
+                Int::class.javaObjectType,
                 Boolean::class.javaPrimitiveType,
             )
         val updates = ArrayList<Any?>()

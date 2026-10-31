@@ -59,3 +59,12 @@ One UIホームのみをアプリ再起動し、フォルダ内からアプリ�
 ## クイックパネルの再描画修正（0.19.2 / 2026-10-31）
 
 実機ログで検出したComposeのcallbackキャッシュの型ずれを修正しました。移行前Java版にも存在した変更ビット操作を見直し、StateとModifierの比較処理を純正と同じ順序で呼び出します。既定Modifierの置き換えも扱います。回帰テスト6件を追加し、JVMテスト計134件とrelease lint、継続署名のrelease検査に成功しました。Android 16アダプターは変更していません。切り分けと実機確認の詳細は[クイックパネルの開発記録](quick-panel.md)を参照してください。
+
+## 2026-10-31 ホームの実行時停止の修正（0.19.4）
+
+実機のLauncherで、`REFRESH_ERROR`が3回連続し停止することを確認した。
+`ColorPolicy.darkValue()`のnullは「標準値を維持」の正常値であり、statusは常にOFFなので必ずnullになる。移行時に呼び出し側へ追加された`!!`が原因だった。nullableのHomeColorSnapshotで受け取り、LOCAL/OFF、明示色/OFF、壁紙色不明、静止壁紙の回帰試験を追加した。停止前にキューへ入ったACTIVE報告が停止後に上書きされないようにもした。
+
+元のJava実装と照合し、Samsungの`Integer`/`Float`参照型契約を`javaObjectType`へ復元した。対象はHomeLabelBridge、DrawerBridge、DiyGridBridge。`int.class`/`boolean.class`だった引数はprimitiveのまま維持する。ホームのDBへ位置保存する処理は今回実行しない。
+
+JVM・Lint・署名検証と実機の再読み込み結果はリリース後の検証追記で記録する。Binder受け取り成功だけをフック機能の正常動作の証拠としない。

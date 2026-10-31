@@ -22,7 +22,7 @@ class DrawerBridge {
     fun install(loader: ClassLoader?) {
         val icon = Class.forName("com.honeyspace.ui.common.iconview.IconViewImpl", false, loader)
         val style = Class.forName("com.honeyspace.sdk.source.entity.ItemStyle", false, loader)
-        setColor = icon.getMethod("setCustomLabelColor", Int::class.java)
+        setColor = icon.getMethod("setCustomLabelColor", Int::class.javaObjectType)
         getColor = icon.getMethod("getCustomLabelColor")
         ModernHook.hookAllConstructors(
             icon,

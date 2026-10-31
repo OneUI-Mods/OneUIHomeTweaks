@@ -47,7 +47,7 @@ class HookEntry : XposedModule() {
     private var launcherLoader: ClassLoader? = null
     private val readerClasses: MutableMap<String?, Boolean?> =
         ConcurrentHashMap<String?, Boolean?>()
-    @Volatile private var snapshot: HookEntry.Snapshot = HookEntry.Snapshot(null, null)
+    @Volatile private var snapshot: HomeColorSnapshot = HomeColorSnapshot(null, null)
     private val observers: MutableList<HookEntry.Observed?> = ArrayList<HookEntry.Observed?>()
     private val hooks: MutableList<ModernHook.Handle?> = ArrayList<ModernHook.Handle?>()
     private val lastRead: MutableMap<String?, String?> = HashMap<String?, String?>()
@@ -269,7 +269,7 @@ class HookEntry : XposedModule() {
                             if (param.args.size == 3 && param.args[2] as Int != 0) return
                             // Revalidate the actual consumer, even after obfuscation changes.
                             if (!isSamsungDataSourceRead()) return
-                            val s: HookEntry.Snapshot? = snapshot
+                            val s: HomeColorSnapshot? = snapshot
                             val value: Int? =
                                 if (HookEntry.FONT == key) s!!.font
                                 else if (HookEntry.STATUS == key) s!!.status else null
@@ -608,6 +608,8 @@ class HookEntry : XposedModule() {
             val localLabels: Boolean = apply && label == ColorPolicy.LOCAL
             main!!.post(
                 Runnable {
+                    // A later refresh may disable the bridge before this task runs.
+                    if (failed) return@Runnable
                     pages.setEnabled(apply && currentPages)
                     drawer.setMode(currentDrawerMode, apply)
                     homeLabels.setEnabled(localLabels)
@@ -639,11 +641,7 @@ class HookEntry : XposedModule() {
                     )
                 }
             )
-            val next =
-                HookEntry.Snapshot(
-                    ColorPolicy.darkValue(label, target, hints)!!,
-                    ColorPolicy.darkValue(status, target, hints)!!,
-                )
+            val next = HomeColorSnapshot.resolve(label, status, target, hints)
             val report: String =
                 ("STATE wallpaper=" +
                     (if (info == null) "static/none" else info.getComponent()) +
@@ -664,7 +662,7 @@ class HookEntry : XposedModule() {
             publish(next)
             failures = 0
         } catch (t: Throwable) {
-            publish(HookEntry.Snapshot(null, null))
+            publish(HomeColorSnapshot(null, null))
             main!!.post(
                 Runnable {
                     homeLabels.setEnabled(false)
@@ -681,8 +679,8 @@ class HookEntry : XposedModule() {
         }
     }
 
-    private fun publish(next: HookEntry.Snapshot) {
-        val before: HookEntry.Snapshot? = snapshot
+    private fun publish(next: HomeColorSnapshot) {
+        val before: HomeColorSnapshot? = snapshot
         snapshot = next
         val fontChanged: Boolean = before!!.font != next.font
         val statusChanged: Boolean = before!!.status != next.status
@@ -730,7 +728,7 @@ class HookEntry : XposedModule() {
                     diyGrid.setEnabled(false)
                 }
             )
-        publish(HookEntry.Snapshot(null, null))
+        publish(HomeColorSnapshot(null, null))
         HookEntry.log("DISABLED " + stage + ": " + t)
     }
 
@@ -741,16 +739,6 @@ class HookEntry : XposedModule() {
         init {
             this.key = key
             ref = WeakReference<ContentObserver?>(observer)
-        }
-    }
-
-    private class Snapshot(font: Int?, status: Int?) {
-        @JvmField val font: Int?
-        @JvmField val status: Int?
-
-        init {
-            this.font = font
-            this.status = status
         }
     }
 

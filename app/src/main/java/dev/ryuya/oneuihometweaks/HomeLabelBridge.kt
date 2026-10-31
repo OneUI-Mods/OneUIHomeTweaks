@@ -82,9 +82,9 @@ class HomeLabelBridge {
         val icon = Class.forName("com.honeyspace.ui.common.iconview.IconViewImpl", false, loader)
         check(TextView::class.java.isAssignableFrom(icon)) { "Icon is not TextView" }
         getColor = icon.getMethod("getCustomLabelColor")
-        setColor = icon.getMethod("setCustomLabelColor", Int::class.java)
+        setColor = icon.getMethod("setCustomLabelColor", Int::class.javaObjectType)
         check(
-            !(getColor!!.getReturnType() != Int::class.java ||
+            !(getColor!!.getReturnType() != Int::class.javaObjectType ||
                 setColor!!.getReturnType() != Void.TYPE)
         ) {
             "Custom label contract changed"
