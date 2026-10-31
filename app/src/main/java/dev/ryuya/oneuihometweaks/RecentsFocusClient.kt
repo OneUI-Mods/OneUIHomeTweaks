@@ -21,6 +21,7 @@ class RecentsFocusClient {
 
     @Volatile private var connection: RecentsFocusClient.Connection? = null
     @Volatile private var state: String = "backend-missing"
+    private var lastFailure: String? = null
 
     fun diagnostic(): String {
         return state
@@ -54,8 +55,14 @@ class RecentsFocusClient {
                     "state",
                     "error",
                 )
+            lastFailure = null
         } catch (error: Throwable) {
             state = "backend-missing"
+            val failure = error.javaClass.simpleName + ": " + error.message
+            if (failure != lastFailure) {
+                lastFailure = failure
+                HookEntry.log("RECENTS_FOCUS_CONNECT_UNAVAILABLE " + failure)
+            }
         }
     }
 
