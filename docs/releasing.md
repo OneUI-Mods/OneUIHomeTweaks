@@ -10,3 +10,14 @@ JDK 21、Android SDK / Build Tools 37.0.0を使用します。鍵はリポジト
 4. タイトル・説明は外部利用者向けとし、機能、対応環境、更新操作、制限を記載します。端末固有の設定値、内部クラス名、試験手順やCI報告を掲載しません。
 
 CIでは`--check-release-apk`で構造を検査できます。これは署名検証を省くため配布可能の判定ではありません。
+
+## 実機のホーム再読み込み
+
+共有端末の使用枠でOne UIホームだけを再読み込みする場合、停止後はHOME操作で通常のホームタスクとして再開する。`am start -n ...LauncherActivity`だけで直接起動しない。HOME action/categoryのない直接起動ではstandardタスクが別に作られ、履歴への表示や複数ホームActivityによる壁紙windowの競合を招く。
+
+```sh
+adb -s SERIAL shell "su -c 'am force-stop com.sec.android.app.launcher'"
+adb -s SERIAL shell input keyevent KEYCODE_HOME
+```
+
+再開後はactivity typeがhomeであることを確認し、実際のHOME操作で戻った画面で検証する。RecentsActivityは正常な履歴UI用タスクなので削除しない。修復目的で余分なタスクを除去する時も、base component、type=standard、起動元を直前の読み取りで確認したものだけを対象にする。保存済みホーム配置・DB・壁紙設定は削除しない。
