@@ -73,6 +73,7 @@ class MainActivity : AppCompatActivity() {
             "clock_date_left",
             "diy_icon_grid",
             "folder_return",
+            "icon_overlap_fix",
             "settings_enabled",
         )
     private val switchIds: IntArray? =
@@ -88,6 +89,7 @@ class MainActivity : AppCompatActivity() {
             R.id.clock_date_left,
             R.id.diy_icon_grid,
             R.id.folder_return,
+            R.id.icon_overlap_fix,
             R.id.settings_enabled,
         )
     private val reports: ContentObserver =

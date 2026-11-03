@@ -132,4 +132,6 @@
     <string name="layout_clear_confirm">刪除已儲存的診斷記錄？</string>
     <string name="layout_log_size">已儲存：%1$d KB / 上限約 4MB</string>
     <string name="layout_io_error">無法讀寫診斷記錄</string>
+  <string name="icon_overlap_fix">關閉應用程式時保留相鄰圖示</string>
+  <string name="icon_overlap_fix_note">修正 Home Up 的重疊判定，防止返回主畫面的動畫期間彼此分離的圖示消失。實際重疊放置的圖示保持原有行為。預設開啟，切換時無需重新載入主畫面。</string>
 </resources>

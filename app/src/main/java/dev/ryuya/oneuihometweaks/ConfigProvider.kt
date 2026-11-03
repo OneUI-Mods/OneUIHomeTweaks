@@ -74,6 +74,7 @@ class ConfigProvider : ContentProvider() {
                     "qs_sound",
                     "qs_legacy_design",
                     "folder_return",
+                    "icon_overlap_fix",
                     "settings_enabled",
                 )
             )
@@ -103,6 +104,7 @@ class ConfigProvider : ContentProvider() {
                 QuickPanelPolicy.percent(p.getInt("qs_sound", 100)),
                 if (p.getBoolean("qs_legacy_design", false)) 1 else 0,
                 if (p.getBoolean("folder_return", true)) 1 else 0,
+                if (p.getBoolean("icon_overlap_fix", true)) 1 else 0,
                 if (p.getBoolean("settings_enabled", true)) 1 else 0,
             )
         )

@@ -132,4 +132,6 @@
     <string name="layout_clear_confirm">Delete saved diagnostic logs?</string>
     <string name="layout_log_size">Saved: %1$d KB / limit about 4 MB</string>
     <string name="layout_io_error">Unable to read or write diagnostic logs</string>
+  <string name="icon_overlap_fix">Keep neighboring icons visible when closing apps</string>
+  <string name="icon_overlap_fix_note">Corrects Home Up overlap detection so separate home icons do not disappear during the return animation. Icons actually placed over one another keep their original behavior. On by default; changes apply without reloading Home.</string>
 </resources>

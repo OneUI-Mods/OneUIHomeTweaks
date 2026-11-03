@@ -63,6 +63,7 @@ class HookEntry : XposedModule() {
     private val homeLabels: HomeLabelBridge = HomeLabelBridge()
     private val recentsBar: RecentsBar = RecentsBar()
     private val folders: FolderHooks = FolderHooks()
+    private val iconOverlap = IconOverlapHooks()
     private var initialized: Boolean = false
     private var hostAttached: Boolean = false
     private var earlyPages: Boolean = false
@@ -81,9 +82,11 @@ class HookEntry : XposedModule() {
             Consumer { view: ViewGroup? ->
                 homeLayout.observe(view!!)
                 diyGrid.observe(view!!)
+                iconOverlap.observe(view)
             }
         )
         diyGrid.setChanged(Runnable { this.requestRefresh() })
+        iconOverlap.setChanged(Runnable { this.requestRefresh() })
         processName = param.getProcessName()
         HookEntry.log(
             ("MODULE_LOADED build=" +
@@ -551,6 +554,7 @@ class HookEntry : XposedModule() {
             var drawerMode = ColorPolicy.AUTO
             var focusMode: Int = 0
             var folderReturn: Boolean = true
+            var iconOverlapFix = true
             var master: Boolean = false
             var pageMode: Boolean = false
             var hideRecentsBar: Boolean = false
@@ -566,6 +570,8 @@ class HookEntry : XposedModule() {
                             cursor.getInt(cursor.getColumnIndexOrThrow("home_enabled")) != 0
                     val folderColumn = cursor.getColumnIndex("folder_return")
                     folderReturn = folderColumn < 0 || cursor.getInt(folderColumn) != 0
+                    val overlapColumn = cursor.getColumnIndex("icon_overlap_fix")
+                    iconOverlapFix = overlapColumn < 0 || cursor.getInt(overlapColumn) != 0
                     pageMode = cursor.getInt(cursor.getColumnIndexOrThrow("pages")) != 0
                     hideRecentsBar =
                         master &&
@@ -600,6 +606,7 @@ class HookEntry : XposedModule() {
             liveRecents.connectFocus(context)
             val currentMaster: Boolean = master
             val currentFolderReturn: Boolean = folderReturn
+            val currentOverlapFix = master && iconOverlapFix
             val currentDiyGrid: Boolean = diyGridMode
             val gridRequest =
                 context!!
@@ -617,6 +624,7 @@ class HookEntry : XposedModule() {
                     liveRecents.setEnabled(currentLiveRecents)
                     recentsBar.setEnabled(currentHideRecentsBar)
                     folders.configure(currentMaster, currentFolderReturn)
+                    iconOverlap.setEnabled(currentOverlapFix)
                     diyGrid.setEnabled(currentDiyGrid)
                     gridSave.accept(context!!, gridRequest)
                     HostStatus.report(
@@ -637,7 +645,9 @@ class HookEntry : XposedModule() {
                             "; diyGrid=" +
                             diyGrid.diagnostic() +
                             "; folders=" +
-                            folders.diagnostic()),
+                            folders.diagnostic() +
+                            "; iconOverlap=" +
+                            iconOverlap.diagnostic()),
                     )
                 }
             )
@@ -667,6 +677,7 @@ class HookEntry : XposedModule() {
                 Runnable {
                     homeLabels.setEnabled(false)
                     diyGrid.setEnabled(false)
+                    iconOverlap.setEnabled(false)
                 }
             )
             HookEntry.log(
@@ -726,6 +737,7 @@ class HookEntry : XposedModule() {
                     homeLabels.setEnabled(false)
                     recentsBar.setEnabled(false)
                     diyGrid.setEnabled(false)
+                    iconOverlap.setEnabled(false)
                 }
             )
         publish(HomeColorSnapshot(null, null))

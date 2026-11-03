@@ -132,4 +132,6 @@
     <string name="layout_clear_confirm">保存済みの診断ログを削除しますか？</string>
     <string name="layout_log_size">保存済み: %1$d KB / 上限 約4MB</string>
     <string name="layout_io_error">診断ログを読み書きできませんでした</string>
+  <string name="icon_overlap_fix">アプリを閉じるとき隣のアイコンを消さない</string>
+  <string name="icon_overlap_fix_note">Home Upの重なり判定を補正し、離れているホームアイコンが復帰アニメーション中に消えるのを防ぎます。実際に重ねて配置したアイコンの動作は維持します。初期設定はON。切り替え時のホーム再読み込みは不要です。</string>
 </resources>
