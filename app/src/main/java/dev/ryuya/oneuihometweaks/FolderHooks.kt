@@ -11,10 +11,8 @@ import dev.ryuya.oneuihometweaks.compat.compatibleField
 import dev.ryuya.oneuihometweaks.compat.compatibleMethod
 import dev.ryuya.oneuihometweaks.compat.compatibleName
 import java.lang.Boolean as JavaBoolean
-import java.lang.ref.WeakReference
 import java.lang.reflect.Method
 import java.util.ArrayList
-import java.util.function.Supplier
 import kotlin.concurrent.Volatile
 import kotlin.jvm.JvmStatic
 import kotlin.math.log
@@ -22,9 +20,9 @@ import kotlin.math.log
 /* Folder-return policy and native close animation repair, confined to One UI Home. */
 class FolderHooks {
     private val hooks: MutableList<ModernHook.Handle?> = ArrayList<ModernHook.Handle?>()
-    private val homeWhileFocused: ThreadLocal<Boolean?>? =
-        ThreadLocal.withInitial<Boolean?>(Supplier { false })
-    private var returnedManager: WeakReference<Any?> = WeakReference<Any?>(null)
+    private val homeWhileFocused = ThreadLocal.withInitial { false }
+    private var geometryRefreshes = 0L
+    private var animatedHomeCloses = 0L
     @Volatile private var enabled: Boolean = false
     @Volatile private var returnToFolder: Boolean = true
     private var failed: Boolean = false
@@ -97,9 +95,7 @@ class FolderHooks {
                             if (!active() || ownRequest) return
                             try {
                                 if (JavaBoolean.TRUE != isOpen!!.invoke(p.thisObject)) return
-                                if (returnToFolder) {
-                                    returnedManager = WeakReference<Any?>(p.thisObject)
-                                } else {
+                                if (!returnToFolder) {
                                     // Use the same native state change as Home, before Samsung
                                     // resolves its
                                     // closing target. The app then shrinks towards the closed
@@ -119,7 +115,6 @@ class FolderHooks {
                                     } finally {
                                         ownRequest = false
                                     }
-                                    returnedManager.clear()
                                     diagnostic = "home after folder launch"
                                 }
                             } catch (error: Throwable) {
@@ -138,13 +133,15 @@ class FolderHooks {
                                 return
                             try {
                                 val owner = managerGetter.invoke(viewModel.get(p.thisObject))
-                                if (owner !== returnedManager.get()) return
-                                // Native caching compares only the icon's x/y. App gestures can
-                                // change
-                                // the root scale without moving the icon; rebuild native geometry.
+                                if (owner == null) return
+                                // Closing a folder is sufficient evidence. Notification launches
+                                // need not pass findCloseAnimationTarget, and a prior close must
+                                // not consume eligibility for a later Home gesture.
+                                // Native caching compares only icon x/y, omitting root scale.
                                 reset.invoke(p.thisObject)
-                                returnedManager.clear()
+                                geometryRefreshes++
                                 diagnostic = "native close geometry refreshed"
+                                trace("geometry", "duration=${p.args[0]}")
                             } catch (error: Throwable) {
                                 disable(error)
                             }
@@ -158,8 +155,8 @@ class FolderHooks {
                     object : ModernHook.Callback() {
                         override fun beforeHookedMethod(p: ModernHook.Param) {
                             val intent: Intent? = p.args[0] as Intent?
-                            p.setObjectExtra("folderHomeFocused", homeWhileFocused!!.get())
-                            homeWhileFocused!!.set(
+                            p.setObjectExtra("folderHomeFocused", homeWhileFocused.get())
+                            homeWhileFocused.set(
                                 active() &&
                                     (p.thisObject as Activity).hasWindowFocus() &&
                                     intent != null &&
@@ -169,7 +166,7 @@ class FolderHooks {
                         }
 
                         override fun afterHookedMethod(p: ModernHook.Param) {
-                            homeWhileFocused!!.set(
+                            homeWhileFocused.set(
                                 JavaBoolean.TRUE == p.getObjectExtra("folderHomeFocused")
                             )
                         }
@@ -185,8 +182,7 @@ class FolderHooks {
                                 !active() ||
                                     !returnToFolder ||
                                     ownRequest ||
-                                    !homeWhileFocused!!.get()!! ||
-                                    p.thisObject !== returnedManager.get() ||
+                                    homeWhileFocused.get() != true ||
                                     p.args[0] !== homeNormal
                             )
                                 return
@@ -214,7 +210,9 @@ class FolderHooks {
                                     ownRequest = false
                                 }
                                 p.setResult(null)
+                                animatedHomeCloses++
                                 diagnostic = "native animated home gesture"
+                                trace("focused_home", "nativeDuration=350")
                             } catch (error: Throwable) {
                                 disable(error)
                             }
@@ -234,11 +232,12 @@ class FolderHooks {
     fun configure(active: Boolean, keepFolder: Boolean) {
         enabled = active
         returnToFolder = keepFolder
-        if (!active || !keepFolder) returnedManager.clear()
     }
 
     fun diagnostic(): String? {
-        return if (failed) "stopped after error" else if (enabled) diagnostic else "off"
+        return if (failed) "stopped after error"
+        else if (enabled) "$diagnostic; geometry=$geometryRefreshes; home=$animatedHomeCloses"
+        else "off"
     }
 
     private fun active(): Boolean {
@@ -247,8 +246,14 @@ class FolderHooks {
 
     private fun disable(error: Throwable?) {
         failed = true
-        returnedManager.clear()
         HookEntry.log("FOLDER_DISABLED " + error)
+    }
+
+    private fun trace(event: String, detail: String) {
+        // One entry per close, never per frame; do not collect notification or app contents.
+        HookEntry.log(
+            "FOLDER_CLOSE event=$event $detail geometry=$geometryRefreshes home=$animatedHomeCloses"
+        )
     }
 
     companion object {
