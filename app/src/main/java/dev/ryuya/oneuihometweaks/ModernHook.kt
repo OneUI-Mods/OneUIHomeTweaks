@@ -15,6 +15,7 @@ object ModernHook {
     fun attach(value: XposedModule) {
         check(value.apiVersion >= XposedInterface.API_102) { "Xposed API 102 is required" }
         module = value
+        dev.ryuya.oneuihometweaks.compat.DexKitNative.configure(value.moduleApplicationInfo)
     }
 
     @JvmStatic fun apiVersion(): Int = requireModule().apiVersion

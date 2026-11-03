@@ -11,7 +11,7 @@ import org.luckypray.dexkit.result.MethodData
 /** Semantic anchors plus shape and uniqueness; never select the first ambiguous result. */
 object DexKitEngine {
     fun explore(apk: File, profile: JSONObject): Map<String, String?> {
-        System.loadLibrary("dexkit")
+        DexKitNative.load()
         val exact =
             profile.getString("sha256") ==
                 File(apk.path).inputStream().use { stream ->

@@ -34,7 +34,7 @@ object DexRuntimeCache {
             } else {
                 val explored =
                     try {
-                        System.loadLibrary("dexkit")
+                        DexKitNative.load()
                         DexKitBridge.create(apk).use { bridge ->
                             bridge.setThreadNum(2)
                             GenerationStore.Result("ready", block(bridge))
