@@ -3,6 +3,8 @@ package dev.ryuya.oneuihometweaks
 import android.app.Activity
 import android.app.WallpaperManager
 import android.content.Context
+import android.os.IBinder
+import android.os.Looper
 import android.provider.Settings.System
 import android.view.ViewGroup
 import dev.ryuya.oneuihometweaks.compat.DexSymbols
@@ -38,6 +40,9 @@ class PageBridge {
     private var discoveryFailed: Boolean = false
     private var homeActivity: WeakReference<Activity?> = WeakReference<Activity?>(null)
     private var lastReport: String = ""
+    private val ownWallpaperWrite = ThreadLocal.withInitial { false }
+    private var correctedNativeWrites = 0L
+    private var nativeWriterFailed = false
     private var freeGridObserver: Consumer<ViewGroup?>? = null
 
     fun setFreeGridObserver(observer: Consumer<ViewGroup?>?) {
@@ -73,6 +78,63 @@ class PageBridge {
             }
         val installed = ArrayList<ModernHook.Handle?>()
         try {
+            installed.add(
+                ModernHook.hookMethod(
+                    WallpaperManager::class
+                        .java
+                        .getDeclaredMethod(
+                            "setWallpaperOffsets",
+                            IBinder::class.java,
+                            Float::class.javaPrimitiveType,
+                            Float::class.javaPrimitiveType,
+                        ),
+                    object : ModernHook.Callback() {
+                        override fun beforeHookedMethod(p: ModernHook.Param) {
+                            if (
+                                ownWallpaperWrite.get() == true ||
+                                    nativeWriterFailed ||
+                                    Looper.myLooper() != Looper.getMainLooper()
+                            )
+                                return
+                            val bridge = freeGrid?.takeIf { it.visible() } ?: this@PageBridge
+                            if (
+                                !bridge.enabled ||
+                                    bridge.failed ||
+                                    bridge.ownWallpaperWrite.get() == true
+                            )
+                                return
+                            val view = bridge.last.get() ?: return
+                            try {
+                                val position = bridge.position(view) ?: return
+                                if (p.args[0] !== position.token) return
+                                val incoming = p.args[1] as? Float ?: return
+                                // This writer has its own offset-step fields. Correct that same
+                                // manager instance before its one native IPC sends both values.
+                                (p.thisObject as WallpaperManager).setWallpaperOffsetSteps(
+                                    position.step,
+                                    0f,
+                                )
+                                p.args[1] = position.offset
+                                p.args[2] = 0.5f
+                                if (abs(incoming - position.offset) > 0.001f) {
+                                    correctedNativeWrites++
+                                    if (correctedNativeWrites <= 4)
+                                        HookEntry.log(
+                                            "PAGE_NATIVE_WRITE_CORRECTED x=$incoming -> ${position.offset} step=${position.step}"
+                                        )
+                                }
+                            } catch (error: Throwable) {
+                                // Retain native writes and stop retrying this correction after a
+                                // failure.
+                                nativeWriterFailed = true
+                                HookEntry.log(
+                                    "PAGE_NATIVE_WRITE_UNAVAILABLE ${error.javaClass.simpleName}"
+                                )
+                            }
+                        }
+                    },
+                )
+            )
             installed.add(
                 ModernHook.hookMethod(
                     workspace.compatibleDeclaredMethod(
@@ -303,71 +365,91 @@ class PageBridge {
         )
     }
 
+    private data class Position(
+        val token: IBinder,
+        val offset: Float,
+        val step: Float,
+        val count: Int,
+    )
+
+    private fun position(view: ViewGroup): Position? {
+        val owner = homeActivity.get()
+        // Remote launcher previews build their own workspace. Never send their offsets to home.
+        if (
+            owner == null ||
+                owner.isDestroyed() ||
+                !owner.hasWindowFocus() ||
+                view.getWindowToken() !== owner.getWindow().getDecorView().getWindowToken()
+        )
+            return null
+        if (!isFreeGrid && freeGrid != null && freeGrid!!.visible()) return null
+        if (
+            !view.isAttachedToWindow() ||
+                !view.isShown() ||
+                view.getDisplay() == null ||
+                view.getDisplay().getDisplayId() != 0
+        )
+            return null
+        val info = spaceInfo!!.invoke(view)
+        if (
+            info.javaClass.compatibleMethod("isDexSpace").invoke(info) as Boolean ||
+                visibleCount!!.invoke(view) as Int != 1
+        )
+            return null
+        if (
+            "com.honeyspace.sdk.HomeScreen\$Normal" !=
+                currentState!!.invoke(view).javaClass.compatibleName()
+        )
+            return null
+        val positions = ArrayList<Int?>()
+        for (i in 0 until view.getChildCount()) {
+            val child = view.getChildAt(i)
+            if (
+                if (indexedCellType != null)
+                    ("CELL_LAYOUT" == (indexedCellType!!.invoke(view, i) as Enum<*>).name)
+                else
+                    cells!!.isInstance(child) &&
+                        "CELL_LAYOUT" == (cellType!!.invoke(child) as Enum<*>).name
+            )
+                positions.add(scrollForPage!!.invoke(view, i) as Int?)
+        }
+        if (positions.isEmpty()) return null
+        val array = IntArray(positions.size)
+        for (i in array.indices) array[i] = positions.get(i)!!
+        if (array.size > 1 && array[0] == array[array.size - 1]) return null // not laid out yet
+
+        val offset = PagePolicy.offset(view.getScrollX(), array)
+        val step: Float = if (array.size > 1) 1f / (array.size - 1) else 0f
+        val token = view.getWindowToken()
+        if (token == null) return null
+        return Position(token, offset, step, array.size)
+    }
+
     private fun send(view: ViewGroup) {
         try {
-            val owner = homeActivity.get()
-            // Remote launcher previews build their own workspace. Never send their offsets to home.
-            if (
-                owner == null ||
-                    owner.isDestroyed() ||
-                    !owner.hasWindowFocus() ||
-                    view.getWindowToken() !== owner.getWindow().getDecorView().getWindowToken()
-            )
-                return
-            if (!isFreeGrid && freeGrid != null && freeGrid!!.visible()) return
-            if (
-                !view.isAttachedToWindow() ||
-                    !view.isShown() ||
-                    view.getDisplay() == null ||
-                    view.getDisplay().getDisplayId() != 0
-            )
-                return
-            val info = spaceInfo!!.invoke(view)
-            if (
-                info.javaClass.compatibleMethod("isDexSpace").invoke(info) as Boolean ||
-                    visibleCount!!.invoke(view) as Int != 1
-            )
-                return
-            if (
-                "com.honeyspace.sdk.HomeScreen\$Normal" !=
-                    currentState!!.invoke(view).javaClass.compatibleName()
-            )
-                return
-            val positions = ArrayList<Int?>()
-            for (i in 0 until view.getChildCount()) {
-                val child = view.getChildAt(i)
-                if (
-                    if (indexedCellType != null)
-                        ("CELL_LAYOUT" == (indexedCellType!!.invoke(view, i) as Enum<*>).name)
-                    else
-                        cells!!.isInstance(child) &&
-                            "CELL_LAYOUT" == (cellType!!.invoke(child) as Enum<*>).name
-                )
-                    positions.add(scrollForPage!!.invoke(view, i) as Int?)
+            val position = position(view) ?: return
+            val wm = WallpaperManager.getInstance(view.context)
+            val previous = ownWallpaperWrite.get()
+            ownWallpaperWrite.set(true)
+            try {
+                wm.setWallpaperOffsetSteps(position.step, 0f)
+                wm.setWallpaperOffsets(position.token, position.offset, 0.5f)
+            } finally {
+                ownWallpaperWrite.set(previous)
             }
-            if (positions.isEmpty()) return
-            val array = IntArray(positions.size)
-            for (i in array.indices) array[i] = positions.get(i)!!
-            if (array.size > 1 && array[0] == array[array.size - 1]) return // not laid out yet
-
-            val offset = PagePolicy.offset(view.getScrollX(), array)
-            val step: Float = if (array.size > 1) 1f / (array.size - 1) else 0f
-            val token = view.getWindowToken()
-            if (token == null) return
-            val wm = WallpaperManager.getInstance(view.getContext())
-            wm.setWallpaperOffsetSteps(step, 0f)
-            wm.setWallpaperOffsets(token, offset, 0.5f)
-            val rank: Float = offset * max(0, array.size - 1)
+            val offset = position.offset
+            val step = position.step
+            val rank = offset * max(0, position.count - 1)
             if (abs(rank - Math.round(rank)) < 0.001f) {
-                val report: String =
-                    ((if (isFreeGrid) "FREEGRID_PAGE_OFFSET pages=" else "PAGE_OFFSET pages=") +
-                        array.size +
+                val report =
+                    (if (isFreeGrid) "FREEGRID_PAGE_OFFSET pages=" else "PAGE_OFFSET pages=") +
+                        position.count +
                         " rank=" +
                         Math.round(rank) +
                         " x=" +
                         offset +
                         " xStep=" +
-                        step)
+                        step
                 if (report != lastReport) {
                     HookEntry.log(report)
                     lastReport = report
@@ -375,7 +457,7 @@ class PageBridge {
             }
         } catch (t: Throwable) {
             failed = true
-            HookEntry.log("PAGE_DISABLED " + t.javaClass.getSimpleName() + ": " + t.message)
+            HookEntry.log("PAGE_DISABLED " + t.javaClass.simpleName + ": " + t.message)
         }
     }
 }
