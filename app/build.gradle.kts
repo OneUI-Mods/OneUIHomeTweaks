@@ -18,7 +18,7 @@ android {
         applicationId = "dev.ryuya.oneuihometweaks"
         minSdk = 31
         targetSdk = 37
-        versionCode = 41
+        versionCode = 42
         versionName = "0.20.1"
         // Live-card diagnostics are opt-in for local investigation, never default release behavior.
         buildConfigField("boolean", "RECENTS_LIVE_TRACE", providers.gradleProperty("recentsLiveTrace").map { (it == "true").toString() }.getOrElse("false"))

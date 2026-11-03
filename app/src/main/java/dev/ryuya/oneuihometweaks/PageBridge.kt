@@ -91,7 +91,9 @@ class PageBridge {
                     object : ModernHook.Callback() {
                         override fun beforeHookedMethod(p: ModernHook.Param) {
                             if (
-                                ownWallpaperWrite.get() == true ||
+                                !enabled ||
+                                    failed ||
+                                    ownWallpaperWrite.get() == true ||
                                     nativeWriterFailed ||
                                     Looper.myLooper() != Looper.getMainLooper()
                             )
