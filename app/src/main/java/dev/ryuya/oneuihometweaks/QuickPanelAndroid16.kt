@@ -4,6 +4,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.SeekBar
+import dev.ryuya.oneuihometweaks.compat.DexSymbols
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredField
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredMethod
+import dev.ryuya.oneuihometweaks.compat.compatibleName
 import java.lang.reflect.Field
 import java.lang.reflect.Method
 import java.util.ArrayList
@@ -37,35 +41,42 @@ class QuickPanelAndroid16(owner: QuickPanelHooks, loader: ClassLoader?) : QuickP
         this.owner = owner
         for (kind in 0..1) {
             val type =
-                Class.forName(
+                DexSymbols.findClass(
                     "com.android.systemui.qs.bar." +
                         (if (kind == 0) "BrightnessBar" else "VolumeBar"),
                     false,
                     loader,
                 )
             val controller: Field? =
-                if (kind == 0) type.getDeclaredField("mSecBrightnessSliderController") else null
+                if (kind == 0) type.compatibleDeclaredField("mSecBrightnessSliderController")
+                else null
             val height: Method? =
                 if (controller != null)
                     controller
                         .getType()
-                        .getDeclaredMethod("updateSliderHeight", Int::class.javaPrimitiveType)
+                        .compatibleDeclaredMethod(
+                            "updateSliderHeight",
+                            Int::class.javaPrimitiveType,
+                        )
                 else null
             val c =
                 QuickPanelAndroid16.Contract(
                     kind,
-                    type.getDeclaredMethod("updateHeightMargins"),
-                    type.getDeclaredField("mSliderContainer"),
-                    type.getDeclaredField("mTileLayout"),
+                    type.compatibleDeclaredMethod("updateHeightMargins"),
+                    type.compatibleDeclaredField("mSliderContainer"),
+                    type.compatibleDeclaredField("mTileLayout"),
                     controller,
                     height,
-                    if (kind == 1) type.getDeclaredField("mSlider") else null,
+                    if (kind == 1) type.compatibleDeclaredField("mSlider") else null,
                 )
             // Both native classes recreate their track geometry in updateLayout; clone paths use it
             // too.
             var layout: Method? = null
             for (candidate in type.getDeclaredMethods()) {
-                if (candidate.getName() == "updateLayout" && candidate.getParameterCount() == 4)
+                if (
+                    candidate.compatibleName() == "updateLayout" &&
+                        candidate.getParameterCount() == 4
+                )
                     layout = candidate
             }
             if (layout == null) throw NoSuchMethodException("View bar layout")

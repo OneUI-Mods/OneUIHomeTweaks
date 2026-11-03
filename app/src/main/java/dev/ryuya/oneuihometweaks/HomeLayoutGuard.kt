@@ -23,6 +23,10 @@ import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.view.WindowInsets
 import android.view.WindowManager
+import dev.ryuya.oneuihometweaks.compat.DexSymbols
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredField
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredMethod
+import dev.ryuya.oneuihometweaks.compat.compatibleName
 import java.lang.Boolean as JavaBoolean
 import java.lang.ref.WeakReference
 import java.lang.reflect.Method
@@ -164,7 +168,7 @@ class HomeLayoutGuard {
 
     private fun collectLayouts(view: ViewGroup) {
         if (
-            view.javaClass.getName() ==
+            view.javaClass.compatibleName() ==
                 "com.honeyspace.ui.honeypots.freegrid.presentation.FreeGridCellLayout"
         ) {
             layouts!!.add(view)
@@ -195,33 +199,33 @@ class HomeLayoutGuard {
                 throw UnsupportedOperationException(
                     "No reviewed layout-repair profile for this launcher"
                 )
-            val bounds = Class.forName("z5.b", false, app!!.getClassLoader())
+            val bounds = DexSymbols.findClass("z5.b", false, app!!.getClassLoader())
             val updateBounds =
-                bounds.getDeclaredMethod("j", Context::class.java, WindowInsets::class.java)
-            getBounds = bounds.getDeclaredMethod("b", Configuration::class.java)
+                bounds.compatibleDeclaredMethod("j", Context::class.java, WindowInsets::class.java)
+            getBounds = bounds.compatibleDeclaredMethod("b", Configuration::class.java)
             getBounds!!.setAccessible(true)
             val vm =
-                Class.forName(
+                DexSymbols.findClass(
                     "com.honeyspace.ui.honeypots.freegrid.viewmodel.FreeGridViewModel",
                     false,
                     loader,
                 )
             val layout =
-                Class.forName(
+                DexSymbols.findClass(
                     "com.honeyspace.ui.honeypots.freegrid.presentation.FreeGridCellLayout",
                     false,
                     loader,
                 )
             itemType =
-                Class.forName(
+                DexSymbols.findClass(
                     "com.honeyspace.ui.honeypots.freegrid.domain.model.FreeGridItem",
                     false,
                     loader,
                 )
-            updateAll = vm.getDeclaredMethod("updateAllItemByLayoutChanged")
+            updateAll = vm.compatibleDeclaredMethod("updateAllItemByLayoutChanged")
             updateAll!!.setAccessible(true)
-            vm.getDeclaredField("uiContext")
-            vm.getDeclaredMethod("isPreview")
+            vm.compatibleDeclaredField("uiContext")
+            vm.compatibleDeclaredMethod("isPreview")
             // Resolve every repair contract before intercepting any behavior.
             hookBounds(updateBounds)
             hookLayoutUpdate()
@@ -389,14 +393,14 @@ class HomeLayoutGuard {
     @Throws(ReflectiveOperationException::class)
     private fun hookSanitizer(loader: ClassLoader?) {
         val type =
-            Class.forName(
+            DexSymbols.findClass(
                 "com.honeyspace.ui.honeypots.freegrid.domain.model.FreeGridDataSanitizer",
                 false,
                 loader,
             )
         var method: Method? = null
         for (candidate in type.getDeclaredMethods()) if (
-            candidate.getName() == "sanitizeOnCellLayoutSizeChanged" &&
+            candidate.compatibleName() == "sanitizeOnCellLayoutSizeChanged" &&
                 candidate.getParameterCount() == 5
         )
             method = candidate
@@ -618,7 +622,7 @@ class HomeLayoutGuard {
 
     @Throws(ReflectiveOperationException::class)
     private fun observeRepository(vm: Any) {
-        val field = vm.javaClass.getDeclaredField("freeGridRepository")
+        val field = vm.javaClass.compatibleDeclaredField("freeGridRepository")
         field.setAccessible(true)
         val repository = field.get(vm)
         for (item in HomeLayoutGuard.call(vm, "getItems") as Iterable<*>) {
@@ -631,7 +635,7 @@ class HomeLayoutGuard {
         if (!repositoryTypes.add(repository.javaClass)) return
         for (update in repository.javaClass.getDeclaredMethods()) {
             if (
-                (update.getName() != "update") ||
+                (update.compatibleName() != "update") ||
                     update.getParameterCount() == 0 ||
                     update.getParameterTypes()[0] != itemType ||
                     Modifier.isAbstract(update.getModifiers())
@@ -675,17 +679,17 @@ class HomeLayoutGuard {
                 )
             )
         }
-        record("repository_observed", "class", repository.javaClass.getName())
+        record("repository_observed", "class", repository.javaClass.compatibleName())
     }
 
     private fun activity(activity: Activity, event: String?) {
-        val name = activity.javaClass.getName()
+        val name = activity.javaClass.compatibleName()
         if ("resumed" == event) resumedActivities!!.add(activity)
         else if ("paused" == event || "destroyed" == event) resumedActivities!!.remove(activity)
         launcherResumed = false
         recentsResumed = false
         for (resumed in resumedActivities!!) {
-            val resumedName = resumed!!.javaClass.getName()
+            val resumedName = resumed!!.javaClass.compatibleName()
             if ((app!!.getPackageName() + ".Launcher") == resumedName) launcherResumed = true
             if ("com.android.quickstep.RecentsActivity" == resumedName) recentsResumed = true
         }
@@ -704,7 +708,7 @@ class HomeLayoutGuard {
             "phase",
             event,
             "class",
-            activity.javaClass.getName(),
+            activity.javaClass.compatibleName(),
             "orientation",
             activity.getResources().getConfiguration().orientation,
             "rotation",
@@ -899,7 +903,7 @@ class HomeLayoutGuard {
         @JvmStatic
         @Throws(ReflectiveOperationException::class)
         private fun uiContext(vm: Any): Context? {
-            val field = vm.javaClass.getDeclaredField("uiContext")
+            val field = vm.javaClass.compatibleDeclaredField("uiContext")
             field.setAccessible(true)
             return field.get(vm) as Context?
         }
@@ -910,14 +914,14 @@ class HomeLayoutGuard {
             var type = owner.javaClass
             while (type != null) {
                 try {
-                    val method = type.getDeclaredMethod(name)
+                    val method = type.compatibleDeclaredMethod(name)
                     method.setAccessible(true)
                     return method.invoke(owner)
                 } catch (missing: NoSuchMethodException) {
                     type = type.getSuperclass()
                 }
             }
-            throw NoSuchMethodException(owner.javaClass.getName() + "." + name)
+            throw NoSuchMethodException(owner.javaClass.compatibleName() + "." + name)
         }
 
         @JvmStatic
@@ -946,7 +950,7 @@ class HomeLayoutGuard {
                     ",scale=" +
                     HomeLayoutGuard.call(item, "getScale"))
             } catch (error: Throwable) {
-                return item.javaClass.getName() + ":snapshot unavailable"
+                return item.javaClass.compatibleName() + ":snapshot unavailable"
             }
         }
 

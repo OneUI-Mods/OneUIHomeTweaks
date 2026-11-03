@@ -27,7 +27,7 @@ import android.view.ViewTreeObserver.OnWindowFocusChangeListener
 import android.view.WindowManager
 import android.view.WindowManager.LayoutParams
 import androidx.annotation.RequiresApi
-import java.io.File
+import dev.ryuya.oneuihometweaks.compat.DexRuntimeCache
 import java.lang.Boolean as JavaBoolean
 import java.lang.reflect.Method
 import java.util.ArrayList
@@ -35,10 +35,6 @@ import java.util.WeakHashMap
 import kotlin.jvm.JvmField
 import kotlin.jvm.JvmStatic
 import kotlin.math.log
-import org.jf.dexlib2.DexFileFactory
-import org.jf.dexlib2.Opcodes
-import org.jf.dexlib2.iface.instruction.ReferenceInstruction
-import org.jf.dexlib2.iface.reference.StringReference
 
 /* Mirrors the existing home wallpaper. No secondary engine, offsets or visibility commands. */
 @RequiresApi(36)
@@ -60,39 +56,27 @@ class PreviewHooks {
     fun install(context: Application?, loader: ClassLoader?) {
         app = context
         main = Handler(Looper.getMainLooper())
-        val previews = ArrayList<Class<*>?>()
-        val dex =
-            DexFileFactory.loadDexContainer(
-                File(app!!.getApplicationInfo().sourceDir),
-                Opcodes.getDefault(),
-            )
-        for (entry in dex.getDexEntryNames()) for (c in
-            dex.getEntry(entry)!!.getDexFile().getClasses()) {
-            var preview: Boolean = false
-            for (m in c.getMethods()) if (m.getImplementation() != null)
-                for (i in m.getImplementation()!!.getInstructions()) run {
-                    val patternPrefix0 = i is ReferenceInstruction
-                    val str = if (patternPrefix0) i.getReference() as? StringReference else null
-                    if (
-                        patternPrefix0 && str != null && "HomePreviewSurfaceView" == str.getString()
-                    )
-                        preview = true
+        val result =
+            DexRuntimeCache.query(app!!.applicationInfo.sourceDir, "home-preview-v2") { bridge ->
+                val candidates =
+                    bridge
+                        .findClass { matcher { usingStrings("HomePreviewSurfaceView") } }
+                        .filter { type ->
+                            type.methods.any { "HomePreviewSurfaceView" in it.usingStrings }
+                        }
+                linkedMapOf<String, String?>().apply {
+                    DexRuntimeCache.putList(this, "classes", candidates.map { it.name })
                 }
-            if (!preview) continue
-            val actual =
-                Class.forName(
-                    c.getType().substring(1, c.getType().length - 1).replace('/', '.'),
-                    false,
-                    loader,
-                )
-            if (
-                SurfaceView::class.java.isAssignableFrom(actual) &&
-                    Callback::class.java.isAssignableFrom(actual)
-            )
-                previews.add(actual)
-        }
+            }
+        val previews =
+            DexRuntimeCache.list(result, "classes")
+                .map { Class.forName(it, false, loader) }
+                .filter {
+                    SurfaceView::class.java.isAssignableFrom(it) &&
+                        Callback::class.java.isAssignableFrom(it)
+                }
         check(previews.size == 1) { "Ambiguous native preview DEX evidence" }
-        previewClass = previews.get(0)
+        previewClass = previews.single()
         windowService =
             Class.forName("android.view.WindowManagerGlobal")
                 .getMethod("getWindowManagerService")

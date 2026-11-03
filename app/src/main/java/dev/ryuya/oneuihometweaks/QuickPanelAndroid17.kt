@@ -1,6 +1,12 @@
 package dev.ryuya.oneuihometweaks
 
 import android.content.Context
+import dev.ryuya.oneuihometweaks.compat.DexSymbols
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredField
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredMethod
+import dev.ryuya.oneuihometweaks.compat.compatibleField
+import dev.ryuya.oneuihometweaks.compat.compatibleMethod
+import dev.ryuya.oneuihometweaks.compat.compatibleName
 import io.github.libxposed.api.XposedInterface.Chain
 import java.lang.reflect.Method
 import java.util.HashSet
@@ -36,18 +42,18 @@ class QuickPanelAndroid17(owner: QuickPanelHooks, loader: ClassLoader?) : QuickP
 
     init {
         this.owner = owner
-        val modifier = Class.forName("androidx.compose.ui.Modifier", false, loader)
-        emptyModifier = modifier.getField("Companion").get(null)
-        then = modifier.getMethod("then", modifier)
-        val sizes = Class.forName("androidx.compose.foundation.layout.SizeKt", false, loader)
+        val modifier = DexSymbols.findClass("androidx.compose.ui.Modifier", false, loader)
+        emptyModifier = modifier.compatibleField("Companion").get(null)
+        then = modifier.compatibleMethod("then", modifier)
+        val sizes = DexSymbols.findClass("androidx.compose.foundation.layout.SizeKt", false, loader)
         requiredWidth =
-            sizes.getDeclaredMethod(
+            sizes.compatibleDeclaredMethod(
                 "requiredWidth-3ABfNKs",
                 modifier,
                 Float::class.javaPrimitiveType,
             )
         this.requiredHeight =
-            sizes.getDeclaredMethod(
+            sizes.compatibleDeclaredMethod(
                 "requiredHeight-3ABfNKs",
                 modifier,
                 Float::class.javaPrimitiveType,
@@ -74,23 +80,28 @@ class QuickPanelAndroid17(owner: QuickPanelHooks, loader: ClassLoader?) : QuickP
 
     @Throws(Exception::class)
     private fun installButtons(loader: ClassLoader?, modifier: Class<*>?, sizes: Class<*>) {
-        val size = sizes.getDeclaredMethod("size-3ABfNKs", modifier, Float::class.javaPrimitiveType)
+        val size =
+            sizes.compatibleDeclaredMethod("size-3ABfNKs", modifier, Float::class.javaPrimitiveType)
         val requiredSize =
-            sizes.getDeclaredMethod(
+            sizes.compatibleDeclaredMethod(
                 "requiredSize-3ABfNKs",
                 modifier,
                 Float::class.javaPrimitiveType,
             )
         val tile =
-            Class.forName(
+            DexSymbols.findClass(
                 "com.android.systemui.samsung.quicksetting.domain.model.items.QuickTile",
                 false,
                 loader,
             )
-        val spec = tile.getDeclaredField("spec")
+        val spec = tile.compatibleDeclaredField("spec")
         val companion =
             QuickPanelAndroid17.named(
-                Class.forName(QuickPanelAndroid17.TILES + "CompanionQuickTileKt", false, loader),
+                DexSymbols.findClass(
+                    QuickPanelAndroid17.TILES + "CompanionQuickTileKt",
+                    false,
+                    loader,
+                ),
                 "CompanionQuickTile",
                 6,
             )
@@ -123,8 +134,8 @@ class QuickPanelAndroid17(owner: QuickPanelHooks, loader: ClassLoader?) : QuickP
             )
         )
         val scale =
-            Class.forName("androidx.compose.ui.draw.ScaleKt", false, loader)
-                .getDeclaredMethod(
+            DexSymbols.findClass("androidx.compose.ui.draw.ScaleKt", false, loader)
+                .compatibleDeclaredMethod(
                     "scale",
                     modifier,
                     Float::class.javaPrimitiveType,
@@ -132,7 +143,7 @@ class QuickPanelAndroid17(owner: QuickPanelHooks, loader: ClassLoader?) : QuickP
                 )
         val quickTile =
             QuickPanelAndroid17.named(
-                Class.forName(QuickPanelAndroid17.TILES + "QuickTileKt", false, loader),
+                DexSymbols.findClass(QuickPanelAndroid17.TILES + "QuickTileKt", false, loader),
                 "QuickTile",
                 8,
             )
@@ -180,13 +191,13 @@ class QuickPanelAndroid17(owner: QuickPanelHooks, loader: ClassLoader?) : QuickP
         if (!ModernHook.deoptimize(quickTile!!))
             throw UnsupportedOperationException("Grid tile call site")
         val grid =
-            Class.forName(
+            DexSymbols.findClass(
                 "com.android.systemui.samsung.quicksetting.ui.base.spannablegrid.SpannableGridTileKt",
                 false,
                 loader,
             )
         for (call in grid.getDeclaredMethods()) {
-            if (call.getName() == "SpannableGridTile" && !ModernHook.deoptimize(call))
+            if (call.compatibleName() == "SpannableGridTile" && !ModernHook.deoptimize(call))
                 throw UnsupportedOperationException("Grid caller")
         }
         owner.add(
@@ -219,8 +230,8 @@ class QuickPanelAndroid17(owner: QuickPanelHooks, loader: ClassLoader?) : QuickP
                 "VolumeBarWithTileKt$\$ExternalSyntheticLambda2",
             )) {
             val call =
-                Class.forName(QuickPanelAndroid17.TILES + caller, false, loader)
-                    .getDeclaredMethod("invoke", Any::class.java, Any::class.java)
+                DexSymbols.findClass(QuickPanelAndroid17.TILES + caller, false, loader)
+                    .compatibleDeclaredMethod("invoke", Any::class.java, Any::class.java)
             if (!ModernHook.deoptimize(call))
                 throw UnsupportedOperationException("Companion caller")
         }
@@ -232,31 +243,37 @@ class QuickPanelAndroid17(owner: QuickPanelHooks, loader: ClassLoader?) : QuickP
         // This exact closure is the BoxWithConstraints content of IconProgressBar on BZI9.
         // The 100 / 150 discriminator comes from the reviewed BrightBar / VolumeBar call sites.
         val content =
-            Class.forName(
+            DexSymbols.findClass(
                 QuickPanelAndroid17.TILES + "IconProgressBarKt$\$ExternalSyntheticLambda8",
                 false,
                 loader,
             )
-        val kindField = content.getDeclaredField("f$31")
+        val kindField = content.compatibleDeclaredField("f$31")
         if (
             kindField.getType() != Int::class.javaPrimitiveType ||
-                content.getDeclaredField("f$1").getType() != Float::class.javaPrimitiveType ||
-                content.getDeclaredField("f$2").getType() != modifier
+                content.compatibleDeclaredField("f$1").getType() !=
+                    Float::class.javaPrimitiveType ||
+                content.compatibleDeclaredField("f$2").getType() != modifier
         )
             throw UnsupportedOperationException("Slider closure contract")
-        val verticalField = content.getDeclaredField("f$0")
-        val scopeField = content.getDeclaredField("f$8")
-        val contextField = content.getDeclaredField("f$20")
+        val verticalField = content.compatibleDeclaredField("f$0")
+        val scopeField = content.compatibleDeclaredField("f$8")
+        val contextField = content.compatibleDeclaredField("f$20")
         val constraints =
-            Class.forName(
+            DexSymbols.findClass(
                 "androidx.compose.foundation.layout.BoxWithConstraintsScopeImpl",
                 false,
                 loader,
             )
-        val maxWidth = constraints.getDeclaredMethod("getMaxWidth-D9Ej5fM")
-        val maxHeight = constraints.getDeclaredMethod("getMaxHeight-D9Ej5fM")
+        val maxWidth = constraints.compatibleDeclaredMethod("getMaxWidth-D9Ej5fM")
+        val maxHeight = constraints.compatibleDeclaredMethod("getMaxHeight-D9Ej5fM")
         val invoke =
-            content.getDeclaredMethod("invoke", Any::class.java, Any::class.java, Any::class.java)
+            content.compatibleDeclaredMethod(
+                "invoke",
+                Any::class.java,
+                Any::class.java,
+                Any::class.java,
+            )
         owner.add(
             ModernHook.aroundMethod(
                 invoke,
@@ -312,7 +329,11 @@ class QuickPanelAndroid17(owner: QuickPanelHooks, loader: ClassLoader?) : QuickP
         )
         val bar =
             QuickPanelAndroid17.named(
-                Class.forName(QuickPanelAndroid17.TILES + "BidirectionalBarKt", false, loader),
+                DexSymbols.findClass(
+                    QuickPanelAndroid17.TILES + "BidirectionalBarKt",
+                    false,
+                    loader,
+                ),
                 "BidirectionalBar-Ld4roP0",
                 19,
             )
@@ -383,7 +404,7 @@ class QuickPanelAndroid17(owner: QuickPanelHooks, loader: ClassLoader?) : QuickP
             arrayOf<String>("BrightBar", "VolumeBar", "BrightBarWithTile", "VolumeBarWithTile")) {
             val root =
                 QuickPanelAndroid17.named(
-                    Class.forName(QuickPanelAndroid17.TILES + name + "Kt", false, loader),
+                    DexSymbols.findClass(QuickPanelAndroid17.TILES + name + "Kt", false, loader),
                     name,
                     5,
                 )
@@ -429,11 +450,12 @@ class QuickPanelAndroid17(owner: QuickPanelHooks, loader: ClassLoader?) : QuickP
         private fun named(type: Class<*>, name: String?, count: Int): Method? {
             var method: Method? = null
             for (candidate in type.getDeclaredMethods()) {
-                if (candidate.getName() != name || candidate.getParameterCount() != count) continue
+                if (candidate.compatibleName() != name || candidate.getParameterCount() != count)
+                    continue
                 if (method != null) throw NoSuchMethodException("Ambiguous " + name)
                 method = candidate
             }
-            if (method == null) throw NoSuchMethodException(type.getName() + "#" + name)
+            if (method == null) throw NoSuchMethodException(type.compatibleName() + "#" + name)
             return method
         }
     }

@@ -6,6 +6,9 @@ import android.os.Build
 import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
+import dev.ryuya.oneuihometweaks.compat.DexSymbols
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredField
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredMethod
 import java.lang.reflect.Field
 
 /** Corrects Home Up's closing overlap test without changing icon alpha or native animations. */
@@ -70,22 +73,27 @@ class IconOverlapHooks {
 
     private fun install(loader: ClassLoader?) {
         val contract = contract()
-        val operator = Class.forName(contract.operator, false, loader)
-        val bounds = Class.forName(contract.bounds, false, loader)
+        val operator = DexSymbols.findClass(contract.operator, false, loader)
+        val bounds = DexSymbols.findClass(contract.bounds, false, loader)
         val container =
-            Class.forName("com.honeyspace.ui.honeypots.sticker.StickerContainer", false, loader)
-        val icon = Class.forName("com.honeyspace.sdk.transition.AnimatableIconView", false, loader)
+            DexSymbols.findClass(
+                "com.honeyspace.ui.honeypots.sticker.StickerContainer",
+                false,
+                loader,
+            )
+        val icon =
+            DexSymbols.findClass("com.honeyspace.sdk.transition.AnimatableIconView", false, loader)
         val homeCell =
-            Class.forName(
+            DexSymbols.findClass(
                 "com.honeyspace.ui.honeypots.freegrid.presentation.FreeGridCellLayout",
                 false,
                 loader,
             )
-        val launched = operator.getDeclaredField(contract.launched)
+        val launched = operator.compatibleDeclaredField(contract.launched)
         check(View::class.java.isAssignableFrom(launched.type)) { "Overlap source type changed" }
         launched.isAccessible = true
         val hide =
-            operator.getDeclaredMethod(
+            operator.compatibleDeclaredMethod(
                 "hideOverlapStickers",
                 Rect::class.java,
                 container,
@@ -94,7 +102,7 @@ class IconOverlapHooks {
                 Boolean::class.javaPrimitiveType,
             )
         val intersects =
-            bounds.getDeclaredMethod(
+            bounds.compatibleDeclaredMethod(
                 "isIntersect",
                 View::class.java,
                 View::class.java,

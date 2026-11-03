@@ -5,6 +5,8 @@ import android.graphics.RectF
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.FrameLayout.LayoutParams
+import dev.ryuya.oneuihometweaks.compat.DexSymbols
+import dev.ryuya.oneuihometweaks.compat.compatibleName
 import java.lang.reflect.Method
 import kotlin.jvm.JvmStatic
 import kotlin.math.min
@@ -19,7 +21,7 @@ class QuickPanelPreviewAndroid16(loader: ClassLoader?, ready: Runnable) :
         for (kind in 0..1) {
             val index: Int = kind
             val type =
-                Class.forName(
+                DexSymbols.findClass(
                     "com.android.systemui.qs.bar." +
                         (if (kind == 0) "BrightnessBar" else "VolumeBar"),
                     false,
@@ -27,7 +29,7 @@ class QuickPanelPreviewAndroid16(loader: ClassLoader?, ready: Runnable) :
                 )
             var layout: Method? = null
             for (candidate in type.getDeclaredMethods()) if (
-                candidate.getName() == "updateLayout" && candidate.getParameterCount() == 4
+                candidate.compatibleName() == "updateLayout" && candidate.getParameterCount() == 4
             )
                 layout = candidate
             if (layout == null) throw NoSuchMethodException("Native View layout")

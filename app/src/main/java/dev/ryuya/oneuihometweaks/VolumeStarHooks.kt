@@ -7,15 +7,12 @@ import android.os.Handler
 import android.os.Looper
 import android.os.Parcelable
 import android.view.View
-import java.io.File
+import dev.ryuya.oneuihometweaks.compat.DexRuntimeCache
 import java.lang.Boolean as JavaBoolean
 import java.lang.ref.WeakReference
 import java.lang.reflect.Constructor
-import java.lang.reflect.Executable
 import java.lang.reflect.Field
-import java.lang.reflect.Member
 import java.lang.reflect.Method
-import java.lang.reflect.Modifier
 import java.util.ArrayList
 import java.util.Arrays
 import java.util.Collections
@@ -27,12 +24,6 @@ import kotlin.concurrent.Volatile
 import kotlin.jvm.JvmStatic
 import kotlin.math.log
 import kotlin.math.max
-import org.jf.dexlib2.DexFileFactory
-import org.jf.dexlib2.Opcodes
-import org.jf.dexlib2.iface.ClassDef
-import org.jf.dexlib2.iface.instruction.ReferenceInstruction
-import org.jf.dexlib2.iface.reference.MethodReference
-import org.jf.dexlib2.iface.reference.StringReference
 
 /* Sound Assistant's dynamically loaded panel, inside SystemUI only. */
 class VolumeStarHooks {
@@ -106,53 +97,68 @@ class VolumeStarHooks {
             impl.getDeclaredMethod("init", Context::class.java, Context::class.java, dependency)
         reconfigure = impl.getDeclaredMethod("onConfigurationChanged")
         reconfigure!!.setAccessible(true)
-        val dex =
-            DexFileFactory.loadDexContainer(
-                File(ctx.getApplicationInfo().sourceDir),
-                Opcodes.getDefault(),
-            )
-        val definitions = ArrayList<ClassDef?>()
-        for (entry in dex.getDexEntryNames()) definitions.addAll(
-            dex.getEntry(entry)!!.getDexFile().getClasses()
-        )
-        val palettes = ArrayList<ClassDef?>()
-        val barModels = ArrayList<ClassDef?>()
-        val blurTypes = HashSet<String?>()
-        for (c in definitions) {
-            var colorTag: Boolean = false
-            var barTag: Boolean = false
-            for (m in c!!.getMethods()) if (m.getImplementation() != null)
-                for (i in m.getImplementation()!!.getInstructions()) if (
-                    i is ReferenceInstruction
-                ) {
-                    run {
-                        val s = i.getReference() as? StringReference
-                        if (s != null) {
-                            if ("ColorThemeWrapper" == s.getString()) colorTag = true
-                            if ("BarColorModel(progressColor=" == s.getString()) barTag = true
+        val proof =
+            DexRuntimeCache.query(ctx.applicationInfo.sourceDir, "volumestar-v2") { bridge ->
+                val palettes =
+                    bridge
+                        .findClass { matcher { usingStrings("ColorThemeWrapper") } }
+                        .filter { c -> c.methods.any { "ColorThemeWrapper" in it.usingStrings } }
+                val bars =
+                    bridge
+                        .findClass { matcher { usingStrings("BarColorModel(progressColor=") } }
+                        .filter { c ->
+                            c.methods.any { "BarColorModel(progressColor=" in it.usingStrings }
                         }
-                    }
-                    run {
-                        val ref = i.getReference() as? MethodReference
-                        if (
-                            ref != null &&
-                                VolumeStarDexContract.isBlurCall(
-                                    ref.getDefiningClass(),
-                                    ref.getName(),
-                                ) {
-                                    m.getParameterTypes()
+                val blurMethods =
+                    bridge
+                        .findMethod {
+                            matcher {
+                                invokeMethods {
+                                    add {
+                                        declaredClass("android.view.SemBlurInfo\$Builder")
+                                        name("setColorCurvePreset")
+                                    }
                                 }
-                        )
-                            blurTypes.add(c!!.getType())
-                    }
+                            }
+                        }
+                        .filter { method ->
+                            method.invokes.any { ref ->
+                                VolumeStarDexContract.isBlurCall(
+                                    "L" + ref.className.replace('.', '/') + ";",
+                                    ref.name,
+                                ) {
+                                    method.paramTypeNames.map { "L" + it.replace('.', '/') + ";" }
+                                }
+                            }
+                        }
+                val blurTypes = blurMethods.map { it.className }.toSet()
+                check(palettes.size == 1 && blurTypes.isNotEmpty() && blurTypes.size <= 3) {
+                    "VolumeStar palette/blur DEX contract changed"
                 }
-            if (colorTag) palettes.add(c)
-            if (barTag) barModels.add(c)
-        }
-        check(!(palettes.size != 1 || blurTypes.isEmpty() || blurTypes.size > 3)) {
-            "VolumeStar palette/blur DEX contract changed"
-        }
-        val palette = VolumeStarHooks.actual(palettes.get(0)!!.getType(), loader)
+                check(bars.size <= 1) { "Ambiguous VolumeStar bar model" }
+                val targets = blurTypes + palettes.map { it.name } + bars.map { it.name }
+                val callers =
+                    targets
+                        .flatMap { target ->
+                            bridge.findMethod {
+                                matcher { invokeMethods { add { declaredClass(target) } } }
+                            }
+                        }
+                        .filter { ".subscreen." !in it.className }
+                linkedMapOf<String, String?>().apply {
+                    put("palette", palettes.single().name)
+                    put("bar", bars.singleOrNull()?.name)
+                    DexRuntimeCache.putList(this, "blur", blurTypes.sorted())
+                    DexRuntimeCache.putList(
+                        this,
+                        "callers",
+                        callers.map { it.className + "#" + it.name }.distinct().sorted(),
+                    )
+                }
+            }
+        val palette = Class.forName(requireNotNull(proof["palette"]), false, loader)
+        val blurTypes =
+            DexRuntimeCache.list(proof, "blur").map { "L" + it.replace('.', '/') + ";" }.toSet()
         val ownerField =
             Arrays.stream<Field?>(impl.getDeclaredFields()).anyMatch { f: Field? ->
                 f!!.getType() == palette
@@ -198,46 +204,22 @@ class VolumeStarHooks {
         }
 
         // Undo actual compiled callsites, including obfuscated ones; exclude cover display paths.
-        val targets = HashSet<String?>(blurTypes)
-        targets.add(palettes.get(0)!!.getType())
         var barConstructor: Constructor<*>? = null
-        check(barModels.size <= 1) { "Ambiguous VolumeStar bar model" }
-        if (barModels.size == 1) {
-            val bar = VolumeStarHooks.actual(barModels.get(0)!!.getType(), loader)
+        val barName = proof["bar"]
+        if (barName != null) {
+            val bar = Class.forName(barName, false, loader)
             check(Parcelable::class.java.isAssignableFrom(bar)) {
                 "VolumeStar bar model signature changed"
             }
             barConstructor =
-                bar!!.getDeclaredConstructor(
+                bar.getDeclaredConstructor(
                     Int::class.javaPrimitiveType,
                     Boolean::class.javaPrimitiveType,
                 )
-            targets.add(barModels.get(0)!!.getType())
         }
-        val callers = HashSet<Member?>()
-        for (c in definitions) {
-            if (c!!.getType().contains("/subscreen/")) continue
-            val names = HashSet<String?>()
-            for (m in c!!.getMethods()) if (m.getImplementation() != null)
-                for (i in m.getImplementation()!!.getInstructions()) run {
-                    val patternPrefix2 = i is ReferenceInstruction
-                    val ref = if (patternPrefix2) i.getReference() as? MethodReference else null
-                    if (patternPrefix2 && ref != null && targets.contains(ref.getDefiningClass()))
-                        names.add(m.getName())
-                }
-            if (names.isEmpty()) continue
-            val type = VolumeStarHooks.actual(c!!.getType(), loader)
-            if (names.contains("<init>"))
-                callers.addAll(Arrays.asList<Constructor<*>?>(*type!!.getDeclaredConstructors()))
-            for (m in type!!.getDeclaredMethods()) if (
-                names.contains(m.getName()) &&
-                    !Modifier.isAbstract(m.getModifiers()) &&
-                    !Modifier.isNative(m.getModifiers())
-            )
-                callers.add(m)
-        }
-        check(!(callers.isEmpty() || callers.size > 192)) { "VolumeStar deoptimization budget" }
-        for (m in callers) check(ModernHook.deoptimize((m as Executable?)!!)) {
+        val callers = DexEvidence.members(proof, loader)
+        check(callers.isNotEmpty() && callers.size <= 192) { "VolumeStar deoptimization budget" }
+        for (method in callers) check(ModernHook.deoptimize(method)) {
             "Failed to deoptimize VolumeStar caller"
         }
 

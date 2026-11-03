@@ -10,6 +10,10 @@ import android.view.View
 import android.view.View.OnLayoutChangeListener
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import dev.ryuya.oneuihometweaks.compat.DexSymbols
+import dev.ryuya.oneuihometweaks.compat.compatibleField
+import dev.ryuya.oneuihometweaks.compat.compatibleMethod
+import dev.ryuya.oneuihometweaks.compat.compatibleName
 import io.github.libxposed.api.XposedInterface.Chain
 import java.lang.reflect.Array as ReflectArray
 import java.lang.reflect.Constructor
@@ -96,14 +100,14 @@ class QuickPanelPreviewAndroid17(
         local = (load("androidx.compose.runtime.CompositionLocal"))!!
         provided = (load("androidx.compose.runtime.ProvidedValue"))!!
         function2 = (load("kotlin.jvm.functions.Function2"))!!
-        consume = composer.getMethod("consume", local)
+        consume = composer.compatibleMethod("consume", local)
         provides =
-            load("androidx.compose.runtime.ProvidableCompositionLocal")!!.getMethod(
+            load("androidx.compose.runtime.ProvidableCompositionLocal")!!.compatibleMethod(
                 "provides",
                 Any::class.java,
             )
         provider =
-            load("androidx.compose.runtime.CompositionLocalKt")!!.getMethod(
+            load("androidx.compose.runtime.CompositionLocalKt")!!.compatibleMethod(
                 "CompositionLocalProvider",
                 ReflectArray.newInstance(provided, 0).javaClass,
                 function2,
@@ -112,9 +116,9 @@ class QuickPanelPreviewAndroid17(
             )
         val view = load("androidx.compose.ui.platform.ComposeView")
         composeView = view!!.getConstructor(Context::class.java)
-        setContent = view!!.getMethod("setContent", function2)
-        unit = load("kotlin.Unit")!!.getField("INSTANCE").get(null)
-        modifier = load("androidx.compose.ui.Modifier")!!.getField("Companion").get(null)
+        setContent = view!!.compatibleMethod("setContent", function2)
+        unit = load("kotlin.Unit")!!.compatibleField("INSTANCE").get(null)
+        modifier = load("androidx.compose.ui.Modifier")!!.compatibleField("Companion").get(null)
         scopeClass =
             (load(
                 "com.android.systemui.samsung.quicksetting.ui.base.spannablegrid.SpannableGridTileScopeImpl"
@@ -145,8 +149,8 @@ class QuickPanelPreviewAndroid17(
         }
         val editable =
             load("com.android.systemui.samsung.quicksetting.ui.base.editable.EditableItemKt")
-        draggingLocal = editable!!.getField("LocalDragging").get(null)
-        resizingLocal = editable!!.getField("LocalResizing").get(null)
+        draggingLocal = editable!!.compatibleField("LocalDragging").get(null)
+        resizingLocal = editable!!.compatibleField("LocalResizing").get(null)
         hostLocals!!.add(draggingLocal)
         hostLocals!!.add(resizingLocal)
         dragging =
@@ -158,14 +162,14 @@ class QuickPanelPreviewAndroid17(
                 .getConstructor()
                 .newInstance()
         val collectLive =
-            load("androidx.lifecycle.compose.FlowExtKt")!!.getMethod(
+            load("androidx.lifecycle.compose.FlowExtKt")!!.compatibleMethod(
                 "collectAsStateWithLifecycle",
                 load("kotlinx.coroutines.flow.StateFlow"),
                 composer,
                 Int::class.javaPrimitiveType,
             )
         val controlled =
-            load("com.android.systemui.samsung.common.CollectStateKt")!!.getMethod(
+            load("com.android.systemui.samsung.common.CollectStateKt")!!.compatibleMethod(
                 "collectAsStateWithControl",
                 load("kotlinx.coroutines.flow.StateFlow"),
                 load("kotlinx.coroutines.flow.StateFlow"),
@@ -186,7 +190,7 @@ class QuickPanelPreviewAndroid17(
             },
         )
         setListening =
-            load("com.android.systemui.plugins.qs.QSTile")!!.getMethod(
+            load("com.android.systemui.plugins.qs.QSTile")!!.compatibleMethod(
                 "setListening",
                 Any::class.java,
                 Boolean::class.javaPrimitiveType,
@@ -198,14 +202,15 @@ class QuickPanelPreviewAndroid17(
             )) {
             for (method in
                 load(QuickPanelPreviewAndroid17.TILES + callSite)!!.getDeclaredMethods()) if (
-                method.getName() == "invoke" || method.getName().startsWith("IconProgressBar-")
+                method.compatibleName() == "invoke" ||
+                    method.compatibleName().startsWith("IconProgressBar-")
             )
                 ModernHook.deoptimize(method)
         }
         val recomposer = load("androidx.compose.runtime.Recomposer")
         val initial =
             Arrays.stream<Method?>(recomposer!!.getDeclaredMethods())
-                .filter { m: Method? -> m!!.getName() == "composeInitial\$runtime" }
+                .filter { m: Method? -> m!!.compatibleName() == "composeInitial\$runtime" }
                 .findFirst()
                 .orElseThrow()
         ModernHook.aroundMethod(
@@ -235,7 +240,7 @@ class QuickPanelPreviewAndroid17(
                         load(QuickPanelPreviewAndroid17.TILES + name + "Kt")!!.getDeclaredMethods()
                     )
                     .filter { m: Method? ->
-                        m!!.getName() == name &&
+                        m!!.compatibleName() == name &&
                             m!!.getParameterCount() == (if (name == "QuickTile") 8 else 5)
                     }
                     .findFirst()
@@ -246,7 +251,9 @@ class QuickPanelPreviewAndroid17(
                 object : ModernHook.Callback() {
                     override fun beforeHookedMethod(p: ModernHook.Param) {
                         try {
-                            if (scopeClass.getField("parentGridScope").get(p.args[0]) == null)
+                            if (
+                                scopeClass.compatibleField("parentGridScope").get(p.args[0]) == null
+                            )
                                 return
                             scope = p.args[0]
                             val c: Any? = p.args[if (name == "QuickTile") 5 else 3]
@@ -254,11 +261,11 @@ class QuickPanelPreviewAndroid17(
                                 load(
                                         "androidx.compose.ui.platform.AndroidCompositionLocals_androidKt"
                                     )!!
-                                    .getField("LocalView")
+                                    .compatibleField("LocalView")
                                     .get(null)
                             sourceView = consume.invoke(c, viewKey) as View?
                             val map: MutableMap<*, *>? =
-                                composer.getMethod("getCurrentCompositionLocalMap").invoke(c)
+                                composer.compatibleMethod("getCurrentCompositionLocalMap").invoke(c)
                                     as MutableMap<*, *>?
                             val configuration =
                                 sourceView!!.getResources().getConfiguration().hashCode()
@@ -268,7 +275,10 @@ class QuickPanelPreviewAndroid17(
                                         "com.android.systemui.samsung.quicksetting.ui.SecQuickSettingSceneKt"
                                     )
                                 sceneViewModel =
-                                    consume.invoke(c, scene!!.getField("LocalViewModel").get(null))
+                                    consume.invoke(
+                                        c,
+                                        scene!!.compatibleField("LocalViewModel").get(null),
+                                    )
                                 val inherited = ArrayList<Any?>()
                                 for (key in map!!.keys) {
                                     if (!hostLocals!!.contains(key))
@@ -303,7 +313,7 @@ class QuickPanelPreviewAndroid17(
 
     @Throws(ClassNotFoundException::class)
     private fun load(name: String?): Class<*>? {
-        return Class.forName(name, false, loader)
+        return DexSymbols.findClass(name, false, loader)
     }
 
     override fun ready(): Boolean {
@@ -323,7 +333,7 @@ class QuickPanelPreviewAndroid17(
         createOwner(root)
         val row = LinearLayout(root!!.getContext())
         row.setOrientation(LinearLayout.HORIZONTAL)
-        val cell = scopeClass.getField("cellSize").getLong(scope)
+        val cell = scopeClass.compatibleField("cellSize").getLong(scope)
         val cellWidth = java.lang.Float.intBitsToFloat((cell ushr 32).toInt())
         val cellHeight = java.lang.Float.intBitsToFloat(cell.toInt())
         check(
@@ -364,10 +374,11 @@ class QuickPanelPreviewAndroid17(
         )
         val columns = HashMap<Int?, Array<Any?>?>()
         for (entry in adapter.previewEntries()!!) {
-            val model = entry!!.javaClass.getField("gridTileItem").get(entry)
-            val type: String? = model.javaClass.getMethod("getType").invoke(model) as String?
+            val model = entry!!.javaClass.compatibleField("gridTileItem").get(entry)
+            val type: String? = model.javaClass.compatibleMethod("getType").invoke(model) as String?
             val spec: String? =
-                if (type == "QuickTile") model.javaClass.getField("spec").get(model) as String?
+                if (type == "QuickTile")
+                    model.javaClass.compatibleField("spec").get(model) as String?
                 else ""
             val kind: Int =
                 if (type!!.startsWith("BrightBar") || spec == "UiModeNight") 0
@@ -385,17 +396,19 @@ class QuickPanelPreviewAndroid17(
             for (j in 0..1) {
                 val entry: Any? = entries[j]
                 if (entry == null) continue
-                val model = bind(entry.javaClass.getField("gridTileItem").get(entry))
-                val type: String? = model!!.javaClass.getMethod("getType").invoke(model) as String?
-                val w = entry.javaClass.getField("spanWidth").getInt(entry)
-                val h = entry.javaClass.getField("spanHeight").getInt(entry)
+                val model = bind(entry.javaClass.compatibleField("gridTileItem").get(entry))
+                val type: String? =
+                    model!!.javaClass.compatibleMethod("getType").invoke(model) as String?
+                val w = entry.javaClass.compatibleField("spanWidth").getInt(entry)
+                val h = entry.javaClass.compatibleField("spanHeight").getInt(entry)
                 val sampleScope = cloneScope(w, h)
                 adapter.previewScope(sampleScope, i, type!!.endsWith("WithTile"))
                 val tileModel: Any? =
-                    if (type!!.endsWith("WithTile")) model!!.javaClass.getField("tile").get(model)
+                    if (type!!.endsWith("WithTile"))
+                        model!!.javaClass.compatibleField("tile").get(model)
                     else if (type == "QuickTile") model else null
                 if (tileModel != null) {
-                    val tile = tileModel.javaClass.getField("tile").get(tileModel)
+                    val tile = tileModel.javaClass.compatibleField("tile").get(tileModel)
                     if (listening!!.add(tile)) {
                         setListening!!.invoke(tile, listeningToken, true)
                     }
@@ -406,7 +419,7 @@ class QuickPanelPreviewAndroid17(
                 view!!.setId(View.generateViewId())
                 view!!
                     .javaClass
-                    .getMethod(
+                    .compatibleMethod(
                         "setParentCompositionContext",
                         load("androidx.compose.runtime.CompositionContext"),
                     )
@@ -471,19 +484,19 @@ class QuickPanelPreviewAndroid17(
 
     @Throws(Exception::class)
     private fun bind(source: Any): Any? {
-        val type: String? = source.javaClass.getMethod("getType").invoke(source) as String?
+        val type: String? = source.javaClass.compatibleMethod("getType").invoke(source) as String?
         val group = type!!.endsWith("WithTile")
         val tileModel: Any? =
-            if (group) source.javaClass.getField("tile").get(source)
+            if (group) source.javaClass.compatibleField("tile").get(source)
             else if (type == "QuickTile") source else null
         if (tileModel == null) return source
-        val spec: String = tileModel.javaClass.getField("spec").get(tileModel) as String
-        val host = sceneViewModel!!.javaClass.getField("qsHost").get(sceneViewModel)
+        val spec: String = tileModel.javaClass.compatibleField("spec").get(tileModel) as String
+        val host = sceneViewModel!!.javaClass.compatibleField("qsHost").get(sceneViewModel)
         val tiles: MutableCollection<*>? =
-            load("com.android.systemui.qs.QSHost")!!.getMethod("getTiles").invoke(host)
+            load("com.android.systemui.qs.QSHost")!!.compatibleMethod("getTiles").invoke(host)
                 as MutableCollection<*>?
         val qsTile = load("com.android.systemui.plugins.qs.QSTile")
-        val getSpec = qsTile!!.getMethod("getTileSpec")
+        val getSpec = qsTile!!.compatibleMethod("getTileSpec")
         var actual: Any? = null
         for (tile in tiles!!) if (spec == getSpec.invoke(tile)) {
             actual = tile
@@ -499,7 +512,7 @@ class QuickPanelPreviewAndroid17(
             val copy =
                 Arrays.stream<Method?>(tileModel.javaClass.getDeclaredMethods())
                     .filter { m: Method? ->
-                        m!!.getName().startsWith("copy-") && m!!.getParameterCount() == 5
+                        m!!.compatibleName().startsWith("copy-") && m!!.getParameterCount() == 5
                     }
                     .findFirst()
                     .orElseThrow()
@@ -514,7 +527,7 @@ class QuickPanelPreviewAndroid17(
         val copy =
             Arrays.stream<Method?>(source.javaClass.getDeclaredMethods())
                 .filter { m: Method? ->
-                    m!!.getName().startsWith("copy-") && m!!.getParameterCount() == 2
+                    m!!.compatibleName().startsWith("copy-") && m!!.getParameterCount() == 2
                 }
                 .findFirst()
                 .orElseThrow()
@@ -532,26 +545,27 @@ class QuickPanelPreviewAndroid17(
     private fun newRecomposer(): Any? {
         val ctx = load("kotlin.coroutines.CoroutineContext")
         val handler = load("kotlinx.coroutines.CoroutineExceptionHandler")
-        val key = handler!!.getField("Key").get(null)
-        val empty = load("kotlin.coroutines.EmptyCoroutineContext")!!.getField("INSTANCE").get(null)
-        val plus = ctx!!.getMethod("plus", ctx)
+        val key = handler!!.compatibleField("Key").get(null)
+        val empty =
+            load("kotlin.coroutines.EmptyCoroutineContext")!!.compatibleField("INSTANCE").get(null)
+        val plus = ctx!!.compatibleMethod("plus", ctx)
         val errors =
             Proxy.newProxyInstance(
                 loader,
                 arrayOf<Class<*>?>(handler),
                 InvocationHandler { p: Any?, m: Method?, a: Array<Any?>? ->
-                    when (m!!.getName()) {
+                    when (m!!.compatibleName()) {
                         "getKey" -> key
                         "get" -> if (a!![0] === key) p else null
                         "minusKey" -> if (a!![0] === key) empty else p
                         "fold" -> {
                             function2
-                                .getMethod("invoke", Any::class.java, Any::class.java)
+                                .compatibleMethod("invoke", Any::class.java, Any::class.java)
                                 .invoke(a!![1], a!![0], p)
                         }
                         "plus" ->
                             load("kotlin.coroutines.CoroutineContext\$DefaultImpls")!!
-                                .getMethod("plus", ctx, ctx)
+                                .compatibleMethod("plus", ctx, ctx)
                                 .invoke(null, p, a!![0])
                         "handleException" -> {
                             for (arg in a!!) if (arg is Throwable) previewFailed(arg)
@@ -565,19 +579,19 @@ class QuickPanelPreviewAndroid17(
             )
         val lazy =
             load("androidx.compose.ui.platform.AndroidUiDispatcher")!!
-                .getField("Main\$delegate")
+                .compatibleField("Main\$delegate")
                 .get(null)
-        var context = load("kotlin.Lazy")!!.getMethod("getValue").invoke(lazy)
+        var context = load("kotlin.Lazy")!!.compatibleMethod("getValue").invoke(lazy)
         context = plus.invoke(context, errors)
         val recomposerClass = load("androidx.compose.runtime.Recomposer")
         val recomposer = recomposerClass!!.getConstructor(ctx).newInstance(context)
         recomposers!!.add(recomposer)
         runner =
             load("kotlinx.coroutines.CoroutineScopeKt")!!
-                .getMethod("CoroutineScope", ctx)
+                .compatibleMethod("CoroutineScope", ctx)
                 .invoke(null, context)
         val run =
-            recomposerClass!!.getMethod(
+            recomposerClass!!.compatibleMethod(
                 "runRecomposeAndApplyChanges",
                 load("kotlin.coroutines.Continuation"),
             )
@@ -587,7 +601,7 @@ class QuickPanelPreviewAndroid17(
                 arrayOf<Class<*>?>(function2),
                 InvocationHandler { p: Any?, m: Method?, a: Array<Any?>? ->
                     if (m!!.getDeclaringClass() == Any::class.java)
-                        return@InvocationHandler when (m!!.getName()) {
+                        return@InvocationHandler when (m!!.compatibleName()) {
                             "hashCode" -> System.identityHashCode(p)
                             "equals" -> p === a!![0]
                             else -> "Quick Panel preview recomposer"
@@ -603,7 +617,7 @@ class QuickPanelPreviewAndroid17(
         val start = load("kotlinx.coroutines.CoroutineStart")
         val defaultStart = start!!.enumConstants!!.first { (it as Enum<*>).name == "DEFAULT" }
         load("kotlinx.coroutines.BuildersKt")!!
-            .getMethod("launch", coroutineScope, ctx, start, function2)
+            .compatibleMethod("launch", coroutineScope, ctx, start, function2)
             .invoke(null, runner, empty, defaultStart, block)
         return recomposer
     }
@@ -618,7 +632,7 @@ class QuickPanelPreviewAndroid17(
                 "Read-only preview expansion",
             )
         return scopeConstructor.newInstance(
-            scopeClass.getField("cellSize").getLong(scope),
+            scopeClass.compatibleField("cellSize").getLong(scope),
             false,
             false,
             false,
@@ -644,7 +658,7 @@ class QuickPanelPreviewAndroid17(
                 loader,
                 arrayOf<Class<*>?>(savedOwner),
                 InvocationHandler { p: Any?, m: Method?, a: Array<Any?>? ->
-                    when (m!!.getName()) {
+                    when (m!!.compatibleName()) {
                         "getLifecycle" -> state[0]
                         "getSavedStateRegistry" -> state[1]
                         "hashCode" -> System.identityHashCode(p)
@@ -661,18 +675,18 @@ class QuickPanelPreviewAndroid17(
         val controllerType = load("androidx.savedstate.SavedStateRegistryController")
         val controller =
             load("androidx.savedstate.SavedStateRegistryController\$Companion")!!
-                .getMethod("create", savedOwner)
+                .compatibleMethod("create", savedOwner)
                 .invoke(null, owner)
-        state[1] = controllerType!!.getField("savedStateRegistry").get(controller)
-        controllerType!!.getMethod("performAttach").invoke(controller)
+        state[1] = controllerType!!.compatibleField("savedStateRegistry").get(controller)
+        controllerType!!.compatibleMethod("performAttach").invoke(controller)
         controllerType!!
-            .getMethod("performRestore", Bundle::class.java)
+            .compatibleMethod("performRestore", Bundle::class.java)
             .invoke(controller, *arrayOf<Any?>(null))
         load("androidx.lifecycle.ViewTreeLifecycleOwner")!!
-            .getMethod("set", lifecycleOwner, View::class.java)
+            .compatibleMethod("set", lifecycleOwner, View::class.java)
             .invoke(null, owner, root)
         load("androidx.savedstate.ViewTreeSavedStateRegistryOwner")!!
-            .getMethod("set", View::class.java, savedOwner)
+            .compatibleMethod("set", View::class.java, savedOwner)
             .invoke(null, root, owner)
         lifecycleState("RESUMED")
     }
@@ -683,7 +697,7 @@ class QuickPanelPreviewAndroid17(
         val state = load("androidx.lifecycle.Lifecycle\$State")
         lifecycle!!
             .javaClass
-            .getMethod("setCurrentState", state)
+            .compatibleMethod("setCurrentState", state)
             .invoke(lifecycle, state!!.enumConstants!!.first { (it as Enum<*>).name == name })
     }
 
@@ -697,7 +711,7 @@ class QuickPanelPreviewAndroid17(
             arrayOf<Class<*>?>(function2),
             InvocationHandler { p: Any?, m: Method?, a: Array<Any?>? ->
                 if (m!!.getDeclaringClass() == Any::class.java)
-                    return@InvocationHandler when (m!!.getName()) {
+                    return@InvocationHandler when (m!!.compatibleName()) {
                         "hashCode" -> System.identityHashCode(p)
                         "equals" -> p === a!![0]
                         else -> "Native Quick Panel preview"
@@ -710,7 +724,7 @@ class QuickPanelPreviewAndroid17(
 
     override fun clear(root: FrameLayout?) {
         for (view in compositions) try {
-            view!!.javaClass.getMethod("disposeComposition").invoke(view)
+            view!!.javaClass.compatibleMethod("disposeComposition").invoke(view)
         } catch (ignored: ReflectiveOperationException) {}
         compositions.clear()
         previewComposers!!.clear()
@@ -723,13 +737,13 @@ class QuickPanelPreviewAndroid17(
         } catch (ignored: ReflectiveOperationException) {}
         listening!!.clear()
         for (recomposer in recomposers!!) try {
-            recomposer!!.javaClass.getMethod("cancel").invoke(recomposer)
+            recomposer!!.javaClass.compatibleMethod("cancel").invoke(recomposer)
         } catch (ignored: ReflectiveOperationException) {}
         recomposers!!.clear()
         if (runner != null)
             try {
                 load("kotlinx.coroutines.CoroutineScopeKt")!!
-                    .getMethod(
+                    .compatibleMethod(
                         "cancel",
                         load("kotlinx.coroutines.CoroutineScope"),
                         CancellationException::class.java,

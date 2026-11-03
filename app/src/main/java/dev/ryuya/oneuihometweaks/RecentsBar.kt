@@ -13,6 +13,7 @@ import android.provider.Settings.Secure
 import android.view.Display
 import android.view.WindowInsets.Type
 import android.view.WindowInsetsController
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredMethod
 import java.lang.Boolean as JavaBoolean
 import java.lang.ref.WeakReference
 import java.lang.reflect.Method
@@ -43,17 +44,17 @@ class RecentsBar {
         recentsClass = ModernHook.findClass("com.android.quickstep.RecentsActivity", loader)
         val controllerClass = ModernHook.findClass("android.view.InsetsController", null)
         requestedTypes =
-            WindowInsetsController::class.java.getDeclaredMethod("getRequestedVisibleTypes")
+            WindowInsetsController::class.java.compatibleDeclaredMethod("getRequestedVisibleTypes")
         requestedTypes!!.setAccessible(true)
         check(
             !(!Activity::class.java.isAssignableFrom(recentsClass) ||
                 !WindowInsetsController::class.java.isAssignableFrom(controllerClass) ||
                 requestedTypes!!.getReturnType() != Int::class.javaPrimitiveType ||
                 controllerClass!!
-                    .getDeclaredMethod("show", Int::class.javaPrimitiveType)
+                    .compatibleDeclaredMethod("show", Int::class.javaPrimitiveType)
                     .getReturnType() != Void.TYPE ||
                 controllerClass!!
-                    .getDeclaredMethod("hide", Int::class.javaPrimitiveType)
+                    .compatibleDeclaredMethod("hide", Int::class.javaPrimitiveType)
                     .getReturnType() != Void.TYPE)
         ) {
             "Recents insets contract changed"
@@ -66,19 +67,20 @@ class RecentsBar {
                     "com.honeyspace.gesture.inputconsumer.RecentsAnimationState",
                     loader,
                 )
-            val allowHidden = gesture!!.getDeclaredMethod("isAllowGestureIgnoringBarVisibility")
+            val allowHidden =
+                gesture!!.compatibleDeclaredMethod("isAllowGestureIgnoringBarVisibility")
             check(allowHidden.getReturnType() == Boolean::class.javaPrimitiveType) {
                 "Gesture visibility contract changed"
             }
             for (caller in
                 arrayOf<Method?>(
-                    gesture!!.getDeclaredMethod(
+                    gesture!!.compatibleDeclaredMethod(
                         "canStartSystemGesture",
                         Boolean::class.javaPrimitiveType,
                     ),
-                    gesture!!.getDeclaredMethod("canStartWithNavHidden"),
-                    animation!!.getDeclaredMethod("canStartSystemGesture"),
-                    animation!!.getDeclaredMethod("canStartWithNavHidden"),
+                    gesture!!.compatibleDeclaredMethod("canStartWithNavHidden"),
+                    animation!!.compatibleDeclaredMethod("canStartSystemGesture"),
+                    animation!!.compatibleDeclaredMethod("canStartWithNavHidden"),
                 )) check(ModernHook.deoptimize(caller!!)) {
                 "Cannot deoptimize gesture visibility caller"
             }

@@ -63,3 +63,6 @@ org.smali:dexlib2:2.5.2	BSD-3-Clause	dexlib2-LICENSE.txt	https://github.com/Jesu
 io.github.libxposed:api:102.0.0	Apache-2.0	Apache-2.0.txt	https://github.com/JingMatrix/libxposed-api
 io.github.libxposed:service:102.0.0	Apache-2.0	Apache-2.0.txt	https://github.com/JingMatrix/libxposed-service
 io.github.libxposed:interface:102.0.0	Apache-2.0	Apache-2.0.txt	https://github.com/JingMatrix/libxposed-service
+org.luckypray:dexkit:2.3.0	LGPL-3.0-or-later AND Apache-2.0	DEXKIT-2.3.0.txt	https://github.com/LuckyPray/DexKit/tree/2.3.0
+com.google.flatbuffers:flatbuffers-java:23.5.26	Apache-2.0	FLATBUFFERS-23.5.26.txt	https://github.com/google/flatbuffers/tree/v23.5.26
+dev.rikka.ndk.thirdparty:cxx:1.2.0	Apache-2.0 WITH LLVM-exception	LIBCXX-1.2.0.txt	https://github.com/RikkaW/libcxx-prefab

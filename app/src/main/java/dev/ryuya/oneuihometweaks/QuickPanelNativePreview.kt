@@ -19,6 +19,7 @@ import android.view.SurfaceControlViewHost.SurfacePackage
 import android.view.View
 import android.view.WindowManager.LayoutParams
 import android.widget.FrameLayout
+import dev.ryuya.oneuihometweaks.compat.compatibleMethod
 import java.util.NoSuchElementException
 import java.util.concurrent.Callable
 import java.util.concurrent.FutureTask
@@ -178,7 +179,11 @@ class QuickPanelNativePreview(
                                 )
                             SurfaceControlViewHost::class
                                 .java
-                                .getMethod("setView", View::class.java, LayoutParams::class.java)
+                                .compatibleMethod(
+                                    "setView",
+                                    View::class.java,
+                                    LayoutParams::class.java,
+                                )
                                 .invoke(host, root, params)
                         } catch (missing: NoSuchMethodException) {
                             host!!.setView(root!!, width, height)

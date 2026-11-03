@@ -4,6 +4,8 @@ import android.content.Context
 import android.os.Binder
 import android.os.Bundle
 import android.os.IBinder
+import dev.ryuya.oneuihometweaks.compat.DexSymbols
+import dev.ryuya.oneuihometweaks.compat.compatibleMethod
 import kotlin.concurrent.Volatile
 import kotlin.jvm.JvmRecord
 
@@ -32,10 +34,10 @@ class RecentsFocusClient {
             val current: RecentsFocusClient.Connection? = connection
             var backend: IBinder? = if (current == null) null else current.backend
             if (backend == null || !backend.isBinderAlive()) {
-                val services = Class.forName("android.os.ServiceManager")
+                val services = DexSymbols.findClass("android.os.ServiceManager")
                 val atm: IBinder? =
                     services
-                        .getMethod("getService", String::class.java)
+                        .compatibleMethod("getService", String::class.java)
                         .invoke(null, "activity_task") as IBinder?
                 val found = RecentsFocusWire.call(atm!!, RecentsFocusWire.DISCOVER, null)
                 backend = found!!.getBinder("backend")

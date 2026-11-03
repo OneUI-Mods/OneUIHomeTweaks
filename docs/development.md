@@ -118,3 +118,5 @@ Settingsの追加スコープと実装・試験範囲は[倍率入力の技術�
 See [repair contracts and diagnostic schema](home-layout-diagnostics.md). Keep native geometry and saved user scale distinct, and never restore a guessed coordinate from logs.
 
 - [Kotlin移行の設計と検証範囲](kotlin-migration.md)
+
+- [探索・保存・更新時の互換性](dexkit-compatibility.md)

@@ -4,6 +4,12 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Build
 import android.os.Looper
+import dev.ryuya.oneuihometweaks.compat.DexSymbols
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredField
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredMethod
+import dev.ryuya.oneuihometweaks.compat.compatibleField
+import dev.ryuya.oneuihometweaks.compat.compatibleMethod
+import dev.ryuya.oneuihometweaks.compat.compatibleName
 import java.lang.Boolean as JavaBoolean
 import java.lang.ref.WeakReference
 import java.lang.reflect.Method
@@ -34,18 +40,19 @@ class FolderHooks {
     @Throws(Exception::class)
     fun install(loader: ClassLoader?) {
         val contract = FolderContracts.forSdk(Build.VERSION.SDK_INT)
-        val manager = Class.forName(contract!!.manager, false, loader)
-        val animator = Class.forName(contract!!.animator, false, loader)
-        val state = Class.forName("com.honeyspace.sdk.HoneyState", false, loader)
-        val key = Class.forName("com.honeyspace.sdk.transition.CloseTarget\$Key", false, loader)
-        val launcher = Class.forName("com.sec.android.app.launcher.Launcher", false, loader)
+        val manager = DexSymbols.findClass(contract!!.manager, false, loader)
+        val animator = DexSymbols.findClass(contract!!.animator, false, loader)
+        val state = DexSymbols.findClass("com.honeyspace.sdk.HoneyState", false, loader)
+        val key =
+            DexSymbols.findClass("com.honeyspace.sdk.transition.CloseTarget\$Key", false, loader)
+        val launcher = DexSymbols.findClass("com.sec.android.app.launcher.Launcher", false, loader)
         homeNormal = FolderHooks.singleton(loader, "HomeScreen\$Normal")
         appsNormal = FolderHooks.singleton(loader, "AppScreen\$Normal")
-        currentState = manager.getMethod("getCurrentHoneyScreenState")
-        goTo = manager.getDeclaredMethod("gotoScreen", state)
-        isOpen = manager.getMethod("isOpenFolderMode")
+        currentState = manager.compatibleMethod("getCurrentHoneyScreenState")
+        goTo = manager.compatibleDeclaredMethod("gotoScreen", state)
+        isOpen = manager.compatibleMethod("isOpenFolderMode")
         animate =
-            manager.getDeclaredMethod(
+            manager.compatibleDeclaredMethod(
                 "gotoScreenWithAnimation",
                 state,
                 Float::class.javaPrimitiveType,
@@ -57,23 +64,23 @@ class FolderHooks {
                 Long::class.javaPrimitiveType,
                 Float::class.javaPrimitiveType,
             )
-        val target = manager.getDeclaredMethod("findCloseAnimationTarget", key)
+        val target = manager.compatibleDeclaredMethod("findCloseAnimationTarget", key)
         val prepare =
-            animator.getDeclaredMethod(
+            animator.compatibleDeclaredMethod(
                 contract!!.prepare,
                 Long::class.javaPrimitiveType,
                 Boolean::class.javaPrimitiveType,
             )
-        val reset = animator.getDeclaredMethod(contract!!.resetGeometry)
-        val viewModel = animator.getDeclaredField(contract!!.viewModelField)
-        val managerGetter = viewModel.getType().getMethod(contract!!.managerGetter)
-        val newIntent = launcher.getDeclaredMethod("onNewIntent", Intent::class.java)
+        val reset = animator.compatibleDeclaredMethod(contract!!.resetGeometry)
+        val viewModel = animator.compatibleDeclaredField(contract!!.viewModelField)
+        val managerGetter = viewModel.getType().compatibleMethod(contract!!.managerGetter)
+        val newIntent = launcher.compatibleDeclaredMethod("onNewIntent", Intent::class.java)
         check(
             !(!Activity::class.java.isAssignableFrom(launcher) ||
                 isOpen!!.getReturnType() != Boolean::class.javaPrimitiveType ||
                 prepare.getReturnType() != Void.TYPE ||
                 reset.getReturnType() != Void.TYPE ||
-                !Class.forName("com.honeyspace.sdk.HoneyScreenManager", false, loader)
+                !DexSymbols.findClass("com.honeyspace.sdk.HoneyScreenManager", false, loader)
                     .isAssignableFrom(managerGetter.getReturnType()))
         ) {
             "Folder contract changed"
@@ -99,7 +106,11 @@ class FolderHooks {
                                     // folder icon.
                                     val previous = currentState!!.invoke(p.thisObject)
                                     val normal: Any? =
-                                        if (previous.javaClass.getName().contains(".AppScreen$"))
+                                        if (
+                                            previous.javaClass
+                                                .compatibleName()
+                                                .contains(".AppScreen$")
+                                        )
                                             appsNormal
                                         else homeNormal
                                     ownRequest = true
@@ -244,8 +255,8 @@ class FolderHooks {
         @JvmStatic
         @Throws(Exception::class)
         private fun singleton(loader: ClassLoader?, name: String?): Any? {
-            return Class.forName("com.honeyspace.sdk." + name, false, loader)
-                .getField("INSTANCE")
+            return DexSymbols.findClass("com.honeyspace.sdk." + name, false, loader)
+                .compatibleField("INSTANCE")
                 .get(null)
         }
     }

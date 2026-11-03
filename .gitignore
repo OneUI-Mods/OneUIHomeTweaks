@@ -18,3 +18,4 @@ signing.properties
 *.pfx
 
 __pycache__/
+.signing

@@ -5,6 +5,10 @@ import android.app.WallpaperManager
 import android.content.Context
 import android.provider.Settings.System
 import android.view.ViewGroup
+import dev.ryuya.oneuihometweaks.compat.DexSymbols
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredMethod
+import dev.ryuya.oneuihometweaks.compat.compatibleMethod
+import dev.ryuya.oneuihometweaks.compat.compatibleName
 import java.lang.ref.WeakReference
 import java.lang.reflect.Method
 import java.util.ArrayList
@@ -44,22 +48,22 @@ class PageBridge {
     fun install(loader: ClassLoader?) {
         check(DexEvidence.workspaceVerified) { "Workspace scroll DEX evidence absent" }
         val workspace =
-            Class.forName(
+            DexSymbols.findClass(
                 "com.honeyspace.ui.honeypots.workspace.presentation.WorkspaceFastRecyclerView",
                 false,
                 loader,
             )
         cells =
-            Class.forName(
+            DexSymbols.findClass(
                 "com.honeyspace.ui.honeypots.workspace.presentation.WorkspaceCellLayoutContainer",
                 false,
                 loader,
             )
-        scrollForPage = workspace.getMethod("getScrollForPage", Int::class.javaPrimitiveType)
-        cellType = cells!!.getMethod("getCellType")
-        spaceInfo = workspace.getMethod("getHoneySpaceInfo")
-        visibleCount = workspace.getMethod("getVisibleCount")
-        currentState = workspace.getDeclaredMethod("getCurrentState")
+        scrollForPage = workspace.compatibleMethod("getScrollForPage", Int::class.javaPrimitiveType)
+        cellType = cells!!.compatibleMethod("getCellType")
+        spaceInfo = workspace.compatibleMethod("getHoneySpaceInfo")
+        visibleCount = workspace.compatibleMethod("getVisibleCount")
+        currentState = workspace.compatibleDeclaredMethod("getCurrentState")
         currentState!!.setAccessible(true)
         val events: ModernHook.Callback =
             object : ModernHook.Callback() {
@@ -71,7 +75,7 @@ class PageBridge {
         try {
             installed.add(
                 ModernHook.hookMethod(
-                    workspace.getDeclaredMethod(
+                    workspace.compatibleDeclaredMethod(
                         "notifyScrollX",
                         Int::class.javaPrimitiveType,
                         Int::class.javaPrimitiveType,
@@ -81,18 +85,24 @@ class PageBridge {
                 )
             )
             installed.add(
-                ModernHook.hookMethod(workspace.getDeclaredMethod("onAttachedToWindow"), events)
+                ModernHook.hookMethod(
+                    workspace.compatibleDeclaredMethod("onAttachedToWindow"),
+                    events,
+                )
             )
             installed.add(
-                ModernHook.hookMethod(workspace.getDeclaredMethod("onEndPageScrolling"), events)
+                ModernHook.hookMethod(
+                    workspace.compatibleDeclaredMethod("onEndPageScrolling"),
+                    events,
+                )
             )
         } catch (t: Throwable) {
             for (h in installed) h!!.unhook()
             throw t
         }
-        val base = Class.forName("com.honeyspace.ui.common.FastRecyclerView", false, loader)
+        val base = DexSymbols.findClass("com.honeyspace.ui.common.FastRecyclerView", false, loader)
         val plugin =
-            Class.forName("com.honeyspace.common.plugin.PluginContextWrapper", false, loader)
+            DexSymbols.findClass("com.honeyspace.common.plugin.PluginContextWrapper", false, loader)
         ModernHook.hookAllConstructors(
             plugin,
             object : ModernHook.Callback() {
@@ -114,7 +124,7 @@ class PageBridge {
                         val bridge = PageBridge()
                         bridge.isFreeGrid = true
                         bridge.freeGridObserver = freeGridObserver
-                        bridge.installFreeGrid(Class.forName(name, false, pluginLoader))
+                        bridge.installFreeGrid(DexSymbols.findClass(name, false, pluginLoader))
                         freeGrid = bridge
                         bridge.homeActivity = homeActivity
                         bridge.setEnabled(enabled)
@@ -125,7 +135,7 @@ class PageBridge {
             },
         )
         ModernHook.hookMethod(
-            plugin.getDeclaredMethod("getClassLoader"),
+            plugin.compatibleDeclaredMethod("getClassLoader"),
             object : ModernHook.Callback() {
                 override fun afterHookedMethod(p: ModernHook.Param) {
                     val patternPrefix2 =
@@ -150,7 +160,7 @@ class PageBridge {
                         val bridge = PageBridge()
                         bridge.isFreeGrid = true
                         bridge.freeGridObserver = freeGridObserver
-                        bridge.installFreeGrid(Class.forName(name, false, pluginLoader))
+                        bridge.installFreeGrid(DexSymbols.findClass(name, false, pluginLoader))
                         freeGrid = bridge
                         bridge.homeActivity = homeActivity
                         bridge.setEnabled(enabled)
@@ -165,7 +175,8 @@ class PageBridge {
         )
         // Verified caller contains the actual virtual scroll callback; undo possible ART inlining.
         for (method in base.getDeclaredMethods()) check(
-            !("swipeScrollToWithOverScroll" == method.getName() && !ModernHook.deoptimize(method))
+            !("swipeScrollToWithOverScroll" == method.compatibleName() &&
+                !ModernHook.deoptimize(method))
         ) {
             "Failed to deoptimize workspace scroll caller"
         }
@@ -176,12 +187,13 @@ class PageBridge {
 
     @Throws(Exception::class)
     private fun installFreeGrid(workspace: Class<*>) {
-        scrollForPage = workspace.getMethod("getScrollForPage", Int::class.javaPrimitiveType)
-        spaceInfo = workspace.getMethod("getHoneySpaceInfo")
-        visibleCount = workspace.getMethod("getVisibleCount")
-        currentState = workspace.getDeclaredMethod("getCurrentState")
+        scrollForPage = workspace.compatibleMethod("getScrollForPage", Int::class.javaPrimitiveType)
+        spaceInfo = workspace.compatibleMethod("getHoneySpaceInfo")
+        visibleCount = workspace.compatibleMethod("getVisibleCount")
+        currentState = workspace.compatibleDeclaredMethod("getCurrentState")
         currentState!!.setAccessible(true)
-        indexedCellType = workspace.getDeclaredMethod("getCellType", Int::class.javaPrimitiveType)
+        indexedCellType =
+            workspace.compatibleDeclaredMethod("getCellType", Int::class.javaPrimitiveType)
         indexedCellType!!.setAccessible(true)
         val installed = ArrayList<ModernHook.Handle?>()
         val events: ModernHook.Callback =
@@ -193,7 +205,7 @@ class PageBridge {
         try {
             installed.add(
                 ModernHook.hookMethod(
-                    workspace.getDeclaredMethod(
+                    workspace.compatibleDeclaredMethod(
                         "notifyScrollX",
                         Int::class.javaPrimitiveType,
                         Int::class.javaPrimitiveType,
@@ -203,10 +215,16 @@ class PageBridge {
                 )
             )
             installed.add(
-                ModernHook.hookMethod(workspace.getDeclaredMethod("onAttachedToWindow"), events)
+                ModernHook.hookMethod(
+                    workspace.compatibleDeclaredMethod("onAttachedToWindow"),
+                    events,
+                )
             )
             installed.add(
-                ModernHook.hookMethod(workspace.getDeclaredMethod("onEndPageScrolling"), events)
+                ModernHook.hookMethod(
+                    workspace.compatibleDeclaredMethod("onEndPageScrolling"),
+                    events,
+                )
             )
         } catch (t: Throwable) {
             for (h in installed) h!!.unhook()
@@ -253,7 +271,7 @@ class PageBridge {
     }
 
     fun setHomeWindow(activity: Activity) {
-        if ("com.sec.android.app.launcher.Launcher" != activity.javaClass.getName()) return
+        if ("com.sec.android.app.launcher.Launcher" != activity.javaClass.compatibleName()) return
         homeActivity = WeakReference<Activity?>(activity)
         if (freeGrid != null) freeGrid!!.homeActivity = homeActivity
         val view = last.get()
@@ -306,13 +324,13 @@ class PageBridge {
                 return
             val info = spaceInfo!!.invoke(view)
             if (
-                info.javaClass.getMethod("isDexSpace").invoke(info) as Boolean ||
+                info.javaClass.compatibleMethod("isDexSpace").invoke(info) as Boolean ||
                     visibleCount!!.invoke(view) as Int != 1
             )
                 return
             if (
                 "com.honeyspace.sdk.HomeScreen\$Normal" !=
-                    currentState!!.invoke(view).javaClass.getName()
+                    currentState!!.invoke(view).javaClass.compatibleName()
             )
                 return
             val positions = ArrayList<Int?>()

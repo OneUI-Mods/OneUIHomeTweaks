@@ -27,6 +27,10 @@ import android.view.ViewTreeObserver.OnWindowFocusChangeListener
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.graphics.ColorUtils
+import dev.ryuya.oneuihometweaks.compat.DexSymbols
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredMethod
+import dev.ryuya.oneuihometweaks.compat.compatibleMethod
+import dev.ryuya.oneuihometweaks.compat.compatibleName
 import java.lang.ref.WeakReference
 import java.lang.reflect.Method
 import java.util.ArrayList
@@ -79,10 +83,11 @@ class HomeLabelBridge {
                 PackageManager.PERMISSION_GRANTED
         )
             throw SecurityException("No existing wallpaper capture permission")
-        val icon = Class.forName("com.honeyspace.ui.common.iconview.IconViewImpl", false, loader)
+        val icon =
+            DexSymbols.findClass("com.honeyspace.ui.common.iconview.IconViewImpl", false, loader)
         check(TextView::class.java.isAssignableFrom(icon)) { "Icon is not TextView" }
-        getColor = icon.getMethod("getCustomLabelColor")
-        setColor = icon.getMethod("setCustomLabelColor", Int::class.javaObjectType)
+        getColor = icon.compatibleMethod("getCustomLabelColor")
+        setColor = icon.compatibleMethod("setCustomLabelColor", Int::class.javaObjectType)
         check(
             !(getColor!!.getReturnType() != Int::class.javaObjectType ||
                 setColor!!.getReturnType() != Void.TYPE)
@@ -90,10 +95,12 @@ class HomeLabelBridge {
             "Custom label contract changed"
         }
         windowService =
-            Class.forName("android.view.WindowManagerGlobal")
-                .getMethod("getWindowManagerService")
+            DexSymbols.findClass("android.view.WindowManagerGlobal")
+                .compatibleMethod("getWindowManagerService")
                 .invoke(null)
-        screenshot = Class.forName("android.view.IWindowManager").getMethod("screenshotWallpaper")
+        screenshot =
+            DexSymbols.findClass("android.view.IWindowManager")
+                .compatibleMethod("screenshotWallpaper")
         check(screenshot!!.getReturnType() == Bitmap::class.java) {
             "Wallpaper capture contract changed"
         }
@@ -102,25 +109,25 @@ class HomeLabelBridge {
         changed = report
         try {
             finderClass =
-                Class.forName(
+                DexSymbols.findClass(
                     "com.honeyspace.ui.common.pageindicator.StrokeTextView",
                     false,
                     loader,
                 )
             check(TextView::class.java.isAssignableFrom(finderClass)) { "Finder type changed" }
             val indicator =
-                Class.forName(
+                DexSymbols.findClass(
                     "com.honeyspace.ui.common.pageindicator.PageIndicatorView",
                     false,
                     loader,
                 )
             val binding =
-                Class.forName(
+                DexSymbols.findClass(
                     "com.honeyspace.ui.common.databinding.IndicatorSearchLayoutBinding",
                     false,
                     loader,
                 )
-            val updateFinder = indicator.getDeclaredMethod("updateFinderButton", binding)
+            val updateFinder = indicator.compatibleDeclaredMethod("updateFinderButton", binding)
             check(
                 !(updateFinder.getReturnType() != Void.TYPE || !ModernHook.deoptimize(updateFinder))
             ) {
@@ -131,7 +138,7 @@ class HomeLabelBridge {
             // instances are intercepted; preserve Samsung's newer native request for later
             // restoration.
             ModernHook.hookMethod(
-                TextView::class.java.getMethod("setTextColor", Int::class.javaPrimitiveType),
+                TextView::class.java.compatibleMethod("setTextColor", Int::class.javaPrimitiveType),
                 object : ModernHook.Callback() {
                     override fun beforeHookedMethod(p: ModernHook.Param) {
                         if (!enabled || ownTextColor || Looper.myLooper() != Looper.getMainLooper())
@@ -149,9 +156,10 @@ class HomeLabelBridge {
         }
         // Native style updates can replace the displayed text color without changing
         // customLabelColor.
-        val style = Class.forName("com.honeyspace.sdk.source.entity.ItemStyle", false, loader)
+        val style =
+            DexSymbols.findClass("com.honeyspace.sdk.source.entity.ItemStyle", false, loader)
         ModernHook.hookMethod(
-            icon.getMethod("setItemStyle", style),
+            icon.compatibleMethod("setItemStyle", style),
             object : ModernHook.Callback() {
                 override fun afterHookedMethod(p: ModernHook.Param) {
                     if (!p.hasThrowable() && enabled) invalidate()
@@ -159,7 +167,7 @@ class HomeLabelBridge {
             },
         )
         ModernHook.hookMethod(
-            icon.getDeclaredMethod("onDraw", Canvas::class.java),
+            icon.compatibleDeclaredMethod("onDraw", Canvas::class.java),
             object : ModernHook.Callback() {
                 override fun beforeHookedMethod(p: ModernHook.Param) {
                     if (
@@ -204,7 +212,7 @@ class HomeLabelBridge {
     }
 
     fun setHome(activity: Activity) {
-        if ("com.sec.android.app.launcher.Launcher" != activity.javaClass.getName()) return
+        if ("com.sec.android.app.launcher.Launcher" != activity.javaClass.compatibleName()) return
         val old = home.get()
         if (old !== activity) {
             if (old != null) detach(old)
@@ -474,7 +482,8 @@ class HomeLabelBridge {
         if (
             finderClass == null ||
                 !(finderClass!!.isInstance(view) ||
-                    (view is TextView && finderClass!!.getName() == view.javaClass.getName())) ||
+                    (view is TextView &&
+                        finderClass!!.compatibleName() == view.javaClass.compatibleName())) ||
                 view.getId() == View.NO_ID
         )
             return false
@@ -486,7 +495,8 @@ class HomeLabelBridge {
                 var type: Class<*>? = p.javaClass
                 while (type != null) {
                     if (
-                        "com.honeyspace.ui.common.pageindicator.PageIndicatorView" == type.getName()
+                        "com.honeyspace.ui.common.pageindicator.PageIndicatorView" ==
+                            type.compatibleName()
                     )
                         return true
                     type = type.getSuperclass()
@@ -565,7 +575,7 @@ class HomeLabelBridge {
         var workspace: Boolean = false
         var parent = view.getParent()
         while (parent is View) {
-            val name = parent.javaClass.getName()
+            val name = parent.javaClass.compatibleName()
             if (
                 name.contains(".applist.") ||
                     name.contains(".verticalapplist.") ||

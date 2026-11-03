@@ -6,6 +6,7 @@ import android.view.MotionEvent
 import android.view.MotionEvent.PointerCoords
 import android.view.MotionEvent.PointerProperties
 import android.view.View
+import dev.ryuya.oneuihometweaks.compat.compatibleMethod
 import java.lang.reflect.Method
 import kotlin.jvm.JvmStatic
 import kotlin.math.abs
@@ -18,8 +19,8 @@ object RecentsLocalMotion {
 
     init {
         try {
-            APPLY = MotionEvent::class.java.getMethod("applyTransform", Matrix::class.java)
-            DISPLAY_ID = MotionEvent::class.java.getMethod("getDisplayId")
+            APPLY = MotionEvent::class.java.compatibleMethod("applyTransform", Matrix::class.java)
+            DISPLAY_ID = MotionEvent::class.java.compatibleMethod("getDisplayId")
         } catch (e: ReflectiveOperationException) {
             throw ExceptionInInitializerError(e)
         }

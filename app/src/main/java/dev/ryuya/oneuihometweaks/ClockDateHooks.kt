@@ -10,6 +10,9 @@ import android.os.Looper
 import android.text.SpannableStringBuilder
 import android.view.View
 import android.widget.TextView
+import dev.ryuya.oneuihometweaks.compat.DexSymbols
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredField
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredMethod
 import java.lang.reflect.Field
 import java.lang.reflect.Method
 import java.util.ArrayList
@@ -42,24 +45,24 @@ class ClockDateHooks {
             if (!HookCompatibility.matchesClockBuild(Build.VERSION.SDK_INT, Build.DISPLAY))
                 throw UnsupportedOperationException("Unverified SystemUI build")
             val clock =
-                Class.forName(
+                DexSymbols.findClass(
                     "com.android.systemui.statusbar.policy.QSClockIndicatorView",
                     false,
                     loader,
                 )
             val sound =
-                Class.forName(
+                DexSymbols.findClass(
                     "com.android.systemui.statusbar.policy.QSClockBellSound",
                     false,
                     loader,
                 )
             if (!TextView::class.java.isAssignableFrom(clock))
                 throw UnsupportedOperationException("Clock type changed")
-            notifyTime = clock.getDeclaredMethod("notifyTimeChanged", sound)
-            dateText = clock.getDeclaredMethod("getDateText", sound)
-            lastSound = clock.getDeclaredField("lastQSClockBellSound")
-            timeText = sound.getDeclaredField("TimeText")
-            spokenTime = sound.getDeclaredField("TimeContentDescription")
+            notifyTime = clock.compatibleDeclaredMethod("notifyTimeChanged", sound)
+            dateText = clock.compatibleDeclaredMethod("getDateText", sound)
+            lastSound = clock.compatibleDeclaredField("lastQSClockBellSound")
+            timeText = sound.compatibleDeclaredField("TimeText")
+            spokenTime = sound.compatibleDeclaredField("TimeContentDescription")
             if (
                 dateText!!.getReturnType() != String::class.java ||
                     lastSound!!.getType() != sound ||
@@ -91,7 +94,7 @@ class ClockDateHooks {
             )
             hooks.add(
                 ModernHook.hookMethod(
-                    clock.getDeclaredMethod("onAttachedToWindow"),
+                    clock.compatibleDeclaredMethod("onAttachedToWindow"),
                     object : ModernHook.Callback() {
                         override fun afterHookedMethod(p: ModernHook.Param) {
                             if (failed || p.hasThrowable()) return

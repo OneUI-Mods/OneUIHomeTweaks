@@ -23,6 +23,9 @@ import android.os.Process
 import android.provider.Settings.System
 import android.util.Log
 import android.view.ViewGroup
+import dev.ryuya.oneuihometweaks.compat.DexSymbols
+import dev.ryuya.oneuihometweaks.compat.compatibleMethod
+import dev.ryuya.oneuihometweaks.compat.compatibleName
 import io.github.libxposed.api.XposedModule
 import io.github.libxposed.api.XposedModuleInterface.ModuleLoadedParam
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
@@ -143,6 +146,7 @@ class HookEntry : XposedModule() {
                     val base: Context? = param.args[0] as Context?
                     if (HookEntry.LAUNCHER != base!!.getPackageName()) return
                     try {
+                        if (!DexSymbols.canInstallNow(base!!)) return
                         preparedGuard = CrashGuard.enter(base!!)
                         if (preparedGuard!!.blocked()) return
                         DexEvidence.verifyScrollContract(
@@ -163,56 +167,59 @@ class HookEntry : XposedModule() {
                     if (hostAttached || p.packageName != app!!.getPackageName()) return
                     hostAttached = true
                     context = app
-                    try {
-                        if (
-                            !HookCompatibility.isCurrentSupported() ||
-                                ("SM-S948Q" != Build.MODEL) ||
-                                Process.myUid() / 100000 != 0
-                        ) {
-                            HostStatus.report(
-                                app,
-                                "UNSUPPORTED",
-                                "SDK/model/user compatibility gate",
-                            )
-                            return
-                        }
-                        val guard: CrashGuard? =
-                            if (preparedGuard != null) preparedGuard else CrashGuard.enter(app)
-                        if (guard!!.blocked()) {
-                            HostStatus.report(
-                                app,
-                                "CRASH_GUARD",
-                                "Three confirmed crash starts; clear protection before retrying",
-                            )
-                            if ("com.android.systemui" == p.packageName)
-                                HostStatus.reportFeature(
+                    DexSymbols.configure(app)
+                    DexSymbols.whenPrepared(app) {
+                        try {
+                            if (
+                                !HookCompatibility.isCurrentSupported() ||
+                                    ("SM-S948Q" != Build.MODEL) ||
+                                    Process.myUid() / 100000 != 0
+                            ) {
+                                HostStatus.report(
                                     app,
-                                    "quick_panel",
-                                    "CRASH_GUARD",
-                                    "Host startup protection is active",
+                                    "UNSUPPORTED",
+                                    "SDK/model/user compatibility gate",
                                 )
-                            HookEntry.log("CRASH_GUARD blocked " + p.packageName)
-                            return
+                                return@whenPrepared
+                            }
+                            val guard: CrashGuard? =
+                                if (preparedGuard != null) preparedGuard else CrashGuard.enter(app)
+                            if (guard!!.blocked()) {
+                                HostStatus.report(
+                                    app,
+                                    "CRASH_GUARD",
+                                    "Three confirmed crash starts; clear protection before retrying",
+                                )
+                                if ("com.android.systemui" == p.packageName)
+                                    HostStatus.reportFeature(
+                                        app,
+                                        "quick_panel",
+                                        "CRASH_GUARD",
+                                        "Host startup protection is active",
+                                    )
+                                HookEntry.log("CRASH_GUARD blocked " + p.packageName)
+                                return@whenPrepared
+                            }
+                            if (HookEntry.LAUNCHER == p.packageName) {
+                                homeLayout.start(app)
+                                installLauncher(p, app!!)
+                            } else if ("com.android.systemui" == p.packageName) {
+                                QuickPanelHooks().install(app, p.classLoader)
+                                ClockDateHooks().install(app, p.classLoader)
+                                VolumeHooks().install(app, p.classLoader)
+                            } else if ("com.android.settings" == p.packageName) {
+                                DeveloperAnimationHooks().install(app, p.classLoader)
+                            } else PreviewHooks().install(app, p.classLoader)
+                            Handler(Looper.getMainLooper())
+                                .postDelayed(Runnable { guard!!.healthy() }, 90000)
+                        } catch (t: Throwable) {
+                            HostStatus.report(
+                                app,
+                                "ERROR",
+                                t.javaClass.getSimpleName() + ": " + t.message,
+                            )
+                            HookEntry.log("HOST_DISABLED " + t)
                         }
-                        if (HookEntry.LAUNCHER == p.packageName) {
-                            homeLayout.start(app)
-                            installLauncher(p, app!!)
-                        } else if ("com.android.systemui" == p.packageName) {
-                            QuickPanelHooks().install(app, p.classLoader)
-                            ClockDateHooks().install(app, p.classLoader)
-                            VolumeHooks().install(app, p.classLoader)
-                        } else if ("com.android.settings" == p.packageName) {
-                            DeveloperAnimationHooks().install(app, p.classLoader)
-                        } else PreviewHooks().install(app, p.classLoader)
-                        Handler(Looper.getMainLooper())
-                            .postDelayed(Runnable { guard!!.healthy() }, 90000)
-                    } catch (t: Throwable) {
-                        HostStatus.report(
-                            app,
-                            "ERROR",
-                            t.javaClass.getSimpleName() + ": " + t.message,
-                        )
-                        HookEntry.log("HOST_DISABLED " + t)
                     }
                 }
             },
@@ -251,11 +258,20 @@ class HookEntry : XposedModule() {
                 !dataSource!!.isInterface() ||
                     !updater!!.isInterface() ||
                     ("kotlinx.coroutines.flow.StateFlow" !=
-                        dataSource!!.getMethod("get", key).getReturnType().getName()) ||
+                        dataSource!!
+                            .compatibleMethod("get", key)
+                            .getReturnType()
+                            .compatibleName()) ||
                     ("kotlinx.coroutines.flow.StateFlow" !=
-                        updater!!.getMethod("getDarkFont").getReturnType().getName()) ||
+                        updater!!
+                            .compatibleMethod("getDarkFont")
+                            .getReturnType()
+                            .compatibleName()) ||
                     ("kotlinx.coroutines.flow.StateFlow" !=
-                        updater!!.getMethod("getDarkStatusBar").getReturnType().getName())
+                        updater!!
+                            .compatibleMethod("getDarkStatusBar")
+                            .getReturnType()
+                            .compatibleName())
             ) {
                 HostStatus.report(app, "UNSUPPORTED", "Samsung interface mismatch")
                 HookEntry.log("UNSUPPORTED: stable Samsung interface mismatch")
@@ -460,10 +476,10 @@ class HookEntry : XposedModule() {
             HookEntry.log("FOLDER_UNSUPPORTED " + t)
         }
         // Samsung's actual WhichChecker and public constants were verified on this device.
-        val wc = Class.forName("com.samsung.android.wallpaper.utils.WhichChecker")
+        val wc = DexSymbols.findClass("com.samsung.android.wallpaper.utils.WhichChecker")
         check(
-            !(1 != wc.getMethod("getType", Int::class.javaPrimitiveType).invoke(null, 5) ||
-                4 != wc.getMethod("getMode", Int::class.javaPrimitiveType).invoke(null, 5))
+            !(1 != wc.compatibleMethod("getType", Int::class.javaPrimitiveType).invoke(null, 5) ||
+                4 != wc.compatibleMethod("getMode", Int::class.javaPrimitiveType).invoke(null, 5))
         ) {
             "which=5 incompatible"
         }

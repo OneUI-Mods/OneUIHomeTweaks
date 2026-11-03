@@ -13,6 +13,11 @@ import android.os.IBinder.DeathRecipient
 import android.os.IInterface
 import android.os.Parcel
 import android.os.Process
+import dev.ryuya.oneuihometweaks.compat.DexSymbols
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredField
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredMethod
+import dev.ryuya.oneuihometweaks.compat.compatibleMethod
+import dev.ryuya.oneuihometweaks.compat.compatibleName
 import io.github.libxposed.api.XposedInterface.Chain
 import java.lang.Boolean as JavaBoolean
 import java.lang.reflect.Constructor
@@ -167,38 +172,47 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
                 RecentsFocusServer.get(atm, "mExt")!!,
                 "mCoreStateController",
             ))!!
-        appThread = Class.forName("android.app.IApplicationThread", false, loader)
+        appThread = DexSymbols.findClass("android.app.IApplicationThread", false, loader)
         coreItem =
-            Class.forName("android.app.servertransaction.CoreStatesChangeItem", false, loader)
+            DexSymbols.findClass(
+                "android.app.servertransaction.CoreStatesChangeItem",
+                false,
+                loader,
+            )
         transactionType =
-            Class.forName("android.app.servertransaction.ClientTransaction", false, loader)
+            DexSymbols.findClass("android.app.servertransaction.ClientTransaction", false, loader)
         val item =
-            Class.forName("android.app.servertransaction.ClientTransactionItem", false, loader)
+            DexSymbols.findClass(
+                "android.app.servertransaction.ClientTransactionItem",
+                false,
+                loader,
+            )
         itemConstructor = coreItem.getConstructor(Bundle::class.java)
         transactionConstructor = transactionType.getConstructor(appThread)
         stateField = (RecentsFocusServer.field(coreItem, "mState"))!!
-        getItems = transactionType.getMethod("getTransactionItems")
-        getClient = transactionType.getMethod("getClient")
-        addItem = transactionType.getMethod("addTransactionItem", item)
-        schedule = lifecycle.javaClass.getMethod("scheduleTransaction", transactionType)
+        getItems = transactionType.compatibleMethod("getTransactionItems")
+        getClient = transactionType.compatibleMethod("getClient")
+        addItem = transactionType.compatibleMethod("addTransactionItem", item)
+        schedule = lifecycle.javaClass.compatibleMethod("scheduleTransaction", transactionType)
         // Resolve all contracts before accepting any policy change.
-        core.javaClass.getMethod("getCoreStates", Int::class.javaPrimitiveType)
-        root.javaClass.getMethod(
+        core.javaClass.compatibleMethod("getCoreStates", Int::class.javaPrimitiveType)
+        root.javaClass.compatibleMethod(
             "anyTaskForId",
             Int::class.javaPrimitiveType,
             Int::class.javaPrimitiveType,
             ActivityOptions::class.java,
             Boolean::class.javaPrimitiveType,
         )
-        val task = Class.forName("com.android.server.wm.Task", false, loader)
-        task.getMethod("topRunningActivityLocked")
-        task.getMethod("getDisplayId")
-        task.getMethod("getWindowingMode")
-        task.getMethod("getActivityType")
-        val record = Class.forName("com.android.server.wm.ActivityRecord", false, loader)
+        val task = DexSymbols.findClass("com.android.server.wm.Task", false, loader)
+        task.compatibleMethod("topRunningActivityLocked")
+        task.compatibleMethod("getDisplayId")
+        task.compatibleMethod("getWindowingMode")
+        task.compatibleMethod("getActivityType")
+        val record = DexSymbols.findClass("com.android.server.wm.ActivityRecord", false, loader)
         RecentsFocusServer.field(record, "app")
         RecentsFocusServer.field(record, "mActivityComponent")
-        val process = Class.forName("com.android.server.wm.WindowProcessController", false, loader)
+        val process =
+            DexSymbols.findClass("com.android.server.wm.WindowProcessController", false, loader)
         for (name in
             java.util.List.of<String?>(
                 "mUid",
@@ -292,7 +306,7 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
             val focus =
                 wms!!
                     .javaClass
-                    .getMethod(
+                    .compatibleMethod(
                         "updateFocusedWindowLocked",
                         Int::class.javaPrimitiveType,
                         Boolean::class.javaPrimitiveType,
@@ -314,10 +328,11 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
                     },
                 )
             )
-            val recordType = Class.forName("com.android.server.wm.ActivityRecord", false, loader)
+            val recordType =
+                DexSymbols.findClass("com.android.server.wm.ActivityRecord", false, loader)
             val stateType =
-                Class.forName("com.android.server.wm.ActivityRecord\$State", false, loader)
-            val setState = recordType.getMethod("setState", stateType, String::class.java)
+                DexSymbols.findClass("com.android.server.wm.ActivityRecord\$State", false, loader)
+            val setState = recordType.compatibleMethod("setState", stateType, String::class.java)
             hooks.add(
                 ModernHook.hookMethod(
                     setState,
@@ -351,7 +366,7 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
             return false
         val task =
             root.javaClass
-                .getMethod(
+                .compatibleMethod(
                     "anyTaskForId",
                     Int::class.javaPrimitiveType,
                     Int::class.javaPrimitiveType,
@@ -360,7 +375,7 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
                 )
                 .invoke(root, data.getInt("task", -1), 0, null, false)
         if (task == null) return false
-        val record = task.javaClass.getMethod("topRunningActivityLocked").invoke(task)
+        val record = task.javaClass.compatibleMethod("topRunningActivityLocked").invoke(task)
         if (record == null) return false
         val process = RecentsFocusServer.get(record, "app")
         if (process == null) return false
@@ -437,7 +452,7 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
             return false
         val display =
             root.javaClass
-                .getMethod("getDisplayContent", Int::class.javaPrimitiveType)
+                .compatibleMethod("getDisplayContent", Int::class.javaPrimitiveType)
                 .invoke(root, 0)
         if (display == null) return false
         val window = RecentsFocusServer.get(display, "mCurrentFocus")
@@ -456,8 +471,9 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
     @Throws(Exception::class)
     private fun states(): Bundle? {
         return Bundle(
-            core.javaClass.getMethod("getCoreStates", Int::class.javaPrimitiveType).invoke(core, 0)
-                as Bundle?
+            core.javaClass
+                .compatibleMethod("getCoreStates", Int::class.javaPrimitiveType)
+                .invoke(core, 0) as Bundle?
         )
     }
 
@@ -545,9 +561,13 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
             )
                 return
             val type =
-                Class.forName("com.android.server.wm.ActivityTaskManagerService", false, loader)
+                DexSymbols.findClass(
+                    "com.android.server.wm.ActivityTaskManagerService",
+                    false,
+                    loader,
+                )
             val transact =
-                type.getDeclaredMethod(
+                type.compatibleDeclaredMethod(
                     "onTransact",
                     Int::class.javaPrimitiveType,
                     Parcel::class.java,
@@ -556,7 +576,7 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
                 )
             ModernHook.findAndHookMethod(
                 type,
-                transact.getName(),
+                transact.compatibleName(),
                 Int::class.javaPrimitiveType,
                 Parcel::class.java,
                 Parcel::class.java,
@@ -627,7 +647,7 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
         @JvmStatic
         @Throws(Exception::class)
         private fun number(owner: Any, method: String?): Int {
-            return owner.javaClass.getMethod(method).invoke(owner) as Int
+            return owner.javaClass.compatibleMethod(method).invoke(owner) as Int
         }
 
         @JvmStatic
@@ -642,13 +662,13 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
             var current: Class<*>? = type
             while (current != null) {
                 try {
-                    val field = current.getDeclaredField(name)
+                    val field = current.compatibleDeclaredField(name)
                     field.setAccessible(true)
                     return field
                 } catch (ignored: NoSuchFieldException) {}
                 current = current.getSuperclass()
             }
-            throw NoSuchFieldException(type.getName() + "." + name)
+            throw NoSuchFieldException(type.compatibleName() + "." + name)
         }
     }
 }

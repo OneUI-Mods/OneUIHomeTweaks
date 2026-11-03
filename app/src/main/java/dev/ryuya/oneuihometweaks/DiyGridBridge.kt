@@ -9,6 +9,10 @@ import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams
+import dev.ryuya.oneuihometweaks.compat.DexSymbols
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredField
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredMethod
+import dev.ryuya.oneuihometweaks.compat.compatibleName
 import java.lang.Boolean as JavaBoolean
 import java.lang.ref.WeakReference
 import java.lang.reflect.Method
@@ -94,7 +98,7 @@ class DiyGridBridge {
         val vm = state.vm.get()
         checkNotNull(vm) { "Home model unavailable" }
         val info =
-            Class.forName(
+            DexSymbols.findClass(
                 "com.honeyspace.ui.honeypots.freegrid.domain.model.FreeEditInfo",
                 false,
                 vm.javaClass.getClassLoader(),
@@ -111,7 +115,7 @@ class DiyGridBridge {
             Int::class.javaObjectType,
             Boolean::class.javaPrimitiveType,
         )
-        vm.javaClass.getDeclaredMethod(
+        vm.javaClass.compatibleDeclaredMethod(
             "updateFreeGridProperty",
             MutableList::class.java,
             Boolean::class.javaPrimitiveType,
@@ -160,7 +164,7 @@ class DiyGridBridge {
         check(DiyGridBridge.onMain()) { "Main thread only" }
         val owner = prepared.owner
         val info =
-            Class.forName(
+            DexSymbols.findClass(
                 "com.honeyspace.ui.honeypots.freegrid.domain.model.FreeEditInfo",
                 false,
                 owner!!.javaClass.getClassLoader(),
@@ -282,36 +286,36 @@ class DiyGridBridge {
                                 .getApplicationInfo("com.samsung.android.app.homestar", 0)
                                 .sourceDir
                         val layout =
-                            Class.forName(
+                            DexSymbols.findClass(
                                 "com.honeyspace.ui.honeypots.freegrid.presentation.FreeGridCellLayout",
                                 false,
                                 loader,
                             )
                         val model =
-                            Class.forName(
+                            DexSymbols.findClass(
                                 "com.honeyspace.ui.honeypots.freegrid.domain.model.FreeGridItem",
                                 false,
                                 loader,
                             )
                         val vm =
-                            Class.forName(
+                            DexSymbols.findClass(
                                 "com.honeyspace.ui.honeypots.freegrid.viewmodel.FreeGridViewModel",
                                 false,
                                 loader,
                             )
                         val params =
-                            Class.forName(
-                                layout.getName() + "\$FreeGridLayoutParams",
+                            DexSymbols.findClass(
+                                layout.compatibleName() + "\$FreeGridLayoutParams",
                                 false,
                                 loader,
                             )
                         val searchable =
-                            Class.forName(
+                            DexSymbols.findClass(
                                 "com.honeyspace.sdk.transition.SearchableView",
                                 false,
                                 loader,
                             )
-                        val viewItemId = searchable.getDeclaredMethod("getItemId")
+                        val viewItemId = searchable.compatibleDeclaredMethod("getItemId")
                         if (viewItemId.getReturnType() != Int::class.javaPrimitiveType)
                             throw UnsupportedOperationException("DIY view identity changed")
                         if (
@@ -319,42 +323,50 @@ class DiyGridBridge {
                                 !LayoutParams::class.java.isAssignableFrom(params)
                         )
                             throw UnsupportedOperationException("DIY layout types changed")
-                        val create = layout.getDeclaredMethod("createLayoutParams", model)
-                        val items = vm.getDeclaredMethod("getItems")
-                        val geometry = vm.getDeclaredMethod("getItemPositionData")
+                        val create = layout.compatibleDeclaredMethod("createLayoutParams", model)
+                        val items = vm.compatibleDeclaredMethod("getItems")
+                        val geometry = vm.compatibleDeclaredMethod("getItemPositionData")
                         geometry.setAccessible(true)
                         if (
-                            geometry.getReturnType().getDeclaredMethod("isLand").getReturnType() !=
-                                Boolean::class.javaPrimitiveType
+                            geometry
+                                .getReturnType()
+                                .compatibleDeclaredMethod("isLand")
+                                .getReturnType() != Boolean::class.javaPrimitiveType
                         )
                             throw UnsupportedOperationException("DIY geometry orientation changed")
-                        params.getDeclaredMethod(
+                        params.compatibleDeclaredMethod(
                             "setup",
                             Point::class.java,
                             Float::class.javaPrimitiveType,
                         )
-                        model.getDeclaredMethod("getPortX")
-                        model.getDeclaredMethod("getPortY")
+                        model.compatibleDeclaredMethod("getPortX")
+                        model.compatibleDeclaredMethod("getPortY")
                         for (name in
                             arrayOf<String>("App", "Folder", "Shortcut", "DeepShortcut")) iconTypes
-                            .add(Class.forName(model.getName() + "$" + name, false, loader))
+                            .add(
+                                DexSymbols.findClass(
+                                    model.compatibleName() + "$" + name,
+                                    false,
+                                    loader,
+                                )
+                            )
                         val sticker =
-                            Class.forName(
+                            DexSymbols.findClass(
                                 "com.honeyspace.ui.honeypots.sticker.StickerView",
                                 false,
                                 loader,
                             )
                         val frame =
-                            Class.forName(
+                            DexSymbols.findClass(
                                 "com.honeyspace.ui.honeypots.sticker.FrameControlStickerView",
                                 false,
                                 loader,
                             )
                         // Resolve the complete edit contract before installing any editing hook.
-                        val prepare = layout.getDeclaredMethod("prepareSyncPosition", frame)
-                        val sync = layout.getDeclaredMethod("syncPosition", frame)
+                        val prepare = layout.compatibleDeclaredMethod("prepareSyncPosition", frame)
+                        val sync = layout.compatibleDeclaredMethod("syncPosition", frame)
                         val translate =
-                            layout.getDeclaredMethod(
+                            layout.compatibleDeclaredMethod(
                                 "translateTarget",
                                 sticker,
                                 Float::class.javaPrimitiveType,
@@ -362,16 +374,16 @@ class DiyGridBridge {
                                 Boolean::class.javaPrimitiveType,
                             )
                         val drop =
-                            vm.getDeclaredMethod(
+                            vm.compatibleDeclaredMethod(
                                 "updateToDropPoint",
                                 model,
                                 Point::class.java,
                                 Int::class.javaPrimitiveType,
                                 Point::class.java,
                             )
-                        layout.getDeclaredMethod("fitTargetView", sticker)
-                        frame.getDeclaredMethod("getTargetPosition")
-                        val targetDiff = frame.getDeclaredField("targetPositionDiff")
+                        layout.compatibleDeclaredMethod("fitTargetView", sticker)
+                        frame.compatibleDeclaredMethod("getTargetPosition")
+                        val targetDiff = frame.compatibleDeclaredField("targetPositionDiff")
                         if (targetDiff.getType() != PointF::class.java)
                             throw UnsupportedOperationException("DIY edit pointer contract changed")
                         targetDiff.setAccessible(true)
@@ -559,7 +571,7 @@ class DiyGridBridge {
                         )
                         hooks.add(
                             ModernHook.hookMethod(
-                                layout.getDeclaredMethod(
+                                layout.compatibleDeclaredMethod(
                                     "createLayoutParams",
                                     View::class.java,
                                     Int::class.javaPrimitiveType,
@@ -642,7 +654,7 @@ class DiyGridBridge {
                         // raw coordinates.
                         hooks.add(
                             ModernHook.hookMethod(
-                                layout.getDeclaredMethod(
+                                layout.compatibleDeclaredMethod(
                                     "updateViewWithoutReattach",
                                     View::class.java,
                                     model,
@@ -660,7 +672,11 @@ class DiyGridBridge {
                         )
                         hooks.add(
                             ModernHook.hookMethod(
-                                vm.getDeclaredMethod("includePoint", model, Point::class.java),
+                                vm.compatibleDeclaredMethod(
+                                    "includePoint",
+                                    model,
+                                    Point::class.java,
+                                ),
                                 object : ModernHook.Callback() {
                                     override fun beforeHookedMethod(p: ModernHook.Param) {
                                         enterProjection(p)
@@ -704,7 +720,7 @@ class DiyGridBridge {
                             )
                         )
                         for (coordinate in arrayOf<String>("getX", "getY")) {
-                            val getter = model.getDeclaredMethod(coordinate)
+                            val getter = model.compatibleDeclaredMethod(coordinate)
                             if (getter.getReturnType() != Int::class.javaPrimitiveType)
                                 throw UnsupportedOperationException("DIY coordinates changed")
                             hooks.add(
@@ -1003,7 +1019,7 @@ class DiyGridBridge {
                         View.LAYOUT_DIRECTION_LTR)
             )
                 return false
-            val preview = owner.javaClass.getDeclaredField("isPreview")
+            val preview = owner.javaClass.compatibleDeclaredField("isPreview")
             preview.setAccessible(true)
             return !preview.getBoolean(owner) && geometryFitsViewport()
         }
@@ -1237,13 +1253,14 @@ class DiyGridBridge {
         signature: Array<Class<*>?>,
         vararg args: Any?,
     ): Any? {
-        val key: String = owner.javaClass.getName() + "#" + name + signature.contentToString()
+        val key: String =
+            owner.javaClass.compatibleName() + "#" + name + signature.contentToString()
         val cached = methods.get(key)
         if (cached != null) return cached.invoke(owner, *args)
         var type = owner.javaClass
         while (type != null) {
             try {
-                val method = type.getDeclaredMethod(name, *signature)
+                val method = type.compatibleDeclaredMethod(name, *signature)
                 method.setAccessible(true)
                 methods.put(key, method)
                 return method.invoke(owner, *args)

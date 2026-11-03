@@ -20,6 +20,9 @@ import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.SeekBar.OnSeekBarChangeListener
 import android.widget.TextView
+import dev.ryuya.oneuihometweaks.compat.DexSymbols
+import dev.ryuya.oneuihometweaks.compat.compatibleField
+import dev.ryuya.oneuihometweaks.compat.compatibleMethod
 import java.util.Locale
 import kotlin.math.log
 import kotlin.math.max
@@ -87,29 +90,29 @@ class AnimationScaleDialog(
         slider.setContentDescription(text.getString(R.string.animation_scale_value))
         panel.addView(slider, LayoutParams(-1, dp(56)))
         val builderType =
-            Class.forName(
+            DexSymbols.findClass(
                 "androidx.appcompat.app.AlertDialog\$Builder",
                 false,
                 host.getClassLoader(),
             )
         val builder = builderType.getConstructor(Context::class.java).newInstance(host)
         // Samsung removes unused Builder overloads. Use the reviewed host parameter fields.
-        val parameters = builderType.getField("P").get(builder)
-        parameters.javaClass.getField("mTitle").set(parameters, title)
+        val parameters = builderType.compatibleField("P").get(builder)
+        parameters.javaClass.compatibleField("mTitle").set(parameters, title)
         parameters.javaClass
-            .getField("mPositiveButtonText")
+            .compatibleField("mPositiveButtonText")
             .set(parameters, text.getString(R.string.animation_scale_save))
         parameters.javaClass
-            .getField("mNegativeButtonText")
+            .compatibleField("mNegativeButtonText")
             .set(parameters, host.getString(android.R.string.cancel))
         parameters.javaClass
-            .getField("mNeutralButtonText")
+            .compatibleField("mNeutralButtonText")
             .set(parameters, text.getString(R.string.animation_scale_default))
         val content = ScrollView(host)
         content.setFillViewport(true)
         content.addView(panel)
-        builderType.getMethod("setView", View::class.java).invoke(builder, content)
-        dialog = (builderType.getMethod("create").invoke(builder) as Dialog?)!!
+        builderType.compatibleMethod("setView", View::class.java).invoke(builder, content)
+        dialog = (builderType.compatibleMethod("create").invoke(builder) as Dialog?)!!
         dialog.setOnShowListener(
             OnShowListener { ignored: DialogInterface? ->
                 try {
@@ -176,7 +179,7 @@ class AnimationScaleDialog(
     @Throws(Exception::class)
     private fun getButton(which: Int): Button? {
         return dialog.javaClass
-            .getMethod("getButton", Int::class.javaPrimitiveType)
+            .compatibleMethod("getButton", Int::class.javaPrimitiveType)
             .invoke(dialog, which) as Button?
     }
 

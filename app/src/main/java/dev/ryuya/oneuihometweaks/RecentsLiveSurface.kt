@@ -15,6 +15,11 @@ import android.view.SurfaceControl.Transaction
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver.OnPreDrawListener
+import dev.ryuya.oneuihometweaks.compat.DexSymbols
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredField
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredMethod
+import dev.ryuya.oneuihometweaks.compat.compatibleField
+import dev.ryuya.oneuihometweaks.compat.compatibleMethod
 import java.lang.Boolean as JavaBoolean
 import java.lang.reflect.Constructor
 import java.lang.reflect.Field
@@ -146,23 +151,23 @@ class RecentsLiveSurface(loader: ClassLoader?, unsupported: Runnable) {
         this.unsupported = unsupported
         blur = RecentsLiveBlur(loader)
         taskType =
-            Class.forName(
+            DexSymbols.findClass(
                 "com.honeyspace.ui.honeypots.tasklist.presentation.TaskView",
                 false,
                 loader,
             )
-        taskId = taskType.getMethod("getFirstTaskId")
-        taskScene = taskType.getMethod("getTaskSceneView")
+        taskId = taskType.compatibleMethod("getFirstTaskId")
+        taskScene = taskType.compatibleMethod("getTaskSceneView")
         val sceneType =
-            Class.forName(
+            DexSymbols.findClass(
                 HookCompatibility.taskSceneView(Build.VERSION.SDK_INT),
                 false,
                 loader,
             )
-        paints = sceneType.getMethod("getForegroundPaints")
-        hasTaskId = sceneType.getMethod("hasTaskId", Int::class.javaPrimitiveType)
+        paints = sceneType.compatibleMethod("getForegroundPaints")
+        hasTaskId = sceneType.compatibleMethod("hasTaskId", Int::class.javaPrimitiveType)
         tiltPath =
-            sceneType.getDeclaredMethod(
+            sceneType.compatibleDeclaredMethod(
                 "createTiltPath",
                 RectF::class.java,
                 FloatArray::class.java,
@@ -170,87 +175,100 @@ class RecentsLiveSurface(loader: ClassLoader?, unsupported: Runnable) {
                 Double::class.javaPrimitiveType,
             )
         tiltPath.setAccessible(true)
-        tilt = sceneType.getMethod("getTiltRadian")
-        sceneData = sceneType.getMethod("getTaskSceneData")
+        tilt = sceneType.compatibleMethod("getTiltRadian")
+        sceneData = sceneType.compatibleMethod("getTaskSceneData")
         val dataType =
-            Class.forName(
+            DexSymbols.findClass(
                 HookCompatibility.taskSceneData(Build.VERSION.SDK_INT),
                 false,
                 loader,
             )
-        bitmap = dataType.getMethod("getThumbnail")
-        snapshotScale = dataType.getMethod("getScale")
-        snapshotRotation = dataType.getMethod("getRotation")
-        realSnapshot = dataType.getMethod("isRealSnapshot")
-        locked = dataType.getMethod("getAppLocked")
+        bitmap = dataType.compatibleMethod("getThumbnail")
+        snapshotScale = dataType.compatibleMethod("getScale")
+        snapshotRotation = dataType.compatibleMethod("getRotation")
+        realSnapshot = dataType.compatibleMethod("isRealSnapshot")
+        locked = dataType.compatibleMethod("getAppLocked")
         val manager =
-            Class.forName(
+            DexSymbols.findClass(
                 "com.honeyspace.gesture.recentsanimation.RecentsAnimationManager",
                 false,
                 loader,
             )
-        updater = manager.getDeclaredField("leashUpdater")
+        updater = manager.compatibleDeclaredField("leashUpdater")
         updater.setAccessible(true)
-        player = manager.getDeclaredField("appPlayer")
+        player = manager.compatibleDeclaredField("appPlayer")
         player.setAccessible(true)
         val updaterType =
-            Class.forName("com.honeyspace.gesture.recentsanimation.LeashUpdater", false, loader)
-        updaterTargets = updaterType.getMethod("getTargets")
+            DexSymbols.findClass(
+                "com.honeyspace.gesture.recentsanimation.LeashUpdater",
+                false,
+                loader,
+            )
+        updaterTargets = updaterType.compatibleMethod("getTargets")
         val targets =
-            Class.forName("com.honeyspace.sdk.transition.TransitionTargets", false, loader)
-        recent = targets.getMethod("getRecentTarget")
-        apps = targets.getMethod("getApps")
-        mode = targets.getMethod("getTargetMode")
+            DexSymbols.findClass("com.honeyspace.sdk.transition.TransitionTargets", false, loader)
+        recent = targets.compatibleMethod("getRecentTarget")
+        apps = targets.compatibleMethod("getApps")
+        mode = targets.compatibleMethod("getTargetMode")
         releaseCheck =
-            targets.getMethod(
+            targets.compatibleMethod(
                 "addReleaseCheck",
-                Class.forName(
+                DexSymbols.findClass(
                     "com.honeyspace.sdk.transition.TransitionTargets\$ReleaseCheck",
                     false,
                     loader,
                 ),
             )
         playerBasis =
-            Class.forName("com.honeyspace.transition.anim.floating.Player", false, loader)
-                .getMethod("getHomeToWindowMatrix")
-        val tx = Class.forName("com.honeyspace.transition.utils.SurfaceTransaction", false, loader)
+            DexSymbols.findClass("com.honeyspace.transition.anim.floating.Player", false, loader)
+                .compatibleMethod("getHomeToWindowMatrix")
+        val tx =
+            DexSymbols.findClass(
+                "com.honeyspace.transition.utils.SurfaceTransaction",
+                false,
+                loader,
+            )
         val props =
-            Class.forName(
+            DexSymbols.findClass(
                 "com.honeyspace.transition.utils.SurfaceTransaction\$SurfaceProperties",
                 false,
                 loader,
             )
         transaction = tx.getConstructor()
-        forSurface = tx.getMethod("forSurface", SurfaceControl::class.java)
-        setMatrix = props.getMethod("setMatrix", Matrix::class.java)
-        setCrop = props.getMethod("setWindowCrop", Rect::class.java)
-        setRadius = props.getMethod("setCornerRadius", Float::class.javaPrimitiveType)
-        setAlpha = props.getMethod("setAlpha", Float::class.javaPrimitiveType)
-        show = props.getMethod("setShow")
-        getTransaction = tx.getMethod("getTransaction")
+        forSurface = tx.compatibleMethod("forSurface", SurfaceControl::class.java)
+        setMatrix = props.compatibleMethod("setMatrix", Matrix::class.java)
+        setCrop = props.compatibleMethod("setWindowCrop", Rect::class.java)
+        setRadius = props.compatibleMethod("setCornerRadius", Float::class.javaPrimitiveType)
+        setAlpha = props.compatibleMethod("setAlpha", Float::class.javaPrimitiveType)
+        show = props.compatibleMethod("setShow")
+        getTransaction = tx.compatibleMethod("getTransaction")
         rawTransaction =
-            Class.forName("com.android.systemui.shared.launcher.ScTransactionCompat", false, loader)
-                .getField("mTransaction")
+            DexSymbols.findClass(
+                    "com.android.systemui.shared.launcher.ScTransactionCompat",
+                    false,
+                    loader,
+                )
+                .compatibleField("mTransaction")
         relativeLayer =
             Transaction::class
                 .java
-                .getMethod(
+                .compatibleMethod(
                     "setRelativeLayer",
                     SurfaceControl::class.java,
                     SurfaceControl::class.java,
                     Int::class.javaPrimitiveType,
                 )
         val applierType =
-            Class.forName(
+            DexSymbols.findClass(
                 "com.honeyspace.transition.utils.SurfaceTransactionApplier",
                 false,
                 loader,
             )
         applier = applierType.getConstructor(View::class.java)
-        schedule = applierType.getMethod("scheduleApply", tx)
+        schedule = applierType.compatibleMethod("scheduleApply", tx)
         clear.setBlendMode(BlendMode.CLEAR)
         val draw =
-            sceneType.getMethod(
+            sceneType.compatibleMethod(
                 "draw",
                 Canvas::class.java,
                 MutableList::class.java,
@@ -311,12 +329,13 @@ class RecentsLiveSurface(loader: ClassLoader?, unsupported: Runnable) {
         val closingMode: Int = mode.invoke(targets) as Int
         for (a in (apps.invoke(targets) as Array<Any?>?)!!) {
             val c = a!!.javaClass
-            if (c.getField("mode").getInt(a) != closingMode) continue
-            if (closing != null || c.getField("taskId").getInt(a) != closingId) return false
+            if (c.compatibleField("mode").getInt(a) != closingMode) continue
+            if (closing != null || c.compatibleField("taskId").getInt(a) != closingId) return false
             closing = a
         }
         if (closing == null) return false
-        source = Rect(closing.javaClass.getField("sourceContainerBounds").get(closing) as Rect?)
+        source =
+            Rect(closing.javaClass.compatibleField("sourceContainerBounds").get(closing) as Rect?)
         viewportToLeash = Matrix(playerBasis.invoke(nativePlayer) as Matrix?)
         val basis = FloatArray(9)
         viewportToLeash!!.getValues(basis)
@@ -332,8 +351,8 @@ class RecentsLiveSurface(loader: ClassLoader?, unsupported: Runnable) {
                 basis,
             )
         if (source!!.left != 0 || source!!.top != 0) return false
-        appLeash = closing.javaClass.getField("leash").get(closing) as SurfaceControl?
-        recentsLeash = r.javaClass.getField("leash").get(r) as SurfaceControl?
+        appLeash = closing.javaClass.compatibleField("leash").get(closing) as SurfaceControl?
+        recentsLeash = r.javaClass.compatibleField("leash").get(r) as SurfaceControl?
         scene = find(target, closingId, 0)
         if (scene == null || !appLeash!!.isValid() || !recentsLeash!!.isValid()) {
             clear()

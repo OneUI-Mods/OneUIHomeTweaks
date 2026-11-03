@@ -15,6 +15,10 @@ import android.os.Looper
 import android.view.ContextThemeWrapper
 import android.view.View
 import android.widget.ImageView
+import dev.ryuya.oneuihometweaks.compat.DexSymbols
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredMethod
+import dev.ryuya.oneuihometweaks.compat.compatibleField
+import dev.ryuya.oneuihometweaks.compat.compatibleName
 import java.lang.ref.WeakReference
 import java.lang.reflect.Method
 import java.util.function.Supplier
@@ -41,25 +45,28 @@ class VolumeHooks {
         context = app
         main = Handler(Looper.getMainLooper())
         val dependency =
-            Class.forName("com.android.systemui.volume.VolumeDependency", false, loader)
-        val panelClass = Class.forName("com.android.systemui.volume.VolumePanelImpl", false, loader)
+            DexSymbols.findClass("com.android.systemui.volume.VolumeDependency", false, loader)
+        val panelClass =
+            DexSymbols.findClass("com.android.systemui.volume.VolumePanelImpl", false, loader)
         val window =
-            Class.forName(
+            DexSymbols.findClass(
                 "com.android.systemui.volume.view.standard.VolumePanelWindow",
                 false,
                 loader,
             )
         val expanded =
-            Class.forName(
+            DexSymbols.findClass(
                 "com.android.systemui.volume.view.expand.VolumePanelExpandWindow",
                 false,
                 loader,
             )
-        val blur = Class.forName("com.android.systemui.volume.util.BlurEffect", false, loader)
-        val colors = Class.forName("com.android.systemui.volume.util.ColorUtils", false, loader)
-        val sem = Class.forName("android.view.SemBlurInfo")
-        lightPreset = sem.getField("BLUR_UI_MEDIUM_ULTRA_THIN_LIGHT").getInt(null)
-        darkPreset = sem.getField("BLUR_UI_MEDIUM_ULTRA_THIN_DARK").getInt(null)
+        val blur =
+            DexSymbols.findClass("com.android.systemui.volume.util.BlurEffect", false, loader)
+        val colors =
+            DexSymbols.findClass("com.android.systemui.volume.util.ColorUtils", false, loader)
+        val sem = DexSymbols.findClass("android.view.SemBlurInfo")
+        lightPreset = sem.compatibleField("BLUR_UI_MEDIUM_ULTRA_THIN_LIGHT").getInt(null)
+        darkPreset = sem.compatibleField("BLUR_UI_MEDIUM_ULTRA_THIN_DARK").getInt(null)
         volumeStar.install(app, loader, lightPreset, darkPreset)
         check(lightPreset != darkPreset) { "Ambiguous Samsung blur presets" }
         check(
@@ -68,7 +75,7 @@ class VolumeHooks {
         ) {
             "Volume window signature changed"
         }
-        recreate = panelClass.getDeclaredMethod("recreateVolumePanelForNewConfig")
+        recreate = panelClass.compatibleDeclaredMethod("recreateVolumePanelForNewConfig")
         // Confirmed constructor callers must not retain inlined dependency lookups.
         for (target in arrayOf<Class<*>?>(window, expanded)) for (constructor in
             target!!.getDeclaredConstructors()) check(ModernHook.deoptimize(constructor)) {
@@ -76,7 +83,7 @@ class VolumeHooks {
         }
         DexEvidence.deoptimizeVolumeCalls(app.getApplicationInfo().sourceDir, loader)
         ModernHook.hookMethod(
-            dependency.getDeclaredMethod("get", Class::class.java),
+            dependency.compatibleDeclaredMethod("get", Class::class.java),
             object : ModernHook.Callback() {
                 override fun afterHookedMethod(p: ModernHook.Param) {
                     val patternPrefix0 =
@@ -125,7 +132,7 @@ class VolumeHooks {
             },
         )
         ModernHook.hookMethod(
-            blur.getDeclaredMethod(
+            blur.compatibleDeclaredMethod(
                 "setRealTimeBlur",
                 View::class.java,
                 Int::class.javaPrimitiveType,
@@ -148,7 +155,7 @@ class VolumeHooks {
             },
         )
         ModernHook.hookMethod(
-            blur.getDeclaredMethod(
+            blur.compatibleDeclaredMethod(
                 "setCapturedBlur",
                 ImageView::class.java,
                 Int::class.javaPrimitiveType,
@@ -182,7 +189,7 @@ class VolumeHooks {
                 "volume_panel_fg_color",
             )
         ModernHook.hookMethod(
-            colors.getDeclaredMethod(
+            colors.compatibleDeclaredMethod(
                 "getSingleColorStateList",
                 Int::class.javaPrimitiveType,
                 Context::class.java,
@@ -245,7 +252,7 @@ class VolumeHooks {
         if (view.getDisplay() == null || view.getDisplay().getDisplayId() != 0) return false
         var current: View? = view
         while (current != null) {
-            val name = current.javaClass.getName()
+            val name = current.javaClass.compatibleName()
             if (
                 name == "com.android.systemui.volume.view.standard.VolumePanelView" ||
                     name == "com.android.systemui.volume.view.expand.VolumePanelExpandView"

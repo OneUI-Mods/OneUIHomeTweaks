@@ -10,6 +10,10 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
+import dev.ryuya.oneuihometweaks.compat.DexSymbols
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredField
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredMethod
+import dev.ryuya.oneuihometweaks.compat.compatibleMethod
 import java.lang.Boolean as JavaBoolean
 import java.lang.ref.WeakReference
 import java.lang.reflect.Field
@@ -45,25 +49,31 @@ class DeveloperAnimationHooks {
                             .versionName)
             )
                 throw UnsupportedOperationException("Unreviewed Settings contract")
-            val preference = Class.forName("androidx.preference.Preference", false, loader)
+            val preference = DexSymbols.findClass("androidx.preference.Preference", false, loader)
             val dialogPreference =
-                Class.forName("androidx.preference.DialogPreference", false, loader)
+                DexSymbols.findClass("androidx.preference.DialogPreference", false, loader)
             for (i in DeveloperAnimationHooks.CONTROLLERS!!.indices) {
                 val index: Int = i
                 val owner =
-                    Class.forName(
+                    DexSymbols.findClass(
                         "com.android.settings.development." +
                             DeveloperAnimationHooks.CONTROLLERS[i],
                         false,
                         loader,
                     )
-                val update = owner.getDeclaredMethod(DeveloperAnimationHooks.UPDATE!![i])
+                val update = owner.compatibleDeclaredMethod(DeveloperAnimationHooks.UPDATE!![i])
                 val changed =
-                    owner.getDeclaredMethod("onPreferenceChange", preference, Any::class.java)
+                    owner.compatibleDeclaredMethod(
+                        "onPreferenceChange",
+                        preference,
+                        Any::class.java,
+                    )
                 val selected = DeveloperAnimationHooks.field(owner, "mPreference")
                 val manager = DeveloperAnimationHooks.field(owner, "mWindowManager")
                 val read =
-                    manager!!.getType().getMethod("getAnimationScale", Int::class.javaPrimitiveType)
+                    manager!!
+                        .getType()
+                        .compatibleMethod("getAnimationScale", Int::class.javaPrimitiveType)
                 hooks.add(
                     ModernHook.hookMethod(
                         update,
@@ -75,7 +85,7 @@ class DeveloperAnimationHooks {
                                     if (
                                         item == null ||
                                             DeveloperAnimationHooks.KEYS!![index] !=
-                                                preference.getMethod("getKey").invoke(item)
+                                                preference.compatibleMethod("getKey").invoke(item)
                                     )
                                         return
                                     val binding =
@@ -113,10 +123,11 @@ class DeveloperAnimationHooks {
                                     return
                                 }
                                 val host: Context? =
-                                    preference.getMethod("getContext").invoke(call.thisObject)
-                                        as Context?
+                                    preference
+                                        .compatibleMethod("getContext")
+                                        .invoke(call.thisObject) as Context?
                                 val title: CharSequence? =
-                                    preference.getMethod("getTitle").invoke(call.thisObject)
+                                    preference.compatibleMethod("getTitle").invoke(call.thisObject)
                                         as CharSequence?
                                 dialog =
                                     AnimationScaleDialog(
@@ -262,13 +273,16 @@ class DeveloperAnimationHooks {
         fun summary() {
             val item = preference.get()
             if (item == null) return
-            val context: Context? = item.javaClass.getMethod("getContext").invoke(item) as Context?
+            val context: Context? =
+                item.javaClass.compatibleMethod("getContext").invoke(item) as Context?
             val summary: String =
                 (AnimationScaleValue.format(
                     AnimationScaleValue.ticks(value()),
                     context!!.getResources().getConfiguration().getLocales().get(0),
                 ) + "×")
-            item.javaClass.getMethod("setSummary", CharSequence::class.java).invoke(item, summary)
+            item.javaClass
+                .compatibleMethod("setSummary", CharSequence::class.java)
+                .invoke(item, summary)
         }
 
         @Throws(Exception::class)
@@ -282,7 +296,7 @@ class DeveloperAnimationHooks {
             val owner = controller.get()
             val item = preference.get()
             check(!(owner == null || item == null)) { "Settings closed" }
-            check(JavaBoolean.TRUE == item.javaClass.getMethod("isEnabled").invoke(item)) {
+            check(JavaBoolean.TRUE == item.javaClass.compatibleMethod("isEnabled").invoke(item)) {
                 "Preference disabled"
             }
             check(JavaBoolean.TRUE == changed.invoke(owner, item, value)) {
@@ -318,7 +332,7 @@ class DeveloperAnimationHooks {
             var type: Class<*>? = owner
             while (type != null) {
                 try {
-                    val value = type.getDeclaredField(name)
+                    val value = type.compatibleDeclaredField(name)
                     value.setAccessible(true)
                     return value
                 } catch (ignored: NoSuchFieldException) {}

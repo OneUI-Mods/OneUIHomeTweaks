@@ -1,5 +1,11 @@
 package dev.ryuya.oneuihometweaks
 
+import dev.ryuya.oneuihometweaks.compat.DexSymbols
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredField
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredMethod
+import dev.ryuya.oneuihometweaks.compat.compatibleField
+import dev.ryuya.oneuihometweaks.compat.compatibleMethod
+import dev.ryuya.oneuihometweaks.compat.compatibleName
 import java.lang.Boolean as JavaBoolean
 import java.lang.reflect.Constructor
 import java.lang.reflect.Field
@@ -45,27 +51,29 @@ class QuickPanelLegacyLayout(owner: QuickPanelHooks, loader: ClassLoader?) {
 
     init {
         this.owner = owner
-        val panelItem = Class.forName(QuickPanelLegacyLayout.MODEL + "QSPanelItem", false, loader)
+        val panelItem =
+            DexSymbols.findClass(QuickPanelLegacyLayout.MODEL + "QSPanelItem", false, loader)
         val gridItem =
-            Class.forName(QuickPanelLegacyLayout.MODEL + "items.GridTileItem", false, loader)
+            DexSymbols.findClass(QuickPanelLegacyLayout.MODEL + "items.GridTileItem", false, loader)
         val assigned =
-            Class.forName(
+            DexSymbols.findClass(
                 QuickPanelLegacyLayout.MODEL + "items.IdAssignedGridTileItem",
                 false,
                 loader,
             )
-        quickTile = Class.forName(QuickPanelLegacyLayout.MODEL + "items.QuickTile", false, loader)
-        item = panelItem.getDeclaredField("gridTileItem")
-        width = panelItem.getDeclaredField("spanWidth")
-        height = panelItem.getDeclaredField("spanHeight")
-        offset = panelItem.getDeclaredField("spanOffset")
-        id = assigned.getDeclaredField("id")
-        spec = quickTile.getDeclaredField("spec")
-        type = gridItem.getMethod("getType")
+        quickTile =
+            DexSymbols.findClass(QuickPanelLegacyLayout.MODEL + "items.QuickTile", false, loader)
+        item = panelItem.compatibleDeclaredField("gridTileItem")
+        width = panelItem.compatibleDeclaredField("spanWidth")
+        height = panelItem.compatibleDeclaredField("spanHeight")
+        offset = panelItem.compatibleDeclaredField("spanOffset")
+        id = assigned.compatibleDeclaredField("id")
+        spec = quickTile.compatibleDeclaredField("spec")
+        type = gridItem.compatibleMethod("getType")
         copy = (QuickPanelLegacyLayout.named(panelItem, "copy-1u2huiI\$default", 12))!!
         brightGroup =
             (QuickPanelLegacyLayout.constructor(
-                Class.forName(
+                DexSymbols.findClass(
                     QuickPanelLegacyLayout.MODEL + "items.BrightBarWithTile",
                     false,
                     loader,
@@ -74,19 +82,20 @@ class QuickPanelLegacyLayout(owner: QuickPanelHooks, loader: ClassLoader?) {
             ))!!
         volumeGroup =
             (QuickPanelLegacyLayout.constructor(
-                Class.forName(
+                DexSymbols.findClass(
                     QuickPanelLegacyLayout.MODEL + "items.VolumeBarWithTile",
                     false,
                     loader,
                 ),
                 7,
             ))!!
-        stateInterface = Class.forName("androidx.compose.runtime.State", false, loader)
-        stateValue = stateInterface.getMethod("getValue")
+        stateInterface = DexSymbols.findClass("androidx.compose.runtime.State", false, loader)
+        stateValue = stateInterface.compatibleMethod("getValue")
         flowValue =
-            Class.forName("kotlinx.coroutines.flow.StateFlow", false, loader).getMethod("getValue")
+            DexSymbols.findClass("kotlinx.coroutines.flow.StateFlow", false, loader)
+                .compatibleMethod("getValue")
         val scene =
-            Class.forName(
+            DexSymbols.findClass(
                 QuickPanelLegacyLayout.PANEL + "QuickSettingSceneViewModel",
                 false,
                 loader,
@@ -94,10 +103,10 @@ class QuickPanelLegacyLayout(owner: QuickPanelHooks, loader: ClassLoader?) {
         installAlias(owner, scene, "getItemSpanOffset-Bjo55l4", false)
         installAlias(owner, scene, "getItemSpanSize-YEO4UFw", true)
         val store =
-            Class.forName(QuickPanelLegacyLayout.PANEL + "PanelItemStoreImpl", false, loader)
+            DexSymbols.findClass(QuickPanelLegacyLayout.PANEL + "PanelItemStoreImpl", false, loader)
         owner.add(
             ModernHook.hookMethod(
-                store.getDeclaredMethod("getItem", String::class.java),
+                store.compatibleDeclaredMethod("getItem", String::class.java),
                 object : ModernHook.Callback() {
                     override fun beforeHookedMethod(p: ModernHook.Param) {
                         if (owner.legacy()) {
@@ -109,7 +118,11 @@ class QuickPanelLegacyLayout(owner: QuickPanelHooks, loader: ClassLoader?) {
             )
         )
         val panel =
-            Class.forName(QuickPanelLegacyLayout.PANEL + "QuickSettingTilePanelKt", false, loader)
+            DexSymbols.findClass(
+                QuickPanelLegacyLayout.PANEL + "QuickSettingTilePanelKt",
+                false,
+                loader,
+            )
         val render =
             QuickPanelLegacyLayout.named(panel, "QuickSettingTilePanelScrollableGrid-OzltmbE", 14)
         if (
@@ -142,7 +155,7 @@ class QuickPanelLegacyLayout(owner: QuickPanelHooks, loader: ClassLoader?) {
         for (name in arrayOf<String>("BrightBarWithTile", "VolumeBarWithTile")) {
             val draw =
                 QuickPanelLegacyLayout.named(
-                    Class.forName(
+                    DexSymbols.findClass(
                         "com.android.systemui.samsung.quicksetting.ui.tiles." + name + "Kt",
                         false,
                         loader,
@@ -166,7 +179,7 @@ class QuickPanelLegacyLayout(owner: QuickPanelHooks, loader: ClassLoader?) {
     ) {
         owner.add(
             ModernHook.hookMethod(
-                scene.getDeclaredMethod(name, String::class.java),
+                scene.compatibleDeclaredMethod(name, String::class.java),
                 object : ModernHook.Callback() {
                     override fun beforeHookedMethod(p: ModernHook.Param) {
                         if (!owner.legacy()) return
@@ -251,10 +264,10 @@ class QuickPanelLegacyLayout(owner: QuickPanelHooks, loader: ClassLoader?) {
             val tile = item.get(entry)
             val name: String? = type.invoke(tile) as String?
             if (name != "BrightBar" && name != "VolumeBar") continue
-            val vm = tile.javaClass.getField("viewModel").get(tile)
-            val scene = vm.javaClass.getField("sceneViewModel").get(vm)
-            val editor = scene.javaClass.getField("$\$delegate_0").get(scene)
-            val flow = editor.javaClass.getField("editMode").get(editor)
+            val vm = tile.javaClass.compatibleField("viewModel").get(tile)
+            val scene = vm.javaClass.compatibleField("sceneViewModel").get(vm)
+            val editor = scene.javaClass.compatibleField("$\$delegate_0").get(scene)
+            val flow = editor.javaClass.compatibleField("editMode").get(editor)
             return JavaBoolean.TRUE == flowValue.invoke(flow)
         }
         return false
@@ -291,8 +304,8 @@ class QuickPanelLegacyLayout(owner: QuickPanelHooks, loader: ClassLoader?) {
             val key = QuickPanelLegacyLayout.Key(bar, button, pair!!.width, pair!!.height)
             var group = groups.get(key)
             if (group == null) {
-                val vm = bar.javaClass.getField("viewModel").get(bar)
-                val category = bar.javaClass.getSuperclass().getField("category").get(bar)
+                val vm = bar.javaClass.compatibleField("viewModel").get(bar)
+                val category = bar.javaClass.getSuperclass().compatibleField("category").get(bar)
                 val bright: Boolean = type.invoke(bar) == "BrightBar"
                 group =
                     if (bright)
@@ -364,17 +377,17 @@ class QuickPanelLegacyLayout(owner: QuickPanelHooks, loader: ClassLoader?) {
                 candidate.setAccessible(true)
                 return candidate
             }
-            throw NoSuchMethodException(type.getName())
+            throw NoSuchMethodException(type.compatibleName())
         }
 
         @JvmStatic
         @Throws(NoSuchMethodException::class)
         private fun named(type: Class<*>, name: String?, count: Int): Method? {
             for (candidate in type.getDeclaredMethods()) if (
-                candidate.getName() == name && candidate.getParameterCount() == count
+                candidate.compatibleName() == name && candidate.getParameterCount() == count
             )
                 return candidate
-            throw NoSuchMethodException(type.getName() + "#" + name)
+            throw NoSuchMethodException(type.compatibleName() + "#" + name)
         }
     }
 }

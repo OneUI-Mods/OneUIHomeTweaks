@@ -1,5 +1,6 @@
 package dev.ryuya.oneuihometweaks
 
+import dev.ryuya.oneuihometweaks.compat.compatibleName
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
 import java.lang.reflect.Proxy
@@ -14,7 +15,7 @@ object PreviewCallbacks {
             arrayOf<Class<*>?>(function),
             InvocationHandler { proxy: Any?, method: Method?, args: Array<Any?>? ->
                 if (method!!.getDeclaringClass() == Any::class.java)
-                    return@InvocationHandler when (method!!.getName()) {
+                    return@InvocationHandler when (method!!.compatibleName()) {
                         "hashCode" -> System.identityHashCode(proxy)
                         "equals" -> proxy === args!![0]
                         else -> label

@@ -24,6 +24,11 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.view.WindowInsets.Type
+import dev.ryuya.oneuihometweaks.compat.DexSymbols
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredField
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredMethod
+import dev.ryuya.oneuihometweaks.compat.compatibleField
+import dev.ryuya.oneuihometweaks.compat.compatibleMethod
 import java.lang.Boolean as JavaBoolean
 import java.lang.reflect.Field
 import java.lang.reflect.Method
@@ -279,7 +284,7 @@ class RecentsLiveTileHooks {
             RecentsLiveTileHooks.type(loader, "com.honeyspace.sdk.HoneySystemController")
         systemController =
             RecentsLiveTileHooks.method(manager!!, "getSystemController", controllerType)
-        recentTarget = controllerType!!.getMethod("getCurrentRecentTarget")
+        recentTarget = controllerType!!.compatibleMethod("getCurrentRecentTarget")
         check(recentTarget!!.getReturnType() == View::class.java) { "Recent target changed" }
         val proxy =
             RecentsLiveTileHooks.type(
@@ -335,13 +340,13 @@ class RecentsLiveTileHooks {
                 loader,
                 "com.honeyspace.ui.honeypots.tasklist.presentation.TaskView",
             )
-        taskId = taskViewType!!.getMethod("getFirstTaskId")
-        taskScene = taskViewType!!.getMethod("getTaskSceneView")
+        taskId = taskViewType!!.compatibleMethod("getFirstTaskId")
+        taskScene = taskViewType!!.compatibleMethod("getTaskSceneView")
         val dispatch =
             taskViewType!!
-                .getMethod("getRecentsView")
+                .compatibleMethod("getRecentsView")
                 .getReturnType()
-                .getDeclaredMethod("dispatchTouchEvent", MotionEvent::class.java)
+                .compatibleDeclaredMethod("dispatchTouchEvent", MotionEvent::class.java)
         dispatch.setAccessible(true)
         val begin =
             RecentsLiveTileHooks.method(
@@ -407,7 +412,7 @@ class RecentsLiveTileHooks {
                 launchInfo,
                 RecentsLiveTileHooks.type(loader, "com.honeyspace.transition.ShellAnimationRunner"),
             )
-        val launchView = launchInfo!!.getMethod("getTargetView")
+        val launchView = launchInfo!!.compatibleMethod("getTargetView")
         val launchRequest =
             RecentsLiveTileHooks.method(
                 shell!!,
@@ -422,7 +427,7 @@ class RecentsLiveTileHooks {
                 RecentsLiveTileHooks.type(loader, "kotlin.jvm.functions.Function0"),
             )
         val recents = RecentsLiveTileHooks.type(loader, "com.android.quickstep.RecentsActivity")
-        val back = recents!!.getMethod("onBackPressed")
+        val back = recents!!.compatibleMethod("onBackPressed")
         check(back.getReturnType() == Void.TYPE) { "Back contract changed" }
         recentsType = recents
         val taskMessages =
@@ -444,7 +449,7 @@ class RecentsLiveTileHooks {
                     Int::class.javaPrimitiveType,
                 )!!
                 .getInt(null)
-        val movedDisplay = RunningTaskInfo::class.java.getField("displayId")
+        val movedDisplay = RunningTaskInfo::class.java.compatibleField("displayId")
         DexEvidence.deoptimizeRecentsLiveCalls(
             apk,
             loader,
@@ -912,9 +917,9 @@ class RecentsLiveTileHooks {
             else topTask!!.invoke(source, managerDisplay!!.getInt(p.thisObject))
         if (
             task == null ||
-                task.javaClass.getField("taskId").getInt(task) != p.args[0] as Int? ||
-                task.javaClass.getField("displayId").getInt(task) != 0 ||
-                task.javaClass.getField("userId").getInt(task) != Process.myUid() / 100000
+                task.javaClass.compatibleField("taskId").getInt(task) != p.args[0] as Int? ||
+                task.javaClass.compatibleField("displayId").getInt(task) != 0 ||
+                task.javaClass.compatibleField("userId").getInt(task) != Process.myUid() / 100000
         )
             return
         val config = taskConfig!!.invoke(null, task)
@@ -983,20 +988,21 @@ class RecentsLiveTileHooks {
             var metadata: String = ""
             if (scene != null) {
                 val data: MutableList<*>? =
-                    scene.javaClass.getMethod("getTaskSceneData").invoke(scene) as MutableList<*>?
+                    scene.javaClass.compatibleMethod("getTaskSceneData").invoke(scene)
+                        as MutableList<*>?
                 for (datum in data!!) {
-                    val bitmap = datum!!.javaClass.getMethod("getThumbnail").invoke(datum)
+                    val bitmap = datum!!.javaClass.compatibleMethod("getThumbnail").invoke(datum)
                     metadata +=
                         (" snapshot=" +
                             (if (bitmap is Bitmap)
                                 bitmap.getWidth().toString() + "x" + bitmap.getHeight()
                             else "none") +
                             " rotation=" +
-                            datum!!.javaClass.getMethod("getRotation").invoke(datum) +
+                            datum!!.javaClass.compatibleMethod("getRotation").invoke(datum) +
                             " real=" +
-                            datum!!.javaClass.getMethod("isRealSnapshot").invoke(datum) +
+                            datum!!.javaClass.compatibleMethod("isRealSnapshot").invoke(datum) +
                             " locked=" +
-                            datum!!.javaClass.getMethod("getAppLocked").invoke(datum))
+                            datum!!.javaClass.compatibleMethod("getAppLocked").invoke(datum))
                 }
                 metadata +=
                     (" contextRotation=" +
@@ -1167,13 +1173,13 @@ class RecentsLiveTileHooks {
         @JvmStatic
         @Throws(Exception::class)
         private fun type(l: ClassLoader?, n: String?): Class<*>? {
-            return Class.forName(n, false, l)
+            return DexSymbols.findClass(n, false, l)
         }
 
         @JvmStatic
         @Throws(Exception::class)
         private fun field(c: Class<*>, n: String?, t: Class<*>?): Field? {
-            val f = c.getDeclaredField(n)
+            val f = c.compatibleDeclaredField(n)
             check(f.getType() == t) { "Live field changed: " + n }
             f.setAccessible(true)
             return f
@@ -1182,7 +1188,7 @@ class RecentsLiveTileHooks {
         @JvmStatic
         @Throws(Exception::class)
         private fun method(c: Class<*>, n: String?, t: Class<*>?, vararg p: Class<*>?): Method? {
-            val m = c.getDeclaredMethod(n, *p)
+            val m = c.compatibleDeclaredMethod(n, *p)
             check(m.getReturnType() == t) { "Live method changed: " + n }
             m.setAccessible(true)
             return m

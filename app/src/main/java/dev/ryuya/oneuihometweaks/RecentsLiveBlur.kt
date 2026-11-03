@@ -7,6 +7,10 @@ import android.view.SurfaceControl
 import android.view.SurfaceControl.Transaction
 import android.view.View
 import android.view.ViewGroup
+import dev.ryuya.oneuihometweaks.compat.DexSymbols
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredField
+import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredMethod
+import dev.ryuya.oneuihometweaks.compat.compatibleMethod
 import java.lang.reflect.Field
 import java.lang.reflect.Method
 import java.util.ArrayList
@@ -50,30 +54,30 @@ class RecentsLiveBlur(loader: ClassLoader?) {
 
     init {
         blurType =
-            Class.forName(
+            DexSymbols.findClass(
                 "com.android.internal.graphics.drawable.BackgroundBlurDrawable",
                 false,
                 loader,
             )
-        setRadius = blurType.getMethod("setBlurRadius", Int::class.javaPrimitiveType)
-        radius = blurType.getDeclaredField("mBlurRadius")
+        setRadius = blurType.compatibleMethod("setBlurRadius", Int::class.javaPrimitiveType)
+        radius = blurType.compatibleDeclaredField("mBlurRadius")
         radius.setAccessible(true)
-        viewPath = View::class.java.getDeclaredField("mClipPath")
+        viewPath = View::class.java.compatibleDeclaredField("mClipPath")
         viewPath.setAccessible(true)
-        viewRoot = View::class.java.getDeclaredMethod("getViewRootImpl")
+        viewRoot = View::class.java.compatibleDeclaredMethod("getViewRootImpl")
         viewRoot.setAccessible(true)
-        rootSurface = viewRoot.getReturnType().getMethod("getSurfaceControl")
-        rootView = viewRoot.getReturnType().getMethod("getView")
-        builderType = Class.forName("android.view.SurfaceControl\$Builder", false, loader)
+        rootSurface = viewRoot.getReturnType().compatibleMethod("getSurfaceControl")
+        rootView = viewRoot.getReturnType().compatibleMethod("getView")
+        builderType = DexSymbols.findClass("android.view.SurfaceControl\$Builder", false, loader)
         builderType.getConstructor()
-        setParent = builderType.getMethod("setParent", SurfaceControl::class.java)
-        setName = builderType.getMethod("setName", String::class.java)
-        setEffect = builderType.getMethod("setEffectLayer")
-        build = builderType.getMethod("build")
+        setParent = builderType.compatibleMethod("setParent", SurfaceControl::class.java)
+        setName = builderType.compatibleMethod("setName", String::class.java)
+        setEffect = builderType.compatibleMethod("setEffectLayer")
+        build = builderType.compatibleMethod("build")
         cropLayer =
             Transaction::class
                 .java
-                .getMethod(
+                .compatibleMethod(
                     "setWindowCrop",
                     SurfaceControl::class.java,
                     Rect::class.java,
@@ -81,19 +85,19 @@ class RecentsLiveBlur(loader: ClassLoader?) {
         relativeLayer =
             Transaction::class
                 .java
-                .getMethod(
+                .compatibleMethod(
                     "setRelativeLayer",
                     SurfaceControl::class.java,
                     SurfaceControl::class.java,
                     Int::class.javaPrimitiveType,
                 )
-        showLayer = Transaction::class.java.getMethod("show", SurfaceControl::class.java)
-        hideLayer = Transaction::class.java.getMethod("hide", SurfaceControl::class.java)
-        removeLayer = Transaction::class.java.getMethod("remove", SurfaceControl::class.java)
+        showLayer = Transaction::class.java.compatibleMethod("show", SurfaceControl::class.java)
+        hideLayer = Transaction::class.java.compatibleMethod("hide", SurfaceControl::class.java)
+        removeLayer = Transaction::class.java.compatibleMethod("remove", SurfaceControl::class.java)
         setBackgroundBlur =
             Transaction::class
                 .java
-                .getMethod(
+                .compatibleMethod(
                     "setBackgroundBlurRadius",
                     SurfaceControl::class.java,
                     Int::class.javaPrimitiveType,
