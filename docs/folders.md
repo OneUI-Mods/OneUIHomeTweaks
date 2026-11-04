@@ -34,3 +34,21 @@ ONでは純正のフォルダへのジェスチャー復帰を維持。OFFでは
 初回更新時、Vectorが旧版モジュールを保持していたため、モジュールの無効→有効による登録再取得と対象ホームだけの再読み込みで実際のbuildを確認した。続いて発覚したhost JNI読込の失敗は、モジュール自身のAPK内のネイティブライブラリを選ぶ経路で解消した。OS・SystemUI・認証設定の再起動／変更は行っていない。設定のXMLは元と一致した。
 
 最終検証では、調査用の直接起動がstandardのLauncherActivityを追加していたことを確認して除去した。修正後は通常のHOMEタスクでページ0→1→0の壁紙エンジン入力（step=1/3）と、フォルダの350ms閉じ準備を確認した。シェルで直接作ったホーム画面だけの検証では完了としない。
+
+## 内部HOMEキー通知と高速フリック（0.20.2）
+
+再現条件は「フォルダを開く→中のアプリを起動→上スワイプでフォルダへ復帰→大きく速い上スワイプ」。ゆっくり閉じる場合や、アプリを開かずフォルダを閉じる場合と区別する。
+
+Android 17 / BZI9の純正DEXでは、`jb.i.invokeSuspend`がaction/categoryのないIntentへ`android.intent.extra.FROM_HOME_KEY=true`を設定し、HoneySpaceUtilityへ直接渡す経路を確認した。実機ログでもextrasだけのIntentがOneUiSpaceへ届いている。この経路はLauncher Activityの`onNewIntent`を通らず、従来の動的スコープ外で`gotoScreen`が実行される。
+
+Android 17の契約へ`HoneySpaceUIComponent.handleKeyPolicy(Intent): boolean`を追加し、このネイティブ処理の呼出し中にも閉じ要求のスコープを設定する。privateメソッドのAOTインライン対策として呼出し元`onNewIntent`をdeoptimizeする。内部通知にはaction/categoryがないため通常のHOME Intentであることを要求しない。HOMEキーextraと表示中のrootを必須とし、action/categoryがある通常の要求は従来どおりフォーカスも必要。action/categoryのない内部通知では、アプリから復帰中の一時的なフォーカス受け渡しを許容する。最初のアプリ復帰にはHOMEキーextraがないため対象外。実際の置換は従来と同じく、復帰設定ON・開いたフォルダ・通常ホームへの即時遷移に限り、純正350msアニメーションへ渡す。呼出し後には入れ子のスコープを復元し、Intentや履歴を持ち越さない。
+
+Android 16の既存契約と解析プロファイルは変更しない。新しい所有クラスは17のDexKitプロファイルにメソッドの型・戻り値を記録し、初回／更新後のみの探索方式を維持する。
+
+同じキー処理中に純正の閉じ準備がすでに行われた場合は、そのmanagerを呼出し単位で記録する。後続の即時`gotoScreen(Home.Normal)`が同一manager・すでに通常ホームへの遷移中なら、この重複要求だけを抑止して元のアニメーションを継続する。別managerや通常の状態初期化を抑止しない。
+
+### 検証（2026-11-04）
+
+署名済みrelease 0.20.2 / code 43を上書きし、One UIホームだけを通常のHOMEタスクで読み込み直した。新PIDの`MODULE_LOADED build=43`とフォルダフックの登録を確認し、ユーザーが報告した高速ジェスチャーで「なおった」と確認した。その操作中、新PIDのログには`focused_home nativeDuration=350`が3回、対応する閉じ準備も3回記録された。元のbuild 42には通常速度で350msの縮小があることを録画で確認している。修正後の高速操作の目視判定はユーザーによるもので、エージェントが操作・録画して確認したものではない。重複close抑止の分岐はJVM試験で検証し、今回の実機ログで通った経路は350msへの引き渡し側だった。
+
+JVM 163件、releaseビルド・Lint・配布証明書・APK構造検証を通過。Android本体のboot ID、system_serverとSystemUIのPID、SELinux Enforcing、解除状態を維持した。追加の画面操作は行わず、消灯防止用の一時入力ループも停止した。Android 16は既存プロファイルの内容が不変であることを機械比較し、実機再試験は行っていない。

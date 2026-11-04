@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Build
 import android.os.Looper
+import android.view.View
 import dev.ryuya.oneuihometweaks.compat.DexSymbols
 import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredField
 import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredMethod
@@ -15,14 +16,15 @@ import java.lang.reflect.Method
 import java.util.ArrayList
 import kotlin.concurrent.Volatile
 import kotlin.jvm.JvmStatic
-import kotlin.math.log
 
 /* Folder-return policy and native close animation repair, confined to One UI Home. */
 class FolderHooks {
     private val hooks: MutableList<ModernHook.Handle?> = ArrayList<ModernHook.Handle?>()
-    private val homeWhileFocused = ThreadLocal.withInitial { false }
+    private val homeCloseRequested = ThreadLocal.withInitial { false }
+    private val preparedHomeClose = ThreadLocal<Any?>()
     private var geometryRefreshes = 0L
     private var animatedHomeCloses = 0L
+    private var preservedHomeCloses = 0L
     @Volatile private var enabled: Boolean = false
     @Volatile private var returnToFolder: Boolean = true
     private var failed: Boolean = false
@@ -73,13 +75,35 @@ class FolderHooks {
         val viewModel = animator.compatibleDeclaredField(contract!!.viewModelField)
         val managerGetter = viewModel.getType().compatibleMethod(contract!!.managerGetter)
         val newIntent = launcher.compatibleDeclaredMethod("onNewIntent", Intent::class.java)
+        // Samsung's fast Home flick dispatches an extras-only Intent inside the launcher.
+        // It never enters Activity.onNewIntent, so scope the native key policy as well.
+        val homeKeyPolicy =
+            contract.homeKeyPolicyOwner?.let { name ->
+                DexSymbols.findClass(name, false, loader)
+                    .compatibleDeclaredMethod("handleKeyPolicy", Intent::class.java)
+            }
+        val homeRoot = homeKeyPolicy?.declaringClass?.compatibleMethod("getRootView")
+        val nativeIntentDispatch =
+            homeKeyPolicy
+                ?.declaringClass
+                ?.compatibleDeclaredMethod(
+                    "onNewIntent",
+                    Intent::class.java,
+                )
+        check(
+            homeKeyPolicy == null ||
+                (homeKeyPolicy.returnType == Boolean::class.javaPrimitiveType &&
+                    View::class.java.isAssignableFrom(homeRoot!!.returnType)),
+        ) {
+            "Folder Home key policy contract changed"
+        }
         check(
             !(!Activity::class.java.isAssignableFrom(launcher) ||
                 isOpen!!.getReturnType() != Boolean::class.javaPrimitiveType ||
                 prepare.getReturnType() != Void.TYPE ||
                 reset.getReturnType() != Void.TYPE ||
                 !DexSymbols.findClass("com.honeyspace.sdk.HoneyScreenManager", false, loader)
-                    .isAssignableFrom(managerGetter.getReturnType()))
+                    .isAssignableFrom(managerGetter.getReturnType())),
         ) {
             "Folder contract changed"
         }
@@ -87,6 +111,58 @@ class FolderHooks {
         managerGetter.setAccessible(true)
         reset.setAccessible(true)
         try {
+            if (homeKeyPolicy != null) {
+                // AOT may have inlined this private policy into its native dispatcher.
+                ModernHook.deoptimize(nativeIntentDispatch!!)
+                hooks.add(
+                    ModernHook.hookMethod(
+                        homeKeyPolicy,
+                        object : ModernHook.Callback() {
+                            override fun beforeHookedMethod(p: ModernHook.Param) {
+                                p.setObjectExtra(
+                                    "previousFolderHomeScope",
+                                    homeCloseRequested.get(),
+                                )
+                                p.setObjectExtra(
+                                    "previousPreparedHomeClose",
+                                    preparedHomeClose.get(),
+                                )
+                                preparedHomeClose.remove()
+                                if (!active()) return
+                                try {
+                                    val intent = p.args[0] as? Intent
+                                    val root = homeRoot!!.invoke(p.thisObject) as? View
+                                    homeCloseRequested.set(
+                                        FolderHomePolicy.isVisibleHomeRequest(
+                                            fromHomeKey =
+                                                intent?.getBooleanExtra(
+                                                    "android.intent.extra.FROM_HOME_KEY",
+                                                    false,
+                                                ) == true,
+                                            rootVisible =
+                                                root?.isShown == true &&
+                                                    root.windowVisibility == View.VISIBLE,
+                                            hasWindowFocus = root?.hasWindowFocus() == true,
+                                            hasActionOrCategories =
+                                                intent?.action != null ||
+                                                    !intent?.categories.isNullOrEmpty(),
+                                        ),
+                                    )
+                                } catch (error: Throwable) {
+                                    disable(error)
+                                }
+                            }
+
+                            override fun afterHookedMethod(p: ModernHook.Param) {
+                                homeCloseRequested.set(
+                                    p.getObjectExtra("previousFolderHomeScope") == true,
+                                )
+                                preparedHomeClose.set(p.getObjectExtra("previousPreparedHomeClose"))
+                            }
+                        },
+                    ),
+                )
+            }
             hooks.add(
                 ModernHook.hookMethod(
                     target,
@@ -122,7 +198,7 @@ class FolderHooks {
                             }
                         }
                     },
-                )
+                ),
             )
             hooks.add(
                 ModernHook.hookMethod(
@@ -134,6 +210,9 @@ class FolderHooks {
                             try {
                                 val owner = managerGetter.invoke(viewModel.get(p.thisObject))
                                 if (owner == null) return
+                                if (homeCloseRequested.get() == true && (p.args[0] as Long) > 0L) {
+                                    preparedHomeClose.set(owner)
+                                }
                                 // Closing a folder is sufficient evidence. Notification launches
                                 // need not pass findCloseAnimationTarget, and a prior close must
                                 // not consume eligibility for a later Home gesture.
@@ -147,7 +226,7 @@ class FolderHooks {
                             }
                         }
                     },
-                )
+                ),
             )
             hooks.add(
                 ModernHook.hookMethod(
@@ -155,23 +234,23 @@ class FolderHooks {
                     object : ModernHook.Callback() {
                         override fun beforeHookedMethod(p: ModernHook.Param) {
                             val intent: Intent? = p.args[0] as Intent?
-                            p.setObjectExtra("folderHomeFocused", homeWhileFocused.get())
-                            homeWhileFocused.set(
+                            p.setObjectExtra("folderHomeFocused", homeCloseRequested.get())
+                            homeCloseRequested.set(
                                 active() &&
                                     (p.thisObject as Activity).hasWindowFocus() &&
                                     intent != null &&
                                     Intent.ACTION_MAIN == intent.getAction() &&
-                                    intent.hasCategory(Intent.CATEGORY_HOME)
+                                    intent.hasCategory(Intent.CATEGORY_HOME),
                             )
                         }
 
                         override fun afterHookedMethod(p: ModernHook.Param) {
-                            homeWhileFocused.set(
-                                JavaBoolean.TRUE == p.getObjectExtra("folderHomeFocused")
+                            homeCloseRequested.set(
+                                JavaBoolean.TRUE == p.getObjectExtra("folderHomeFocused"),
                             )
                         }
                     },
-                )
+                ),
             )
             hooks.add(
                 ModernHook.hookMethod(
@@ -182,11 +261,26 @@ class FolderHooks {
                                 !active() ||
                                     !returnToFolder ||
                                     ownRequest ||
-                                    homeWhileFocused.get() != true ||
+                                    homeCloseRequested.get() != true ||
                                     p.args[0] !== homeNormal
                             )
                                 return
                             try {
+                                // onHomeKeyClick can already have started a folder close. The
+                                // trailing gotoScreen would immediately finish that animation.
+                                if (
+                                    FolderHomePolicy.preservesPreparedClose(
+                                        preparedHomeClose.get(),
+                                        p.thisObject,
+                                        currentState!!.invoke(p.thisObject) === homeNormal,
+                                    )
+                                ) {
+                                    p.setResult(null)
+                                    preservedHomeCloses++
+                                    diagnostic = "native folder close preserved"
+                                    trace("preserved_home", "nativeCloseAlreadyPrepared=true")
+                                    return
+                                }
                                 if (JavaBoolean.TRUE != isOpen!!.invoke(p.thisObject)) return
                                 ownRequest = true
                                 try {
@@ -218,7 +312,7 @@ class FolderHooks {
                             }
                         }
                     },
-                )
+                ),
             )
             diagnostic = "ready"
             HookEntry.log("FOLDER_HOOKS_READY sdk=" + Build.VERSION.SDK_INT)
@@ -236,7 +330,8 @@ class FolderHooks {
 
     fun diagnostic(): String? {
         return if (failed) "stopped after error"
-        else if (enabled) "$diagnostic; geometry=$geometryRefreshes; home=$animatedHomeCloses"
+        else if (enabled)
+            "$diagnostic; geometry=$geometryRefreshes; home=$animatedHomeCloses; preserved=$preservedHomeCloses"
         else "off"
     }
 
@@ -252,7 +347,7 @@ class FolderHooks {
     private fun trace(event: String, detail: String) {
         // One entry per close, never per frame; do not collect notification or app contents.
         HookEntry.log(
-            "FOLDER_CLOSE event=$event $detail geometry=$geometryRefreshes home=$animatedHomeCloses"
+            "FOLDER_CLOSE event=$event $detail geometry=$geometryRefreshes home=$animatedHomeCloses",
         )
     }
 

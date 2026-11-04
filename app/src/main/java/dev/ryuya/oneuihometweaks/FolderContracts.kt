@@ -12,6 +12,7 @@ data class FolderContracts(
     val resetGeometry: String?,
     val viewModelField: String?,
     val managerGetter: String?,
+    val homeKeyPolicyOwner: String? = null,
 ) {
 
     companion object {
@@ -21,7 +22,15 @@ data class FolderContracts(
                 HookCompatibility.Platform.ANDROID_16 ->
                     FolderContracts("g3.i", "K5.p1", "t", "c", "f", "Y")
                 HookCompatibility.Platform.ANDROID_17 ->
-                    FolderContracts("t5.h", "lb.e0", "A", "k", "c", "y0")
+                    FolderContracts(
+                        "t5.h",
+                        "lb.e0",
+                        "A",
+                        "k",
+                        "c",
+                        "y0",
+                        "com.honeyspace.ui.common.entity.HoneySpaceUIComponent",
+                    )
                 HookCompatibility.Platform.UNSUPPORTED ->
                     throw UnsupportedOperationException("Unreviewed folder platform")
             }
@@ -29,5 +38,5 @@ data class FolderContracts(
     }
 
     override fun toString(): String =
-        "FolderContracts[manager=$manager, animator=$animator, prepare=$prepare, resetGeometry=$resetGeometry, viewModelField=$viewModelField, managerGetter=$managerGetter]"
+        "FolderContracts[manager=$manager, animator=$animator, prepare=$prepare, resetGeometry=$resetGeometry, viewModelField=$viewModelField, managerGetter=$managerGetter, homeKeyPolicyOwner=$homeKeyPolicyOwner]"
 }

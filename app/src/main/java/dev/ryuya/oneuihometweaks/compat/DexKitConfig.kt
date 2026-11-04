@@ -6,7 +6,7 @@ internal object DexKitConfig {
     val MODULE_VERSION
         get() = dev.ryuya.oneuihometweaks.BuildConfig.VERSION_CODE
 
-    const val PROFILE_HASH = "6ded1d702777788a4e53cc9e96a62fd8de2410b967a8a121b6908a70f96a1f4e"
+    const val PROFILE_HASH = "48ffd25bb5e09c3b61573db12c9ba8d4384a27e2318ebfca4cc9ff51761cd216"
     val FEATURE_PREFIXES =
         setOf<String>(
             "recents-live-v2:",
@@ -336,6 +336,7 @@ internal object DexKitConfig {
                     "com.honeyspace.common.ui.BaseCellLayout\$BaseCellLayoutParam",
                     "com.honeyspace.common.utils.SplitBounds",
                     "com.honeyspace.common.utils.SplitBounds\$Companion",
+                    "com.honeyspace.ui.common.entity.HoneySpaceUIComponent",
                     "com.honeyspace.gesture.GestureInputHandler",
                     "com.honeyspace.gesture.entity.ActionEvent\$StartQuickSwitchLaunchTask",
                     "com.honeyspace.gesture.inputconsumer.InputConsumerProxy",
