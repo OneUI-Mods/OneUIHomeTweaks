@@ -1,5 +1,7 @@
 package dev.ryuya.oneuihometweaks
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.animation.ValueAnimator.AnimatorUpdateListener
 import android.app.Activity
@@ -330,15 +332,33 @@ class HomeLabelBridge {
         original.animator = fade
         fade.setDuration(120)
         setTextColor(view, color and 0x00ffffff)
+        val target = WeakReference(view)
         fade.addUpdateListener(
             AnimatorUpdateListener { animation: ValueAnimator? ->
-                if (enabled && saved.get(view) == original)
+                val current = target.get()
+                if (current != null && enabled && saved.get(current) === original)
                     setTextColor(
-                        view,
+                        current,
                         (animation!!.getAnimatedValue() as Int shl 24) or (color and 0x00ffffff),
                     )
             }
         )
+        fade.addListener(object : AnimatorListenerAdapter() {
+            private fun finish() {
+                // A weak-key map must not retain its key through Saved -> animator -> callback.
+                val current = target.get()
+                if (original.animator === fade) {
+                    if (current != null && enabled && saved[current] === original)
+                        setTextColor(current, color)
+                    original.animator = null
+                }
+                fade.removeAllUpdateListeners()
+                fade.removeAllListeners()
+            }
+
+            override fun onAnimationEnd(animation: Animator) = finish()
+            override fun onAnimationCancel(animation: Animator) = finish()
+        })
         fade.start()
     }
 
