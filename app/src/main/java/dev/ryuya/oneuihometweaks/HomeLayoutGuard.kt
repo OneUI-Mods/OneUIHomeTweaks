@@ -84,6 +84,8 @@ class HomeLayoutGuard {
         Collections.newSetFromMap<Activity?>(WeakHashMap<Activity?, Boolean?>())
     private val session: String? = UUID.randomUUID().toString()
     private val drain: Runnable = Runnable { this.flush() }
+    // Guarded by this: logging is idle until a record needs to be written.
+    private var flushScheduled = false
 
     fun start(application: Application?) {
         app = application
@@ -125,9 +127,8 @@ class HomeLayoutGuard {
                 override fun onActivityStopped(a: Activity) {}
 
                 override fun onActivitySaveInstanceState(a: Activity, b: Bundle) {}
-            }
+            },
         )
-        io!!.post(drain)
     }
 
     fun observe(workspace: ViewGroup) {
@@ -197,7 +198,7 @@ class HomeLayoutGuard {
                         .getLongVersionCode() != 1800005036L)
             )
                 throw UnsupportedOperationException(
-                    "No reviewed layout-repair profile for this launcher"
+                    "No reviewed layout-repair profile for this launcher",
                 )
             val bounds = DexSymbols.findClass("z5.b", false, app!!.getClassLoader())
             val updateBounds =
@@ -237,7 +238,7 @@ class HomeLayoutGuard {
                             if (!p.hasThrowable()) layouts!!.add(p.thisObject as ViewGroup?)
                         }
                     },
-                )
+                ),
             )
             hookSanitizer(loader)
             installDiagnostics(vm, loader)
@@ -259,7 +260,7 @@ class HomeLayoutGuard {
                     } catch (error: Throwable) {
                         main.post(Runnable { disableRepair(error) })
                     }
-                }
+                },
             )
             installed = true
             record("ready", "profile", "android17-bzi9", "version", BuildConfig.VERSION_NAME)
@@ -350,7 +351,7 @@ class HomeLayoutGuard {
                         }
                     }
                 },
-            )
+            ),
         )
     }
 
@@ -386,7 +387,7 @@ class HomeLayoutGuard {
                         }
                     }
                 },
-            )
+            ),
         )
     }
 
@@ -450,7 +451,7 @@ class HomeLayoutGuard {
                         )
                     }
                 },
-            )
+            ),
         )
     }
 
@@ -592,7 +593,7 @@ class HomeLayoutGuard {
                         }
                     }
                 },
-            )
+            ),
         )
         handles.add(
             ModernHook.findAndHookMethod(
@@ -616,7 +617,7 @@ class HomeLayoutGuard {
                             )
                     }
                 },
-            )
+            ),
         )
     }
 
@@ -628,8 +629,9 @@ class HomeLayoutGuard {
         for (item in HomeLayoutGuard.call(vm, "getItems") as Iterable<*>) {
             val id = HomeLayoutGuard.number(item!!, "getId")
             if (!previousItems.containsKey(id)) {
-                previousItems.put(id, HomeLayoutGuard.snapshot(item!!))
-                record("item_baseline", "item", HomeLayoutGuard.snapshot(item!!))
+                val state = HomeLayoutGuard.snapshot(item)
+                previousItems.put(id, state)
+                record("item_baseline", "item", state)
             }
         }
         if (!repositoryTypes.add(repository.javaClass)) return
@@ -676,7 +678,7 @@ class HomeLayoutGuard {
                                 record("item_write_failed", "error", "native exception")
                         }
                     },
-                )
+                ),
             )
         }
         record("repository_observed", "class", repository.javaClass.compatibleName())
@@ -759,6 +761,7 @@ class HomeLayoutGuard {
                 dropped++
             }
             journal.addLast(row.toString() + "\n")
+            scheduleFlush()
         } catch (ignored: Throwable) {
             /* Logging must never interrupt the launcher. */
         }
@@ -773,6 +776,8 @@ class HomeLayoutGuard {
             }
             while (!journal.isEmpty() && batch.length + journal.peekFirst()!!.length <= 44000) batch
                 .append(journal.removeFirst())
+            flushScheduled = false
+            if (journal.isNotEmpty()) scheduleFlush()
         }
         if (batch.length > 0) {
             try {
@@ -783,7 +788,12 @@ class HomeLayoutGuard {
                 ModernHook.log("HOME_LAYOUT_JOURNAL " + error.javaClass.getSimpleName())
             }
         }
-        io!!.postDelayed(drain, 2000)
+    }
+
+    /** Caller holds this monitor; one bounded batch keeps the original two-second latency. */
+    private fun scheduleFlush() {
+        if (flushScheduled) return
+        flushScheduled = io?.postDelayed(drain, 2000) == true
     }
 
     @Throws(ReflectiveOperationException::class)
