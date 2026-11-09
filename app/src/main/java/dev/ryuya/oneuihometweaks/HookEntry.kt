@@ -68,6 +68,7 @@ class HookEntry : XposedModule() {
     private val folders: FolderHooks = FolderHooks()
     private val iconOverlap = IconOverlapHooks()
     private var initialized: Boolean = false
+    private var pendingHomeActivity = WeakReference<Activity>(null)
     private var hostAttached: Boolean = false
     private var earlyPages: Boolean = false
     private var preparedGuard: CrashGuard? = null
@@ -144,7 +145,10 @@ class HookEntry : XposedModule() {
                     )
                         return
                     val base: Context? = param.args[0] as Context?
-                    if (HookEntry.LAUNCHER != base!!.getPackageName()) return
+                    if (
+                        HookEntry.LAUNCHER != base!!.getPackageName() ||
+                            !LauncherStartupGate.unlocked(base)
+                    ) return
                     try {
                         if (!DexSymbols.canInstallNow(base!!)) return
                         preparedGuard = CrashGuard.enter(base!!)
@@ -167,60 +171,69 @@ class HookEntry : XposedModule() {
                     if (hostAttached || p.packageName != app!!.getPackageName()) return
                     hostAttached = true
                     context = app
-                    DexSymbols.configure(app)
-                    DexSymbols.whenPrepared(app) {
-                        try {
-                            if (
-                                !HookCompatibility.isCurrentSupported() ||
-                                    ("SM-S948Q" != Build.MODEL) ||
-                                    Process.myUid() / 100000 != 0
-                            ) {
-                                HostStatus.report(
-                                    app,
-                                    "UNSUPPORTED",
-                                    "SDK/model/user compatibility gate",
-                                )
-                                return@whenPrepared
-                            }
-                            val guard: CrashGuard? =
-                                if (preparedGuard != null) preparedGuard else CrashGuard.enter(app)
-                            if (guard!!.blocked()) {
-                                HostStatus.report(
-                                    app,
-                                    "CRASH_GUARD",
-                                    "Three confirmed crash starts; clear protection before retrying",
-                                )
-                                if ("com.android.systemui" == p.packageName)
-                                    HostStatus.reportFeature(
+                    val prepare: () -> Unit = {
+                        DexSymbols.configure(app)
+                        DexSymbols.whenPrepared(app) {
+                            try {
+                                if (
+                                    !HookCompatibility.isCurrentSupported() ||
+                                        ("SM-S948Q" != Build.MODEL) ||
+                                        Process.myUid() / 100000 != 0
+                                ) {
+                                    HostStatus.report(
                                         app,
-                                        "quick_panel",
-                                        "CRASH_GUARD",
-                                        "Host startup protection is active",
+                                        "UNSUPPORTED",
+                                        "SDK/model/user compatibility gate",
                                     )
-                                HookEntry.log("CRASH_GUARD blocked " + p.packageName)
-                                return@whenPrepared
+                                    return@whenPrepared
+                                }
+                                val guard: CrashGuard? =
+                                    if (preparedGuard != null) preparedGuard else CrashGuard.enter(app)
+                                if (guard!!.blocked()) {
+                                    HostStatus.report(
+                                        app,
+                                        "CRASH_GUARD",
+                                        "Three confirmed crash starts; clear protection before retrying",
+                                    )
+                                    if ("com.android.systemui" == p.packageName)
+                                        HostStatus.reportFeature(
+                                            app,
+                                            "quick_panel",
+                                            "CRASH_GUARD",
+                                            "Host startup protection is active",
+                                        )
+                                    HookEntry.log("CRASH_GUARD blocked " + p.packageName)
+                                    return@whenPrepared
+                                }
+                                if (HookEntry.LAUNCHER == p.packageName) {
+                                    homeLayout.start(app)
+                                    installLauncher(p, app!!)
+                                } else if ("com.android.systemui" == p.packageName) {
+                                    QuickPanelHooks().install(app, p.classLoader)
+                                    ClockDateHooks().install(app, p.classLoader)
+                                    VolumeHooks().install(app, p.classLoader)
+                                } else if ("com.android.settings" == p.packageName) {
+                                    DeveloperAnimationHooks().install(app, p.classLoader)
+                                } else PreviewHooks().install(app, p.classLoader)
+                                Handler(Looper.getMainLooper())
+                                    .postDelayed(Runnable { guard!!.healthy() }, 90000)
+                            } catch (t: Throwable) {
+                                HostStatus.report(
+                                    app,
+                                    "ERROR",
+                                    t.javaClass.getSimpleName() + ": " + t.message,
+                                )
+                                HookEntry.log("HOST_DISABLED " + t)
                             }
-                            if (HookEntry.LAUNCHER == p.packageName) {
-                                homeLayout.start(app)
-                                installLauncher(p, app!!)
-                            } else if ("com.android.systemui" == p.packageName) {
-                                QuickPanelHooks().install(app, p.classLoader)
-                                ClockDateHooks().install(app, p.classLoader)
-                                VolumeHooks().install(app, p.classLoader)
-                            } else if ("com.android.settings" == p.packageName) {
-                                DeveloperAnimationHooks().install(app, p.classLoader)
-                            } else PreviewHooks().install(app, p.classLoader)
-                            Handler(Looper.getMainLooper())
-                                .postDelayed(Runnable { guard!!.healthy() }, 90000)
-                        } catch (t: Throwable) {
-                            HostStatus.report(
-                                app,
-                                "ERROR",
-                                t.javaClass.getSimpleName() + ": " + t.message,
-                            )
-                            HookEntry.log("HOST_DISABLED " + t)
                         }
                     }
+                    if (p.packageName == HookEntry.LAUNCHER) {
+                        LauncherStartupGate.whenUnlocked(app) { activity ->
+                            pendingHomeActivity = WeakReference(activity)
+                            prepare()
+                        }
+                    } else prepare()
+
                 }
             },
         )
@@ -552,6 +565,11 @@ class HookEntry : XposedModule() {
             }
         )
         initialized = true
+        pendingHomeActivity.get()?.takeUnless { it.isDestroyed }?.let { activity ->
+            pages.setHomeWindow(activity)
+            homeLabels.setHome(activity)
+        }
+        pendingHomeActivity.clear()
         requestRefresh()
         HookEntry.log("INITIALIZED: owner user, main home; event-driven, no polling")
     }
