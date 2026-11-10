@@ -72,6 +72,18 @@ object DexSymbols {
         action()
     }
 
+    /** Semantic-only features need actual bindings even on a previously reviewed host version. */
+    fun whenDiscovered(context: Context, action: () -> Unit) {
+        configure(context)
+        synchronized(waiting) {
+            if (!prepared) {
+                waiting += action
+                return
+            }
+        }
+        action()
+    }
+
     fun canInstallNow(context: Context): Boolean {
         configure(context)
         return prepared || reviewedHost

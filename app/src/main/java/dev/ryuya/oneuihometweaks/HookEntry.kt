@@ -478,7 +478,10 @@ class HookEntry : XposedModule() {
         } catch (t: Throwable) {
             HookEntry.log("RECENTS_BAR_UNSUPPORTED " + t)
         }
-        circleRecents.install(launcherLoader)
+        DexSymbols.whenDiscovered(app) {
+            circleRecents.install(launcherLoader)
+            requestRefresh()
+        }
         liveRecents.setStateListener(Runnable { this.requestRefresh() })
         try {
             liveRecents.install(app, app.getApplicationInfo().sourceDir, launcherLoader)
