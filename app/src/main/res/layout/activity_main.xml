@@ -348,6 +348,19 @@
                 app:dividerColor="?attr/colorOutlineVariant" />
             </LinearLayout>
             <com.google.android.material.materialswitch.MaterialSwitch
+              android:id="@+id/hide_circle_search"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:minHeight="56dp"
+              android:text="@string/hide_circle_search"
+              android:textAppearance="@style/TextAppearance.Material3.TitleMedium" />
+            <TextView
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:text="@string/hide_circle_search_note"
+              android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+              android:layout_marginBottom="12dp" />
+            <com.google.android.material.materialswitch.MaterialSwitch
               android:id="@+id/recents_hide_bar"
               android:layout_width="match_parent"
               android:layout_height="wrap_content"

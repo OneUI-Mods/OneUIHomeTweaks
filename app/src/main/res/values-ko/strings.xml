@@ -134,4 +134,6 @@
     <string name="layout_io_error">진단 로그를 읽거나 쓸 수 없습니다</string>
   <string name="icon_overlap_fix">앱을 닫을 때 옆 아이콘 유지</string>
   <string name="icon_overlap_fix_note">Home Up의 겹침 판정을 보정하여 홈으로 돌아오는 애니메이션 중 떨어져 있는 아이콘이 사라지지 않게 합니다. 실제로 겹쳐 배치한 아이콘의 동작은 유지합니다. 기본값은 켜짐이며 전환 시 홈을 다시 불러올 필요가 없습니다.</string>
+    <string name="hide_circle_search">서클 투 서치을 최근 앱에서 숨기기</string>
+    <string name="hide_circle_search_note">검색 기능은 유지하고 검색 전용 작업만 숨깁니다. 일반 Google 앱과 Google 렌즈는 계속 표시됩니다.</string>
 </resources>

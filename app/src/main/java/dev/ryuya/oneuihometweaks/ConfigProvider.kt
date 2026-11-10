@@ -76,6 +76,7 @@ class ConfigProvider : ContentProvider() {
                     "folder_return",
                     "icon_overlap_fix",
                     "settings_enabled",
+                    "hide_circle_search",
                 )
             )
         c.addRow(
@@ -106,6 +107,7 @@ class ConfigProvider : ContentProvider() {
                 if (p.getBoolean("folder_return", true)) 1 else 0,
                 if (p.getBoolean("icon_overlap_fix", true)) 1 else 0,
                 if (p.getBoolean("settings_enabled", true)) 1 else 0,
+                if (p.getBoolean("hide_circle_search", true)) 1 else 0,
             )
         )
         return c

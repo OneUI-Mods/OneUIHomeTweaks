@@ -124,3 +124,11 @@ See [repair contracts and diagnostic schema](home-layout-diagnostics.md). Keep n
 ## CPU・メモリ効率
 
 [変更内容と検証範囲](efficiency.md)を参照してください。
+
+## かこって検索の履歴除外
+
+`CircleSearchRecents`はホームプロセス内の履歴取得結果だけを絞り込みます。Googleのパッケージと、タスクの起点となるcontextual-search専用Activityまたは起動actionが一致したものだけが対象です。最前面のActivity名・表示ラベル・Googleのパッケージ名だけでは判定しません。検索専用タスクを終了・削除せず、通常のGoogleやレンズを除外しません。複数アプリを含むグループもそのまま返します。
+
+Android 16の従来のTaskリストと、SamsungのShellグループ取得を独立に扱います。後者の実装名は固定せず、既存のモジュール内部DexKitキャッシュを使い、Binderのdescriptorと履歴取得ログの両方が一意に一致した実装だけを使います。探索は初回・対象またはモジュールの更新後だけで、コールバック内では探索しません。見つからない経路は未対応として記録し、他機能は続行します。
+
+初回反映はOne UIホームのプロセス再読み込みのみ。対象Googleアプリ、SystemUI、system_serverへの追加フックやスコープ変更はありません。ON/OFFは既存の設定通知で追従します。

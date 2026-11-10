@@ -6,7 +6,7 @@ internal object DexKitConfig {
     val MODULE_VERSION
         get() = dev.ryuya.oneuihometweaks.BuildConfig.VERSION_CODE
 
-    const val PROFILE_HASH = "48ffd25bb5e09c3b61573db12c9ba8d4384a27e2318ebfca4cc9ff51761cd216"
+    const val PROFILE_HASH = "ea9838826a2b31edafd21ca06b6e8fe93ea404c05033c4f87c03149df9d42b5d"
     val FEATURE_PREFIXES =
         setOf<String>(
             "recents-live-v2:",

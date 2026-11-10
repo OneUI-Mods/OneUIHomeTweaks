@@ -65,6 +65,7 @@ class HookEntry : XposedModule() {
     private val drawer: DrawerBridge = DrawerBridge()
     private val homeLabels: HomeLabelBridge = HomeLabelBridge()
     private val recentsBar: RecentsBar = RecentsBar()
+    private val circleRecents = CircleSearchRecents()
     private val folders: FolderHooks = FolderHooks()
     private val iconOverlap = IconOverlapHooks()
     private var initialized: Boolean = false
@@ -477,6 +478,7 @@ class HookEntry : XposedModule() {
         } catch (t: Throwable) {
             HookEntry.log("RECENTS_BAR_UNSUPPORTED " + t)
         }
+        circleRecents.install(launcherLoader)
         liveRecents.setStateListener(Runnable { this.requestRefresh() })
         try {
             liveRecents.install(app, app.getApplicationInfo().sourceDir, launcherLoader)
@@ -593,6 +595,7 @@ class HookEntry : XposedModule() {
             var pageMode: Boolean = false
             var hideRecentsBar: Boolean = false
             var recentsLive: Boolean = false
+            var hideCircleSearch = false
             var diyGridMode: Boolean = false
             context!!
                 .getContentResolver()
@@ -602,6 +605,8 @@ class HookEntry : XposedModule() {
                     master =
                         cursor.getInt(cursor.getColumnIndexOrThrow("enabled")) != 0 &&
                             cursor.getInt(cursor.getColumnIndexOrThrow("home_enabled")) != 0
+                    val circleColumn = cursor.getColumnIndex("hide_circle_search")
+                    hideCircleSearch = master && circleColumn >= 0 && cursor.getInt(circleColumn) != 0
                     val folderColumn = cursor.getColumnIndex("folder_return")
                     folderReturn = folderColumn < 0 || cursor.getInt(folderColumn) != 0
                     val overlapColumn = cursor.getColumnIndex("icon_overlap_fix")
@@ -638,6 +643,7 @@ class HookEntry : XposedModule() {
             val currentLiveRecents: Boolean = recentsLive
             val currentFocusMode: Int = focusMode
             liveRecents.connectFocus(context)
+            val currentHideCircleSearch = hideCircleSearch
             val currentMaster: Boolean = master
             val currentFolderReturn: Boolean = folderReturn
             val currentOverlapFix = master && iconOverlapFix
@@ -657,6 +663,7 @@ class HookEntry : XposedModule() {
                     liveRecents.setFocusMode(currentFocusMode)
                     liveRecents.setEnabled(currentLiveRecents)
                     recentsBar.setEnabled(currentHideRecentsBar)
+                    circleRecents.setEnabled(currentHideCircleSearch)
                     folders.configure(currentMaster, currentFolderReturn)
                     iconOverlap.setEnabled(currentOverlapFix)
                     diyGrid.setEnabled(currentDiyGrid)
@@ -672,6 +679,7 @@ class HookEntry : XposedModule() {
                             homeLabels.diagnostic() +
                             "; recentsBar=" +
                             recentsBar.diagnostic() +
+                            "; circleRecents=" + circleRecents.diagnostic() +
                             "; liveRecents=" +
                             liveRecents.diagnostic() +
                             "; focusBridge=" +

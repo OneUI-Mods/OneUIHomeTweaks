@@ -134,4 +134,6 @@
     <string name="layout_io_error">无法读写诊断日志</string>
   <string name="icon_overlap_fix">关闭应用时保留相邻图标</string>
   <string name="icon_overlap_fix_note">修正 Home Up 的重叠判断，防止返回主屏幕的动画期间彼此分离的图标消失。实际重叠放置的图标保持原有行为。默认开启，切换时无需重新加载主屏幕。</string>
+    <string name="hide_circle_search">在最近任务中隐藏即圈即搜</string>
+    <string name="hide_circle_search_note">保留搜索功能，仅隐藏搜索专用任务。普通 Google 应用和 Google 智能镜头仍会显示。</string>
 </resources>
