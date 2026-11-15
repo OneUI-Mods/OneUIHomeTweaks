@@ -148,7 +148,7 @@ class HookEntry : XposedModule() {
                     val base: Context? = param.args[0] as Context?
                     if (
                         HookEntry.LAUNCHER != base!!.getPackageName() ||
-                            !LauncherStartupGate.unlocked(base)
+                            !HostStartupGate.unlocked(base)
                     ) return
                     try {
                         if (!DexSymbols.canInstallNow(base!!)) return
@@ -229,11 +229,16 @@ class HookEntry : XposedModule() {
                         }
                     }
                     if (p.packageName == HookEntry.LAUNCHER) {
-                        LauncherStartupGate.whenUnlocked(app) { activity ->
+                        HostStartupGate.whenUnlocked(app) { activity ->
                             pendingHomeActivity = WeakReference(activity)
                             prepare()
                         }
-                    } else prepare()
+                    } else {
+                        // These hosts also read the module's CE-only settings and DexKit cache.
+                        // Before first unlock a failed install would otherwise remain inactive
+                        // until SystemUI is restarted, even after the provider becomes available.
+                        HostStartupGate.whenUnlocked(app) { prepare() }
+                    }
 
                 }
             },

@@ -42,6 +42,8 @@ Master and per-target switches control features. Color choices apply immediately
 
 The UI supports Japanese, English, Simplified Chinese, Traditional Chinese, and Korean, initially following the device language. App-specific language selection, light/dark themes, and dynamic colors are supported.
 
+After boot, initialization of launcher, clock, volume, Quick Panel, Settings and wallpaper-preview features waits for the first user unlock. Initialization runs once, without polling, and a normal later screen lock does not stop the features. This avoids leaving hooks inactive after attempting to access unavailable credential-encrypted settings or DexKit caches.
+
 ## Requirements
 
 - A supported Samsung One UI device. Physical validation covers SM-S948Q on Android 16 / One UI 8.5 (AZHL) and Android 17 / One UI 9 (BZI9).

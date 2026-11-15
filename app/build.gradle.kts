@@ -3,7 +3,7 @@ import java.util.Properties
 plugins { id("com.android.application") }
 val distributionProperties = Properties().apply {
     providers.environmentVariable("ONEUI_SIGNING_PROPERTIES").orNull?.let { path ->
-        file(path).inputStream().use { load(it) }
+        file(path).reader(Charsets.UTF_8).use { load(it) }
         for (key in listOf("storeFile", "storePassword", "keyAlias", "keyPassword")) {
             check(!getProperty(key).isNullOrBlank()) { "Missing release signing property: $key" }
         }
@@ -18,8 +18,8 @@ android {
         applicationId = "dev.ryuya.oneuihometweaks"
         minSdk = 31
         targetSdk = 37
-        versionCode = 47
-        versionName = "0.20.6"
+        versionCode = 48
+        versionName = "0.20.7"
         testInstrumentationRunner = "dev.ryuya.oneuihometweaks.MemoryInstrumentation"
         // Live-card diagnostics are opt-in for local investigation, never default release behavior.
         buildConfigField("boolean", "RECENTS_LIVE_TRACE", providers.gradleProperty("recentsLiveTrace").map { (it == "true").toString() }.getOrElse("false"))

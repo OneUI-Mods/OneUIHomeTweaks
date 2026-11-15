@@ -92,6 +92,8 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
             override fun onTransact(code: Int, `in`: Parcel, out: Parcel?, flags: Int): Boolean {
                 if (code < RecentsFocusWire.STATUS || code > RecentsFocusWire.STOP) return false
                 try {
+                    if (!HostStartupGate.unlocked(context))
+                        throw SecurityException("First owner unlock required")
                     val uid = Binder.getCallingUid()
                     val app =
                         RecentsFocusServer.requireUid(
@@ -591,7 +593,9 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
                         try {
                             val context: Context? =
                                 RecentsFocusServer.get(p.thisObject!!, "mContext") as Context?
-                            RecentsFocusServer.requireUid(context!!, Binder.getCallingUid(), false)
+                            if (!HostStartupGate.unlocked(requireNotNull(context)))
+                                throw SecurityException("First owner unlock required")
+                            RecentsFocusServer.requireUid(context, Binder.getCallingUid(), false)
                             if (out == null || (p.args[3] as Int and IBinder.FLAG_ONEWAY) != 0)
                                 throw SecurityException("Synchronous discovery only")
                             `in`!!.enforceInterface(RecentsFocusWire.DESCRIPTOR)
