@@ -116,3 +116,9 @@ Android 17 / One UI Home 18.0.07.53 / Home Up 18.0.00.36 / モジュール0.18.0
 実機の保存設定はdiy_icon_grid=true、実行診断はwaiting: native grid geometry mismatchだった。Home Up 18.0.00.36のgetItemPositionDataはCellLayoutInfoのサイズ・位置へbasedOnHomeContext=falseを渡す。Android 17ではこの不一致を検出した際だけ、同一ViewModelの読み取りをmain thread上のスコープ内で再試行し、純正のhome-context=true経路を使う。結果のセル・余白・向きを実測ページへ再照合し、失敗時は従来どおり保存座標を維持する。
 
 スコープ外のホスト呼び出し・保存・ウィジェットの寸法は上書きしない。スコープ所有者はfinallyで除去。成功結果だけを元のnative dataの等価性と実測ページ寸法に対してキャッシュし、設定変更・画面サイズ変更で再計算する。新規のDEX探索・定期ポーリング・固定グリッド寸法は追加しない。Android 16は既存経路を保持する。
+
+## 0.20.9: 初回測定の通知
+
+0.20.8をロック中に反映した実機では、純正セルは190×320、表示領域は0×0であった。旧ログのwaitingだけでは本物の寸法破損と未測定を区別できなかった。workspaceの観測キーが変化しないまま子ページだけが測定された場合、初期renderNowが待機してから再試行する通知が不足していた。
+
+各FreeGridCellLayoutに初回登録時だけOnLayoutChangeListenerを加え、幅・高さが変化した場合だけ既存renderをキューへ入れる。同一renderはcoalesceされ、OFF/未準備/例外停止時は処理しない。新しいViewの強参照や定期workerは保持しない。0×0の未測定中は補正再取得をせず、診断も通常のwaitingとする。

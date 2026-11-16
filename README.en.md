@@ -12,6 +12,8 @@ For home-screen app names and the Finder area at the bottom, the module can insp
 
 On Android 17, icon alignment retries native home-context geometry when dimensions do not fit the measured page. The viewport check remains enforced, with no changes to saved positions or widgets.
 
+Page-size notifications also reapply alignment after the first measurement, avoiding a permanent wait when startup saw 0×0 bounds.
+
 ## Features
 
 | Feature | Settings and behavior |

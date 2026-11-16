@@ -43,6 +43,27 @@ class DiyGridBridge {
         WeakHashMap<ViewGroup?, DiyGridBridge.State?>()
     private val methods: MutableMap<String?, Method?> = HashMap<String?, Method?>()
     private val moveRemainders: MutableMap<Any?, PointF?> = WeakHashMap<Any?, PointF?>()
+    private val pageLayoutChanges =
+        View.OnLayoutChangeListener {
+            _,
+            left,
+            top,
+            right,
+            bottom,
+            oldLeft,
+            oldTop,
+            oldRight,
+            oldBottom ->
+            if (
+                ready &&
+                    enabled &&
+                    !failed &&
+                    (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop)
+            ) {
+                queueRender()
+            }
+        }
+
     private var editing: Boolean = false
     private var editLogCount: Int = 0
     private var workspace: WeakReference<ViewGroup?> = WeakReference<ViewGroup?>(null)
@@ -844,6 +865,7 @@ class DiyGridBridge {
             states.put(vm, state)
         }
         layouts.put(layout, state)
+        layout.addOnLayoutChangeListener(pageLayoutChanges)
         state!!.noteViewport(layout)
         state!!.capture()
         queueRender()
@@ -878,8 +900,10 @@ class DiyGridBridge {
                 if (!layout!!.isAttachedToWindow()) continue
                 if (captured.add(state)) state!!.capture()
                 if (enabled && !state!!.geometryFitsViewport()) {
-                    invalidGeometry++
-                    state!!.reportGeometryMismatch()
+                    if (layout.width > 0 && layout.height > 0) {
+                        invalidGeometry++
+                        state.reportGeometryMismatch()
+                    }
                 } else state!!.lastRejectedGeometry = ""
                 val use: Boolean = enabled && !failed && state!!.valid()
                 if (use) state!!.plan()
@@ -1136,6 +1160,8 @@ class DiyGridBridge {
                         homeGeometryReadsReady &&
                         page != null &&
                         page.isAttachedToWindow &&
+                        page.width > 0 &&
+                        page.height > 0 &&
                         context.get()?.resources?.configuration?.orientation ==
                             Configuration.ORIENTATION_PORTRAIT
                 ) {
