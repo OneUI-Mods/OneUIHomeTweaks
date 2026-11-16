@@ -4,8 +4,10 @@ import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Point
 import android.graphics.PointF
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.util.Size
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams
@@ -54,6 +56,9 @@ class DiyGridBridge {
     private var gathering: Boolean = false
     private var rendering: Boolean = false
     private var projectionDepth: Int = 0
+    private var geometryReadOwner: Any? = null
+    private var homeGeometryReadsReady = false
+    private var recoveryReported = false
     private var diagnostic: String = "off"
     private var observedGeometry: String = ""
     private var changed: Runnable = Runnable {}
@@ -74,14 +79,14 @@ class DiyGridBridge {
                 failed ||
                 editing ||
                 root == null ||
-                !root.isAttachedToWindow())
+                !root.isAttachedToWindow()),
         ) {
             "Grid not ready"
         }
         collect(root)
         val owners =
             Collections.newSetFromMap<DiyGridBridge.State?>(
-                IdentityHashMap<DiyGridBridge.State?, Boolean?>()
+                IdentityHashMap<DiyGridBridge.State?, Boolean?>(),
             )
         for (entry in layouts.entries) if (
             entry.key!!.isAttachedToWindow() && entry.value!!.valid()
@@ -125,7 +130,7 @@ class DiyGridBridge {
         for (reference in state.models.values) {
             val model = reference!!.get()
             check(
-                !(model == null || !eligible(model) || JavaBoolean.TRUE == call(model, "getLand"))
+                !(model == null || !eligible(model) || JavaBoolean.TRUE == call(model, "getLand")),
             ) {
                 "Incomplete model snapshot"
             }
@@ -153,7 +158,7 @@ class DiyGridBridge {
                         call(model, "getScale") +
                         ":" +
                         call(model, "getAngle")),
-                )
+                ),
             )
         }
         return DiyGridBridge.PreparedSave(root.getContext(), vm, GridSavePlan(entries))
@@ -196,7 +201,7 @@ class DiyGridBridge {
                     null,
                     null,
                     false,
-                )
+                ),
             )
         // Only x/y are supplied. Native history and repository persistence own every write.
         call(
@@ -348,7 +353,7 @@ class DiyGridBridge {
                                     model.compatibleName() + "$" + name,
                                     false,
                                     loader,
-                                )
+                                ),
                             )
                         val sticker =
                             DexSymbols.findClass(
@@ -388,6 +393,7 @@ class DiyGridBridge {
                             throw UnsupportedOperationException("DIY edit pointer contract changed")
                         targetDiff.setAccessible(true)
                         DexEvidence.deoptimizeDiyPositions(apk, loader)
+                        if (Build.VERSION.SDK_INT >= 37) installHomeGeometryReads(vm, geometry)
                         layoutType = layout
                         modelType = model
                         hooks.add(
@@ -401,7 +407,7 @@ class DiyGridBridge {
                                         }
                                     }
                                 },
-                            )
+                            ),
                         )
                         for (edit in arrayOf<Method?>(sync, translate)) {
                             val isSync: Boolean = edit === sync
@@ -486,7 +492,7 @@ class DiyGridBridge {
                                                             " remainder=" +
                                                             rest +
                                                             " snapped=" +
-                                                            snapped)
+                                                            snapped),
                                                     )
                                                 editing = true
                                                 try {
@@ -529,7 +535,7 @@ class DiyGridBridge {
                                             }
                                         }
                                     },
-                                )
+                                ),
                             )
                         }
                         hooks.add(
@@ -567,7 +573,7 @@ class DiyGridBridge {
                                         queueRender()
                                     }
                                 },
-                            )
+                            ),
                         )
                         hooks.add(
                             ModernHook.hookMethod(
@@ -622,7 +628,7 @@ class DiyGridBridge {
                                         }
                                     }
                                 },
-                            )
+                            ),
                         )
                         // Install observers before coordinate hooks; until ready=true every getter
                         // stays
@@ -645,7 +651,7 @@ class DiyGridBridge {
                                         leaveProjection(p)
                                     }
                                 },
-                            )
+                            ),
                         )
                         // The coordinate projection is visible ONLY inside verified, read-only UI
                         // consumers.
@@ -668,7 +674,7 @@ class DiyGridBridge {
                                         leaveProjection(p)
                                     }
                                 },
-                            )
+                            ),
                         )
                         hooks.add(
                             ModernHook.hookMethod(
@@ -686,7 +692,7 @@ class DiyGridBridge {
                                         leaveProjection(p)
                                     }
                                 },
-                            )
+                            ),
                         )
                         hooks.add(
                             ModernHook.hookMethod(
@@ -717,7 +723,7 @@ class DiyGridBridge {
                                         }
                                     }
                                 },
-                            )
+                            ),
                         )
                         for (coordinate in arrayOf<String>("getX", "getY")) {
                             val getter = model.compatibleDeclaredMethod(coordinate)
@@ -741,14 +747,14 @@ class DiyGridBridge {
                                             try {
                                                 for (state in
                                                     ArrayList<DiyGridBridge.State?>(
-                                                        states.values
+                                                        states.values,
                                                     )) {
                                                     val current: Any? =
                                                         if (
                                                             state!!
                                                                 .models
                                                                 .get(
-                                                                    number(p.thisObject!!, "getId")
+                                                                    number(p.thisObject!!, "getId"),
                                                                 ) == null
                                                         )
                                                             null
@@ -756,7 +762,7 @@ class DiyGridBridge {
                                                             state!!
                                                                 .models
                                                                 .get(
-                                                                    number(p.thisObject!!, "getId")
+                                                                    number(p.thisObject!!, "getId"),
                                                                 )!!
                                                                 .get()
                                                     if (
@@ -767,7 +773,7 @@ class DiyGridBridge {
                                                     if (slot != null)
                                                         p.setResult(
                                                             if (coordinate == "getX") slot.x
-                                                            else slot.y
+                                                            else slot.y,
                                                         )
                                                     return
                                                 }
@@ -776,7 +782,7 @@ class DiyGridBridge {
                                             }
                                         }
                                     },
-                                )
+                                ),
                             )
                         }
                         main.post(
@@ -787,7 +793,7 @@ class DiyGridBridge {
                                 val current = workspace.get()
                                 if (current != null) collect(current)
                                 queueRender()
-                            }
+                            },
                         )
                     } catch (error: Throwable) {
                         main.post(Runnable { disable(error) })
@@ -861,11 +867,11 @@ class DiyGridBridge {
             var invalidGeometry: Int = 0
             val captured =
                 Collections.newSetFromMap<DiyGridBridge.State?>(
-                    IdentityHashMap<DiyGridBridge.State?, Boolean?>()
+                    IdentityHashMap<DiyGridBridge.State?, Boolean?>(),
                 )
             for (entry in
                 ArrayList<MutableMap.MutableEntry<ViewGroup?, DiyGridBridge.State?>?>(
-                    layouts.entries
+                    layouts.entries,
                 )) {
                 val layout = entry!!.key
                 val state = entry!!.value
@@ -879,7 +885,7 @@ class DiyGridBridge {
                 if (use) state!!.plan()
                 for (binding in
                     ArrayList<MutableMap.MutableEntry<Int?, WeakReference<Any?>?>?>(
-                        state!!.models.entries
+                        state!!.models.entries,
                     )) {
                     val model = binding!!.value!!.get()
                     if (model == null || !eligible(model)) continue
@@ -924,6 +930,92 @@ class DiyGridBridge {
         }
     }
 
+    /** Only our read-only retry uses the native home-context option; host reads are untouched. */
+    private fun installHomeGeometryReads(vm: Class<*>, geometry: Method) {
+        val staged = ArrayList<ModernHook.Handle>()
+        try {
+            val sizeMethod = vm.compatibleDeclaredMethod("getCellLayoutSizeBasedOnWorkspace")
+            val positionMethod =
+                vm.compatibleDeclaredMethod("getCellLayoutPositionBasedOnWorkspace")
+            check(
+                sizeMethod.returnType == Size::class.java &&
+                    positionMethod.returnType == Point::class.java,
+            )
+            for (method in listOf(sizeMethod, positionMethod)) {
+                staged.add(
+                    ModernHook.hookMethod(
+                        method,
+                        object : ModernHook.Callback() {
+                            override fun beforeHookedMethod(p: ModernHook.Param) {
+                                if (
+                                    !onMain() ||
+                                        geometryReadOwner == null ||
+                                        p.thisObject !== geometryReadOwner
+                                )
+                                    return
+                                val owner = requireNotNull(p.thisObject)
+                                val info = call(owner, "getCellLayoutInfo")
+                                val homeContext = call(owner, "getUiStateContext") as Context
+                                val homeGrid = call(owner, "getWorkspaceUIGrid") as Point
+                                val size = method == sizeMethod
+                                val result =
+                                    if (size)
+                                        call(
+                                            requireNotNull(info),
+                                            "getSize",
+                                            arrayOf(
+                                                Context::class.java,
+                                                Point::class.java,
+                                                Boolean::class.javaPrimitiveType,
+                                                Boolean::class.javaPrimitiveType,
+                                            ),
+                                            homeContext,
+                                            homeGrid,
+                                            true,
+                                            false,
+                                        )
+                                    else
+                                        call(
+                                            requireNotNull(info),
+                                            "getPosition",
+                                            arrayOf(
+                                                Context::class.java,
+                                                Point::class.java,
+                                                Boolean::class.javaPrimitiveType,
+                                                Boolean::class.javaPrimitiveType,
+                                                Boolean::class.javaPrimitiveType,
+                                            ),
+                                            homeContext,
+                                            homeGrid,
+                                            true,
+                                            false,
+                                            false,
+                                        )
+                                if (
+                                    result is Size && result.width > 0 && result.height > 0 ||
+                                        result is Point
+                                )
+                                    p.setResult(result)
+                            }
+                        },
+                    ),
+                )
+            }
+            check(ModernHook.deoptimize(geometry)) {
+                "Native geometry caller cannot be deoptimized"
+            }
+            hooks.addAll(staged)
+            homeGeometryReadsReady = true
+            HookEntry.log("DIY_GRID_HOME_GEOMETRY_READY")
+        } catch (error: ReflectiveOperationException) {
+            staged.forEach { it.unhook() }
+            HookEntry.log("DIY_GRID_HOME_GEOMETRY_UNAVAILABLE " + error.javaClass.simpleName)
+        } catch (error: IllegalStateException) {
+            staged.forEach { it.unhook() }
+            HookEntry.log("DIY_GRID_HOME_GEOMETRY_UNAVAILABLE " + error.javaClass.simpleName)
+        }
+    }
+
     private inner class State(owner: Any?, layout: ViewGroup) {
         @JvmField val vm: WeakReference<Any?>
         @JvmField val context: WeakReference<Context?>
@@ -942,6 +1034,10 @@ class DiyGridBridge {
         @JvmField var geometry: Any? = null
         @JvmField var dimensions: DiyGridGeometry? = null
         @JvmField var lastRejectedGeometry: String = ""
+        private var recoverySource: Any? = null
+        private var recoveredGeometry: Any? = null
+        private var recoveryWidth = 0
+        private var recoveryHeight = 0
         @JvmField var grid: Point? = null
         @JvmField var cell: Point? = null
         @JvmField var offset: Point? = null
@@ -1033,7 +1129,65 @@ class DiyGridBridge {
                 val raw = call(owner, "getItems")
                 if (raw is Iterable<*>) bind(raw)
                 val nextGrid: Point? = call(owner, "getWorkspaceUIGrid") as Point?
-                val nextGeometry = call(owner, "getItemPositionData")
+                var nextGeometry = call(owner, "getItemPositionData")
+                val page = viewport.get()
+                if (
+                    enabled &&
+                        homeGeometryReadsReady &&
+                        page != null &&
+                        page.isAttachedToWindow &&
+                        context.get()?.resources?.configuration?.orientation ==
+                            Configuration.ORIENTATION_PORTRAIT
+                ) {
+                    fun fits(value: Any?): Boolean {
+                        if (value == null || nextGrid == null) return false
+                        val candidateCell =
+                            call(value, "getItemSizeBasedOnDefaultGrid") as? Point ?: return false
+                        val candidateOffset =
+                            call(value, "getPositionDiff") as? Point ?: return false
+                        return DiyGridGeometry(
+                                nextGrid.x,
+                                nextGrid.y,
+                                candidateCell.x,
+                                candidateCell.y,
+                                candidateOffset.x,
+                                candidateOffset.y,
+                                call(value, "isLand") as Boolean,
+                            )
+                            .fits(page.width, page.height)
+                    }
+                    if (!fits(nextGeometry)) {
+                        try {
+                            val source = nextGeometry
+                            geometryReadOwner = owner
+                            // Native data equality includes padding and style; viewport changes
+                            // also invalidate the cached result. Keep only a successful retry.
+                            val recovered =
+                                if (
+                                    source == recoverySource &&
+                                        recoveryWidth == page.width &&
+                                        recoveryHeight == page.height
+                                )
+                                    recoveredGeometry
+                                else call(owner, "getItemPositionData")
+                            if (fits(recovered)) {
+                                recoverySource = source
+                                recoveredGeometry = recovered
+                                recoveryWidth = page.width
+                                recoveryHeight = page.height
+                                nextGeometry = recovered
+                                if (!recoveryReported) {
+                                    recoveryReported = true
+                                    HookEntry.log(
+                                        "DIY_GRID_HOME_GEOMETRY_RECOVERED viewport=${page.width}x${page.height}",
+                                    )
+                                }
+                            }
+                        } finally {
+                            geometryReadOwner = null
+                        }
+                    }
+                }
                 val nextCell: Point? =
                     call(nextGeometry!!, "getItemSizeBasedOnDefaultGrid") as Point?
                 val nextOffset: Point? = call(nextGeometry!!, "getPositionDiff") as Point?
@@ -1195,12 +1349,12 @@ class DiyGridBridge {
     private fun restoreNativeViews() {
         for (entry in
             ArrayList<MutableMap.MutableEntry<ViewGroup?, DiyGridBridge.State?>?>(
-                layouts.entries
+                layouts.entries,
             )) {
             val layout = entry!!.key
             for (binding in
                 ArrayList<MutableMap.MutableEntry<Int?, WeakReference<Any?>?>?>(
-                    entry!!.value!!.models.entries
+                    entry!!.value!!.models.entries,
                 )) {
                 try {
                     val model = binding!!.value!!.get()

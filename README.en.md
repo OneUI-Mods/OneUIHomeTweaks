@@ -8,6 +8,10 @@ For home-screen app names and the Finder area at the bottom, the module can insp
 
 **Development and physical-device validation are ongoing.** The verified baseline is Galaxy S26 Ultra (SM-S948Q), Android 16, and Vector 2.2. Installing the APK alone on an ordinary unrooted phone is insufficient. Android 17 / One UI 9 support is experimental on SM-S948Q / BZI9. Separate compatibility paths are maintained for Android 16 and 17.
 
+## DIY icon grid recovery
+
+On Android 17, icon alignment retries native home-context geometry when dimensions do not fit the measured page. The viewport check remains enforced, with no changes to saved positions or widgets.
+
 ## Features
 
 | Feature | Settings and behavior |
