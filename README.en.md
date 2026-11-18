@@ -126,3 +126,5 @@ On Android 17, **Android 16 design** groups the bars and adjacent mode buttons i
 After a target-app update, open this module once to finish preparation, then reopen the target. Discovery results are saved in each module's own internal app data and reused while unchanged. No other OneUI Mods app is required. Features stop applying when a unique compatible target cannot be confirmed. Compatibility with every OS or app update is not guaranteed.
 
 Unnecessary View retention after label-color fades has been removed. See the [0.20.4 behavior and validation record (Japanese)](docs/memory-0.20.4.md).
+
+[Build environment / ビルド環境](docs/build-environment.md)

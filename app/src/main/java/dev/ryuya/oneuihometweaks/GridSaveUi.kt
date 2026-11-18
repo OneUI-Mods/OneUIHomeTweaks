@@ -20,9 +20,9 @@ class GridSaveUi(activity: Activity) {
 
     init {
         this.activity = activity
-        button = activity.findViewById<MaterialButton?>(R.id.save_grid_positions)
+        button = activity.requireViewById<MaterialButton>(R.id.save_grid_positions)
         button.setOnClickListener(
-            android.view.View.OnClickListener { v: View? -> request("preview", "") }
+            android.view.View.OnClickListener { v: View? -> request("preview", "") },
         )
         val p = GridSaveStore.prefs(activity)
         if (GridSaveStore.valid(activity) && !p!!.getBoolean("ui_done", false)) {
@@ -53,7 +53,7 @@ class GridSaveUi(activity: Activity) {
             waiting.isEmpty() &&
                 p.getBoolean("enabled", true) &&
                 p.getBoolean("home_enabled", true) &&
-                p.getBoolean("diy_icon_grid", false)
+                p.getBoolean("diy_icon_grid", false),
         )
     }
 
@@ -103,7 +103,7 @@ class GridSaveUi(activity: Activity) {
             MaterialAlertDialogBuilder(activity)
                 .setTitle(R.string.save_grid_positions)
                 .setMessage(
-                    activity.getString(R.string.grid_save_confirm, count, p!!.getInt("pages", 0))
+                    activity.getString(R.string.grid_save_confirm, count, p!!.getInt("pages", 0)),
                 )
                 .setNegativeButton(android.R.string.cancel, null)
                 .setPositiveButton(
@@ -125,7 +125,7 @@ class GridSaveUi(activity: Activity) {
                 if ("changed" == error) R.string.grid_save_changed
                 else if ("unavailable" == error || "timeout" == error)
                     R.string.grid_save_unavailable
-                else R.string.grid_save_failed
+                else R.string.grid_save_failed,
             )
         }
     }

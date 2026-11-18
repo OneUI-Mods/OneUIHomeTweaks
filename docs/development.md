@@ -6,7 +6,7 @@
 
 ## ビルド
 
-JDK 21とAndroid SDK 37を用意し、Android Studioでプロジェクトを開きます。チェックアウト先のフォルダ名には依存しません。
+JDK 27とAndroid SDK 37を用意し、Android Studioでプロジェクトを開きます。チェックアウト先のフォルダ名には依存しません。
 
 ```sh
 ./gradlew :app:assembleRelease :app:testDebugUnitTest :app:lintRelease
@@ -132,3 +132,5 @@ See [repair contracts and diagnostic schema](home-layout-diagnostics.md). Keep n
 Android 16の従来のTaskリストと、SamsungのShellグループ取得を独立に扱います。後者の実装名は固定せず、既存のモジュール内部DexKitキャッシュを使い、Binderのdescriptorと履歴取得ログの両方が一意に一致した実装だけを使います。探索は初回・対象またはモジュールの更新後だけで、コールバック内では探索しません。見つからない経路は未対応として記録し、他機能は続行します。
 
 初回反映はOne UIホームのプロセス再読み込みのみ。対象Googleアプリ、SystemUI、system_serverへの追加フックやスコープ変更はありません。ON/OFFは既存の設定通知で追従します。
+
+[Build environment / ビルド環境](build-environment.md)

@@ -46,7 +46,7 @@ class QuickPanelActivity : AppCompatActivity() {
         super.onCreate(state)
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false)
         setContentView(R.layout.activity_quick_panel)
-        val root = findViewById<View?>(R.id.qs_root)
+        val root = requireViewById<View>(R.id.qs_root)
         ViewCompat.setOnApplyWindowInsetsListener(
             root,
             OnApplyWindowInsetsListener { v: View?, insets: WindowInsetsCompat? ->
@@ -56,10 +56,10 @@ class QuickPanelActivity : AppCompatActivity() {
             },
         )
         ViewCompat.requestApplyInsets(root)
-        val toolbar = findViewById<MaterialToolbar?>(R.id.qs_toolbar)
+        val toolbar = requireViewById<MaterialToolbar>(R.id.qs_toolbar)
         toolbar.setNavigationOnClickListener(OnClickListener { v: View? -> finish() })
         prefs = getSharedPreferences(ConfigProvider.PREFS, Context.MODE_PRIVATE)
-        preview = findViewById<QuickPanelPreview?>(R.id.qs_preview)
+        preview = requireViewById<QuickPanelPreview>(R.id.qs_preview)
         val ids = intArrayOf(R.id.qs_brightness, R.id.qs_volume, R.id.qs_dark, R.id.qs_sound)
         val values =
             intArrayOf(
@@ -70,20 +70,20 @@ class QuickPanelActivity : AppCompatActivity() {
             )
         for (i in 0..3) {
             val index: Int = i
-            val slider = findViewById<Slider?>(ids[i])
+            val slider = requireViewById<Slider>(ids[i])
             sliders[i] = slider
-            labels[i] = findViewById<TextView?>(values[i])
+            labels[i] = requireViewById<TextView>(values[i])
             slider.setValueFrom(QuickPanelPolicy.MIN.toFloat())
             slider.setValueTo(QuickPanelPolicy.MAX.toFloat())
             slider.setStepSize(QuickPanelPolicy.STEP.toFloat())
             slider.setValue(
-                QuickPanelPolicy.percent(prefs!!.getInt(QuickPanelPolicy.KEYS!![i], 100)).toFloat()
+                QuickPanelPolicy.percent(prefs!!.getInt(QuickPanelPolicy.KEYS!![i], 100)).toFloat(),
             )
             slider.setLabelFormatter(
-                LabelFormatter { value: Float -> getString(R.string.qs_percent, value.toInt()) }
+                LabelFormatter { value: Float -> getString(R.string.qs_percent, value.toInt()) },
             )
             slider.addOnChangeListener(
-                OnChangeListener { s: Slider?, value: Float, user: Boolean -> updateLabels() }
+                OnChangeListener { s: Slider?, value: Float, user: Boolean -> updateLabels() },
             )
             slider.addOnSliderTouchListener(
                 object : OnSliderTouchListener {
@@ -95,27 +95,27 @@ class QuickPanelActivity : AppCompatActivity() {
                         dragging.remove(s)
                         save(index)
                     }
-                }
+                },
             )
             // Keyboard and accessibility increments do not dispatch touch-end callbacks.
             slider.addOnChangeListener(
                 OnChangeListener { s: Slider?, value: Float, user: Boolean ->
                     if (user && !dragging.contains(s)) save(index)
-                }
+                },
             )
         }
-        val master = findViewById<MaterialSwitch?>(R.id.qs_enabled)
+        val master = requireViewById<MaterialSwitch>(R.id.qs_enabled)
         master.setChecked(prefs!!.getBoolean("qs_enabled", false))
         master.setOnCheckedChangeListener(
             OnCheckedChangeListener { button: CompoundButton?, checked: Boolean ->
                 prefs!!.edit().putBoolean("qs_enabled", checked).apply()
                 notifyConfig()
                 setControls(checked)
-            }
+            },
         )
-        val design = findViewById<MaterialSwitch?>(R.id.qs_legacy_design)
+        val design = requireViewById<MaterialSwitch>(R.id.qs_legacy_design)
         design.setChecked(
-            Build.VERSION.SDK_INT == 36 || prefs!!.getBoolean("qs_legacy_design", false)
+            Build.VERSION.SDK_INT == 36 || prefs!!.getBoolean("qs_legacy_design", false),
         )
         design.setEnabled(Build.VERSION.SDK_INT == 37)
         design.setOnCheckedChangeListener(
@@ -124,16 +124,16 @@ class QuickPanelActivity : AppCompatActivity() {
                 notifyConfig()
                 setControls(master.isChecked())
                 updateLabels()
-            }
+            },
         )
-        findViewById<View?>(R.id.qs_legacy_preset)
+        requireViewById<View>(R.id.qs_legacy_preset)
             .setOnClickListener(
-                OnClickListener { v: View? -> applySizes(intArrayOf(110, 110, 105, 105)) }
+                OnClickListener { v: View? -> applySizes(intArrayOf(110, 110, 105, 105)) },
             )
         setControls(master.isChecked())
-        findViewById<View?>(R.id.qs_reset)
+        requireViewById<View>(R.id.qs_reset)
             .setOnClickListener(
-                OnClickListener { v: View? -> applySizes(intArrayOf(100, 100, 100, 100)) }
+                OnClickListener { v: View? -> applySizes(intArrayOf(100, 100, 100, 100)) },
             )
         updateLabels()
     }
@@ -163,12 +163,12 @@ class QuickPanelActivity : AppCompatActivity() {
 
     private fun setControls(enabled: Boolean) {
         for (slider in sliders) slider!!.setEnabled(enabled)
-        findViewById<View?>(R.id.qs_legacy_design)
+        requireViewById<View>(R.id.qs_legacy_design)
             .setEnabled(enabled && Build.VERSION.SDK_INT == 37)
-        findViewById<View?>(R.id.qs_legacy_preset)
+        requireViewById<View>(R.id.qs_legacy_preset)
             .setEnabled(
                 enabled &&
-                    (Build.VERSION.SDK_INT == 36 || prefs!!.getBoolean("qs_legacy_design", false))
+                    (Build.VERSION.SDK_INT == 36 || prefs!!.getBoolean("qs_legacy_design", false)),
             )
     }
 
@@ -194,7 +194,7 @@ class QuickPanelActivity : AppCompatActivity() {
                 "CRASH_GUARD" -> R.string.qs_unavailable
                 else -> R.string.qs_waiting
             }
-        (findViewById<View?>(R.id.qs_status) as TextView).setText(message)
+        (requireViewById<View>(R.id.qs_status) as TextView).setText(message)
     }
 
     override fun onStart() {

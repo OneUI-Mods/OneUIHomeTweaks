@@ -107,7 +107,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(state)
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false)
         setContentView(R.layout.activity_main)
-        root = findViewById<View?>(R.id.root)
+        root = requireViewById<View>(R.id.root)
         ViewCompat.setOnApplyWindowInsetsListener(
             root!!,
             OnApplyWindowInsetsListener { view: View?, insets: WindowInsetsCompat? ->
@@ -125,11 +125,11 @@ class MainActivity : AppCompatActivity() {
         controller.setAppearanceLightNavigationBars(!night)
         prefs = getSharedPreferences(ConfigProvider.PREFS, Context.MODE_PRIVATE)
         if (prefs!!.contains("recents_portrait")) prefs!!.edit().remove("recents_portrait").apply()
-        findViewById<View?>(R.id.layout_diagnostics)
+        requireViewById<View>(R.id.layout_diagnostics)
             .setOnClickListener(
                 android.view.View.OnClickListener { view: View? ->
                     startActivity(Intent(this, HomeLayoutActivity::class.java))
-                }
+                },
             )
         for (i in modeIds!!.indices) {
             val index: Int = i
@@ -154,24 +154,24 @@ class MainActivity : AppCompatActivity() {
             val fallback: Int = if (i == 0) ColorPolicy.LOCAL else 0
             modes[i] = prefs!!.getInt(keys!![i], fallback)
             if (modes[i] < 0 || modes[i] >= labels!!.size) modes[i] = 0
-            val selector = findViewById<MaterialAutoCompleteTextView?>(modeIds!![i])
+            val selector = requireViewById<MaterialAutoCompleteTextView>(modeIds!![i])
             selector.setAdapter<ArrayAdapter<String?>?>(
-                ArrayAdapter<String?>(this, android.R.layout.simple_list_item_1, labels!!)
+                ArrayAdapter<String?>(this, android.R.layout.simple_list_item_1, labels!!),
             )
             selector.setText(labels!![modes[i]], false)
             selector.setOnItemClickListener(
                 OnItemClickListener { p: AdapterView<*>?, v: View?, position: Int, id: Long ->
                     modes[index] = position
                     prefs!!.edit().putInt(keys!![index], position).apply()
-                    val preview = findViewById<View?>(R.id.appearance_preview)
+                    val preview = requireViewById<View>(R.id.appearance_preview)
                     if (preview != null) preview.invalidate()
                     notifyConfig()
-                }
+                },
             )
         }
         for (i in switches!!.indices) {
             val key: String? = switches!![i]
-            val control = findViewById<MaterialSwitch?>(switchIds!![i])
+            val control = requireViewById<MaterialSwitch>(switchIds!![i])
             control.setChecked(
                 prefs!!.getBoolean(
                     key,
@@ -179,16 +179,16 @@ class MainActivity : AppCompatActivity() {
                         !key!!.startsWith("recents_") &&
                         (key != "clock_date_left") &&
                         (key != "diy_icon_grid"),
-                )
+                ),
             )
             control.setOnCheckedChangeListener(
                 OnCheckedChangeListener { button: CompoundButton?, checked: Boolean ->
                     prefs!!.edit().putBoolean(key, checked).apply()
                     notifyConfig()
-                }
+                },
             )
         }
-        val focusMode = findViewById<MaterialAutoCompleteTextView?>(R.id.recents_focus_mode)
+        val focusMode = requireViewById<MaterialAutoCompleteTextView>(R.id.recents_focus_mode)
         val focusChoices =
             arrayOf<String?>(
                 getString(R.string.focus_native),
@@ -212,16 +212,16 @@ class MainActivity : AppCompatActivity() {
                         break
                     }
                 }
-            }
+            },
         )
         focusMode.setOnClickListener(
             android.view.View.OnClickListener { v: View? ->
                 focusAdapter
                     .getFilter()
                     .filter(null, FilterListener { count: Int -> focusMode.showDropDown() })
-            }
+            },
         )
-        findViewById<View?>(R.id.focus_activate)
+        requireViewById<View>(R.id.focus_activate)
             .setOnClickListener(android.view.View.OnClickListener { v: View? -> applyFocus() })
         val infoViews =
             intArrayOf(
@@ -253,7 +253,7 @@ class MainActivity : AppCompatActivity() {
         for (i in infoViews.indices) {
             val title: Int = infoTitles[i]
             val message: Int = infoMessages[i]
-            findViewById<View?>(infoViews[i])
+            requireViewById<View>(infoViews[i])
                 .setOnClickListener(
                     android.view.View.OnClickListener { v: View? ->
                         MaterialAlertDialogBuilder(this)
@@ -261,17 +261,17 @@ class MainActivity : AppCompatActivity() {
                             .setMessage(message)
                             .setPositiveButton(R.string.close, null)
                             .show()
-                    }
+                    },
                 )
         }
 
-        findViewById<View?>(R.id.quick_panel_settings)
+        requireViewById<View>(R.id.quick_panel_settings)
             .setOnClickListener(
                 android.view.View.OnClickListener { v: View? ->
                     startActivity(Intent(this, QuickPanelActivity::class.java))
-                }
+                },
             )
-        val navigation = findViewById<BottomNavigationView?>(R.id.navigation)
+        val navigation = requireViewById<BottomNavigationView>(R.id.navigation)
         val pageIds = intArrayOf(R.id.page_0, R.id.page_1, R.id.page_2, R.id.page_3)
         val navigationIds =
             intArrayOf(R.id.nav_home, R.id.nav_appearance, R.id.nav_status, R.id.nav_settings)
@@ -279,20 +279,20 @@ class MainActivity : AppCompatActivity() {
             OnItemSelectedListener { item: MenuItem? ->
                 for (i in pageIds.indices) {
                     val selected: Boolean = item!!.getItemId() == navigationIds[i]
-                    findViewById<View?>(pageIds[i])
+                    requireViewById<View>(pageIds[i])
                         .setVisibility(if (selected) View.VISIBLE else View.GONE)
                     if (selected) prefs!!.edit().putInt("selected_tab", i).apply()
                 }
                 true
-            }
+            },
         )
         val selected = max(0, min(3, prefs!!.getInt("selected_tab", 0)))
         navigation.setSelectedItemId(navigationIds[selected])
-        findViewById<View?>(R.id.restart_home)
+        requireViewById<View>(R.id.restart_home)
             .setOnClickListener(
-                android.view.View.OnClickListener { v: View? -> restartHome(v as MaterialButton) }
+                android.view.View.OnClickListener { v: View? -> restartHome(v as MaterialButton) },
             )
-        findViewById<View?>(R.id.reload_targets)
+        requireViewById<View>(R.id.reload_targets)
             .setOnClickListener(
                 android.view.View.OnClickListener { v: View? ->
                     MaterialAlertDialogBuilder(this)
@@ -306,7 +306,7 @@ class MainActivity : AppCompatActivity() {
                                 MaterialAlertDialogBuilder(this)
                                     .setTitle(
                                         if (index == 0) R.string.reload_volume
-                                        else R.string.reload_preview
+                                        else R.string.reload_preview,
                                     )
                                     .setMessage(R.string.reload_warning)
                                     .setNegativeButton(android.R.string.cancel, null)
@@ -321,9 +321,9 @@ class MainActivity : AppCompatActivity() {
                             },
                         )
                         .show()
-                }
+                },
             )
-        findViewById<View?>(R.id.clear_guard)
+        requireViewById<View>(R.id.clear_guard)
             .setOnClickListener(
                 android.view.View.OnClickListener { v: View? ->
                     MaterialAlertDialogBuilder(this)
@@ -337,9 +337,9 @@ class MainActivity : AppCompatActivity() {
                             },
                         )
                         .show()
-                }
+                },
             )
-        findViewById<View?>(R.id.help)
+        requireViewById<View>(R.id.help)
             .setOnClickListener(
                 android.view.View.OnClickListener { v: View? ->
                     MaterialAlertDialogBuilder(this)
@@ -347,20 +347,20 @@ class MainActivity : AppCompatActivity() {
                         .setMessage(R.string.help_text)
                         .setPositiveButton(R.string.close, null)
                         .show()
-                }
+                },
             )
-        findViewById<View?>(R.id.language)
+        requireViewById<View>(R.id.language)
             .setOnClickListener(android.view.View.OnClickListener { v: View? -> language() })
-        findViewById<View?>(R.id.licenses)
+        requireViewById<View>(R.id.licenses)
             .setOnClickListener(
                 android.view.View.OnClickListener { v: View? ->
                     startActivity(Intent(this, LicensesActivity::class.java))
-                }
+                },
             )
         getContentResolver().registerContentObserver(ConfigProvider.STATUS_URI!!, false, reports)
         gridSave = GridSaveUi(this)
         val uiPrefs = getSharedPreferences("app_ui", Context.MODE_PRIVATE)
-        findViewById<View?>(R.id.app_theme)
+        requireViewById<View>(R.id.app_theme)
             .setOnClickListener(
                 android.view.View.OnClickListener { v: View? ->
                     val themeModes =
@@ -392,17 +392,17 @@ class MainActivity : AppCompatActivity() {
                         )
                         .setNegativeButton(android.R.string.cancel, null)
                         .show()
-                }
+                },
             )
-        val dynamic = findViewById<MaterialSwitch?>(R.id.dynamic_ui)
+        val dynamic = requireViewById<MaterialSwitch>(R.id.dynamic_ui)
         dynamic.setChecked(uiPrefs.getBoolean("dynamic", false))
         dynamic.setOnCheckedChangeListener(
             OnCheckedChangeListener { b: CompoundButton?, on: Boolean ->
                 uiPrefs.edit().putBoolean("dynamic", on).apply()
                 recreate()
-            }
+            },
         )
-        findViewById<View?>(R.id.open_developer_options)
+        requireViewById<View>(R.id.open_developer_options)
             .setOnClickListener(
                 android.view.View.OnClickListener { v: View? ->
                     try {
@@ -410,9 +410,9 @@ class MainActivity : AppCompatActivity() {
                     } catch (error: ActivityNotFoundException) {
                         snack(R.string.reload_failed)
                     }
-                }
+                },
             )
-        val cards = findViewById<LinearLayout?>(R.id.status_cards)
+        val cards = requireViewById<LinearLayout>(R.id.status_cards)
         statusCards = arrayOfNulls<HookStatusCard>(10)
         val titles =
             intArrayOf(
@@ -435,7 +435,7 @@ class MainActivity : AppCompatActivity() {
         if (!MainActivity.rootRequested) {
             MainActivity.rootRequested = true
             requestRoot()
-        } else (findViewById<View?>(R.id.root_status) as TextView).setText(R.string.restart_note)
+        } else (requireViewById<View>(R.id.root_status) as TextView).setText(R.string.restart_note)
     }
 
     private fun notifyConfig() {
@@ -459,7 +459,7 @@ class MainActivity : AppCompatActivity() {
                     Log.w("OneUIHomeTweaks", "Focus backend unavailable", error)
                 }
                 runOnUiThread(Runnable { this.showStatus() })
-            }
+            },
         )
     }
 
@@ -470,7 +470,7 @@ class MainActivity : AppCompatActivity() {
                 prefs!!.getBoolean("home_enabled", true) &&
                 prefs!!.getBoolean("recents_live_tile", false) &&
                 RecentsFocusPolicy.mode(prefs!!.getInt("recents_focus_mode", 0)) != 0
-        findViewById<View?>(R.id.focus_activate).setEnabled(on)
+        requireViewById<View>(R.id.focus_activate).setEnabled(on)
         statusCards!![8]!!.update(
             if (on) R.string.status_unconfirmed else R.string.status_off,
             if (on) "" else "OFF",
@@ -512,9 +512,9 @@ class MainActivity : AppCompatActivity() {
                             true,
                             getString(R.string.recents_focus_note),
                         )
-                    }
+                    },
                 )
-            }
+            },
         )
     }
 
@@ -783,7 +783,7 @@ class MainActivity : AppCompatActivity() {
                     prefs!!.edit().putString("language", tags[index]).apply()
                     d!!.dismiss()
                     AppCompatDelegate.setApplicationLocales(
-                        LocaleListCompat.forLanguageTags(tags[index])
+                        LocaleListCompat.forLanguageTags(tags[index]),
                     )
                 },
             )
@@ -802,12 +802,12 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread(
                     Runnable {
                         if (!isDestroyed())
-                            (findViewById<View?>(R.id.root_status) as TextView).setText(
-                                if (result) R.string.root_granted else R.string.root_missing
+                            (requireViewById<View>(R.id.root_status) as TextView).setText(
+                                if (result) R.string.root_granted else R.string.root_missing,
                             )
-                    }
+                    },
                 )
-            }
+            },
         )
     }
 
@@ -829,9 +829,9 @@ class MainActivity : AppCompatActivity() {
                         button.setEnabled(true)
                         button.setText(R.string.restart_home)
                         snack(if (success) R.string.restart_done else R.string.restart_failed)
-                    }
+                    },
                 )
-            }
+            },
         )
     }
 
@@ -847,9 +847,9 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread(
                     Runnable {
                         snack(if (success) R.string.reload_done else R.string.reload_failed)
-                    }
+                    },
                 )
-            }
+            },
         )
     }
 
@@ -857,7 +857,7 @@ class MainActivity : AppCompatActivity() {
         val cmd = StringBuilder("rm -f")
         for (root in arrayOf<String>("/data/user/0/", "/data/user_de/0/")) for (host in
             ConfigProvider.HOSTS!!) for (suffix in arrayOf<String>("", ".bak", ".new")) cmd.append(
-                ' '
+                ' ',
             )
             .append(root)
             .append(host)
@@ -877,11 +877,11 @@ class MainActivity : AppCompatActivity() {
                             showStatus()
                         }
                         snack(
-                            if (success) R.string.guard_reset_done else R.string.guard_reset_failed
+                            if (success) R.string.guard_reset_done else R.string.guard_reset_failed,
                         )
-                    }
+                    },
                 )
-            }
+            },
         )
     }
 

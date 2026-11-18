@@ -106,9 +106,9 @@ object GridSnapPlan {
         // icons.
         pending.sortWith(
             Comparator.comparingInt<GridSnapPlan.Item?>(
-                    ToIntFunction { i: GridSnapPlan.Item? -> -(i!!.spanX * i!!.spanY) }
+                    ToIntFunction { i: GridSnapPlan.Item? -> -(i!!.spanX * i!!.spanY) },
                 )
-                .thenComparingInt(GridSnapPlan.Item::id)
+                .thenComparingInt { item -> checkNotNull(item).id },
         )
         for (item in pending) {
             var best: GridSnapPlan.Slot? = null

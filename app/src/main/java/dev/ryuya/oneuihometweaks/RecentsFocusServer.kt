@@ -31,7 +31,7 @@ import kotlin.math.log
 
 /* Experimental per-process Samsung core-state delivery. No app-process hooks or global setters. */
 @SuppressLint(
-    "NewApi"
+    "NewApi",
 ) // Discovery is gated to independently reviewed, exact firmware fingerprints.
 class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
     private val atm: Any
@@ -295,14 +295,14 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
                             }
                             try {
                                 return@synchronized chain!!.proceed(
-                                    chain!!.getArgs().toTypedArray()
+                                    chain!!.getArgs().toTypedArray(),
                                 )
                             } finally {
                                 undo(changes)
                             }
                         }
                     },
-                )
+                ),
             )
             val wms = RecentsFocusServer.get(atm, "mWindowManager")
             val focus =
@@ -328,7 +328,7 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
                             }
                         }
                     },
-                )
+                ),
             )
             val recordType =
                 DexSymbols.findClass("com.android.server.wm.ActivityRecord", false, loader)
@@ -347,7 +347,7 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
                             }
                         }
                     },
-                )
+                ),
             )
             installed = true
         } catch (error: Throwable) {
@@ -419,7 +419,7 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
                     synchronized(lock) {
                         if (active == next) restore("owner/provider/source died")
                     }
-                }
+                },
             )
         }
         try {
@@ -475,7 +475,7 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
         return Bundle(
             core.javaClass
                 .compatibleMethod("getCoreStates", Int::class.javaPrimitiveType)
-                .invoke(core, 0) as Bundle?
+                .invoke(core, 0) as Bundle?,
         )
     }
 
@@ -529,7 +529,7 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
     private fun unlink(old: RecentsFocusServer.Active) {
         if (old.timeout != null) handler.removeCallbacks(old!!.timeout!!)
         if (old.died != null)
-            for (binder in List.of<IBinder?>(old.owner, old.anchor, old.process)) try {
+            for (binder in listOfNotNull(old.owner, old.anchor, old.process)) try {
                 binder.unlinkToDeath(old!!.died!!, 0)
             } catch (ignored: Throwable) {}
     }
@@ -619,7 +619,7 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
                                     ": " +
                                     error.message +
                                     " flags=" +
-                                    p.args[3])
+                                    p.args[3]),
                             )
                         }
                         p.setResult(true)

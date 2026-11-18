@@ -121,10 +121,10 @@ class QuickPanelPreviewAndroid17(
         modifier = load("androidx.compose.ui.Modifier")!!.compatibleField("Companion").get(null)
         scopeClass =
             (load(
-                "com.android.systemui.samsung.quicksetting.ui.base.spannablegrid.SpannableGridTileScopeImpl"
+                "com.android.systemui.samsung.quicksetting.ui.base.spannablegrid.SpannableGridTileScopeImpl",
             ))!!
         scopeConstructor =
-            Arrays.stream<Constructor<*>?>(scopeClass.getConstructors())
+            Arrays.stream<Constructor<*>>(scopeClass.getConstructors())
                 .filter { c: Constructor<*>? -> c!!.getParameterCount() == 13 }
                 .findFirst()
                 .orElseThrow()
@@ -209,7 +209,7 @@ class QuickPanelPreviewAndroid17(
         }
         val recomposer = load("androidx.compose.runtime.Recomposer")
         val initial =
-            Arrays.stream<Method?>(recomposer!!.getDeclaredMethods())
+            Arrays.stream<Method>(recomposer!!.getDeclaredMethods())
                 .filter { m: Method? -> m!!.compatibleName() == "composeInitial\$runtime" }
                 .findFirst()
                 .orElseThrow()
@@ -236,8 +236,8 @@ class QuickPanelPreviewAndroid17(
                 "QuickTile",
             )) {
             val method =
-                Arrays.stream<Method?>(
-                        load(QuickPanelPreviewAndroid17.TILES + name + "Kt")!!.getDeclaredMethods()
+                Arrays.stream<Method>(
+                        load(QuickPanelPreviewAndroid17.TILES + name + "Kt")!!.getDeclaredMethods(),
                     )
                     .filter { m: Method? ->
                         m!!.compatibleName() == name &&
@@ -259,7 +259,7 @@ class QuickPanelPreviewAndroid17(
                             val c: Any? = p.args[if (name == "QuickTile") 5 else 3]
                             val viewKey =
                                 load(
-                                        "androidx.compose.ui.platform.AndroidCompositionLocals_androidKt"
+                                        "androidx.compose.ui.platform.AndroidCompositionLocals_androidKt",
                                     )!!
                                     .compatibleField("LocalView")
                                     .get(null)
@@ -272,7 +272,7 @@ class QuickPanelPreviewAndroid17(
                             if (map !== lastLocalMap || configuration != lastConfiguration) {
                                 val scene =
                                     load(
-                                        "com.android.systemui.samsung.quicksetting.ui.SecQuickSettingSceneKt"
+                                        "com.android.systemui.samsung.quicksetting.ui.SecQuickSettingSceneKt",
                                     )
                                 sceneViewModel =
                                     consume.invoke(
@@ -302,7 +302,7 @@ class QuickPanelPreviewAndroid17(
                             changed.run()
                         } catch (error: Throwable) {
                             HookEntry.log(
-                                "QUICK_PANEL_PREVIEW_SOURCE " + error.javaClass.getSimpleName()
+                                "QUICK_PANEL_PREVIEW_SOURCE " + error.javaClass.getSimpleName(),
                             )
                         }
                     }
@@ -340,7 +340,7 @@ class QuickPanelPreviewAndroid17(
             !(!java.lang.Float.isFinite(cellWidth) ||
                 cellWidth <= 0 ||
                 !java.lang.Float.isFinite(cellHeight) ||
-                cellHeight <= 0)
+                cellHeight <= 0),
         ) {
             "Invalid native cell size"
         }
@@ -370,7 +370,7 @@ class QuickPanelPreviewAndroid17(
                     )
                 row.setScaleX(fit)
                 row.setScaleY(fit)
-            }
+            },
         )
         val columns = HashMap<Int?, Array<Any?>?>()
         for (entry in adapter.previewEntries()!!) {
@@ -464,10 +464,10 @@ class QuickPanelPreviewAndroid17(
                                                 error.cause,
                                             )
                                         }
-                                    }
+                                    },
                                 )
                             provider.invoke(null, sampleLocals, body, c, 0)
-                        }
+                        },
                     )
                 setContent.invoke(view, content)
                 column.addView(
@@ -510,7 +510,7 @@ class QuickPanelPreviewAndroid17(
             boundTile = cached.model
         else {
             val copy =
-                Arrays.stream<Method?>(tileModel.javaClass.getDeclaredMethods())
+                Arrays.stream<Method>(tileModel.javaClass.getDeclaredMethods())
                     .filter { m: Method? ->
                         m!!.compatibleName().startsWith("copy-") && m!!.getParameterCount() == 5
                     }
@@ -525,7 +525,7 @@ class QuickPanelPreviewAndroid17(
         if (cached != null && cached.source === source && cached.tile === boundTile)
             return cached.model
         val copy =
-            Arrays.stream<Method?>(source.javaClass.getDeclaredMethods())
+            Arrays.stream<Method>(source.javaClass.getDeclaredMethods())
                 .filter { m: Method? ->
                     m!!.compatibleName().startsWith("copy-") && m!!.getParameterCount() == 2
                 }

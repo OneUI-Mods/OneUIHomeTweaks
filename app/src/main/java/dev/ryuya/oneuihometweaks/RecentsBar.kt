@@ -55,7 +55,7 @@ class RecentsBar {
                     .getReturnType() != Void.TYPE ||
                 controllerClass!!
                     .compatibleDeclaredMethod("hide", Int::class.javaPrimitiveType)
-                    .getReturnType() != Void.TYPE)
+                    .getReturnType() != Void.TYPE),
         ) {
             "Recents insets contract changed"
         }
@@ -97,15 +97,15 @@ class RecentsBar {
                                     !a.isDestroyed() &&
                                     a.hasWindowFocus() &&
                                     shouldHide(a) &&
-                                    !a.getSystemService<KeyguardManager?>(
-                                            KeyguardManager::class.java
+                                    (a.getSystemService<KeyguardManager?>(
+                                            KeyguardManager::class.java,
                                         )
-                                        .isKeyguardLocked()
+                                        ?.isKeyguardLocked() == false)
                             )
                                 p.setResult(true)
                         }
                     },
-                )
+                ),
             )
             for (show in booleanArrayOf(true, false)) hooks.add(
                 ModernHook.findAndHookMethod(
@@ -129,7 +129,7 @@ class RecentsBar {
                                 p.args[0] = p.args[0] as Int and Type.navigationBars().inv()
                         }
                     },
-                )
+                ),
             )
             hooks.add(
                 ModernHook.findAndHookMethod(
@@ -140,7 +140,7 @@ class RecentsBar {
                             if (!p.hasThrowable()) apply(p.thisObject as Activity)
                         }
                     },
-                )
+                ),
             )
             hooks.add(
                 ModernHook.findAndHookMethod(
@@ -155,7 +155,7 @@ class RecentsBar {
                                 gestureOwner = WeakReference<Activity?>(null)
                         }
                     },
-                )
+                ),
             )
             hooks.add(
                 ModernHook.findAndHookMethod(
@@ -167,7 +167,7 @@ class RecentsBar {
                             if (!p.hasThrowable()) apply(p.thisObject as Activity)
                         }
                     },
-                )
+                ),
             )
             val observer: ContentObserver =
                 object : ContentObserver(Handler(Looper.getMainLooper())) {
@@ -272,7 +272,7 @@ class RecentsBar {
             ownRequest!!.set(true)
             try {
                 controller.setSystemBarsBehavior(
-                    WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE,
                 )
                 controller.hide(Type.navigationBars())
             } finally {
@@ -293,7 +293,7 @@ class RecentsBar {
             hooks.clear()
             for (entry in
                 ArrayList<MutableMap.MutableEntry<WindowInsetsController?, RecentsBar.State?>?>(
-                    states.entries
+                    states.entries,
                 )) {
                 try {
                     restore(entry!!.key!!, entry!!.value!!)

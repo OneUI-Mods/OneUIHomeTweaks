@@ -116,7 +116,7 @@ class DiyGridBridge {
             owners.add(entry.value)
         }
         check(owners.size == 1) { "Ambiguous home model" }
-        val state = owners.iterator().next()
+        val state = checkNotNull(owners.iterator().next()) { "Home grid owner unavailable" }
         state.capture()
         check(state.valid()) { "Home grid geometry is not ready" }
         state.dirty = true
@@ -300,12 +300,12 @@ class DiyGridBridge {
         if (starting || ready || failed || view == null) return
         starting = true
         report("loading")
+        val host = view.getContext()
         val loader = view.javaClass.getClassLoader()
         // DEX inspection and deoptimization must not block Launcher startup or a touch callback.
         Thread(
                 Runnable {
                     try {
-                        val host = view.getContext()
                         val apk =
                             host
                                 .getPackageManager()

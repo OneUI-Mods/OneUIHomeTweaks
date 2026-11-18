@@ -117,7 +117,7 @@ class QuickPanelNativePreview(
             main.post(
                 Runnable {
                     if (owner == client) close()
-                }
+                },
             )
             reply!!.writeNoException()
             return true
@@ -131,7 +131,7 @@ class QuickPanelNativePreview(
                 width <= 0 ||
                 height <= 0 ||
                 width > QuickPanelPreviewIpc.MAX_PIXELS ||
-                height > QuickPanelPreviewIpc.MAX_PIXELS)
+                height > QuickPanelPreviewIpc.MAX_PIXELS),
         ) {
             "Invalid surface geometry"
         }
@@ -142,8 +142,13 @@ class QuickPanelNativePreview(
                     close()
                     if (failed || !renderer.ready() || !owner.isBinderAlive()) return@Callable null
                     val display =
-                        context
-                            .getSystemService<DisplayManager?>(DisplayManager::class.java)
+                        checkNotNull(
+                                context.getSystemService<DisplayManager?>(
+                                    DisplayManager::class.java,
+                                ),
+                            ) {
+                                "DisplayManager unavailable"
+                            }
                             .getDisplay(displayId)
                     requireNotNull(display) { "Missing display" }
                     client = owner
@@ -151,7 +156,7 @@ class QuickPanelNativePreview(
                         main.post(
                             Runnable {
                                 if (owner == client) close()
-                            }
+                            },
                         )
                     }
                     owner.linkToDeath(death!!, 0)
@@ -162,7 +167,7 @@ class QuickPanelNativePreview(
                             }
                         }
                     root!!.setImportantForAccessibility(
-                        View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+                        View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS,
                     )
                     try {
                         renderer.populate(root)
@@ -199,7 +204,7 @@ class QuickPanelNativePreview(
                         close()
                         throw error
                     }
-                }
+                },
             )
         main.post(task)
         var result: SurfacePackage? = null
@@ -213,7 +218,7 @@ class QuickPanelNativePreview(
             main.post(
                 Runnable {
                     if (owner == client) close()
-                }
+                },
             )
             state = "UNAVAILABLE"
             HookEntry.log("QUICK_PANEL_PREVIEW_ERROR " + error)

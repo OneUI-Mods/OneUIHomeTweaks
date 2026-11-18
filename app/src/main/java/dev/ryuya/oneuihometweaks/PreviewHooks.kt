@@ -101,7 +101,7 @@ class PreviewHooks {
                                 .addOnWindowFocusChangeListener(
                                     OnWindowFocusChangeListener { focus: Boolean ->
                                         if (focus) safeStart(view!!)
-                                    }
+                                    },
                                 )
                         }
                     }
@@ -202,13 +202,13 @@ class PreviewHooks {
                 }
 
                 override fun onActivitySaveInstanceState(a: Activity, b: Bundle) {}
-            }
+            },
         )
         worker!!.post(Runnable { this.refresh() })
         HookEntry.log(
             "PREVIEW_HOOK_READY view=" +
                 previewClass!!.getName() +
-                "; existing home wallpaper mirror"
+                "; existing home wallpaper mirror",
         )
     }
 
@@ -237,7 +237,7 @@ class PreviewHooks {
                             if (next) "ACTIVE" else "OFF",
                             "Existing wallpaper mirror " + (if (next) "ready" else "disabled"),
                         )
-                    }
+                    },
                 )
             }
         } catch (t: Throwable) {
@@ -268,7 +268,9 @@ class PreviewHooks {
         )
             return
         if (
-            app!!.getSystemService<KeyguardManager?>(KeyguardManager::class.java).isKeyguardLocked()
+            (app!!
+                .getSystemService<KeyguardManager?>(KeyguardManager::class.java)
+                ?.isKeyguardLocked() != false)
         )
             return
         val a = PreviewHooks.activity(view.getContext())
@@ -339,7 +341,7 @@ class PreviewHooks {
                             } catch (t: Throwable) {
                                 disable(t)
                             }
-                        }
+                        },
                     )
                 } catch (t: Throwable) {
                     main!!.post(Runnable { disable(t) })
@@ -354,8 +356,9 @@ class PreviewHooks {
         val parent: SurfaceControl? = parentSurface!!.invoke(view) as SurfaceControl?
         check(!(parent == null || !parent.isValid())) { "Preview surface unavailable" }
         val source =
-            app!!
-                .getSystemService<WindowManager?>(WindowManager::class.java)
+            checkNotNull(app!!.getSystemService<WindowManager?>(WindowManager::class.java)) {
+                    "WindowManager unavailable"
+                }
                 .getMaximumWindowMetrics()
                 .getBounds()
         check(!(source.width() == 0 || source.height() == 0)) { "Unknown source size" }

@@ -293,8 +293,13 @@ class HomeLayoutGuard {
                             val valid = HomeLayoutGuard.consistent(bounds!!, supplied)
                             if (!valid && enabled && !stopped) {
                                 val current =
-                                    context!!
-                                        .getSystemService<WindowManager?>(WindowManager::class.java)
+                                    checkNotNull(
+                                            context!!.getSystemService<WindowManager?>(
+                                                WindowManager::class.java,
+                                            ),
+                                        ) {
+                                            "WindowManager unavailable"
+                                        }
                                         .getCurrentWindowMetrics()
                                 if (
                                     HomeLayoutGuard.same(bounds!!, current.getBounds()) &&
@@ -804,8 +809,11 @@ class HomeLayoutGuard {
     @Throws(ReflectiveOperationException::class)
     private fun metricsValid(context: Context): Boolean {
         val metrics =
-            context
-                .getSystemService<WindowManager?>(WindowManager::class.java)
+            checkNotNull(
+                    context.getSystemService<WindowManager?>(WindowManager::class.java),
+                ) {
+                    "WindowManager unavailable"
+                }
                 .getCurrentWindowMetrics()
         val bounds = configurationBounds(context)
         return HomeLayoutGuard.same(bounds!!, metrics.getBounds()) &&

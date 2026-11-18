@@ -81,11 +81,12 @@ class CrashGuard private constructor(context: Context) {
                 try {
                     val am = context.getSystemService<ActivityManager?>(ActivityManager::class.java)
                     for (exit in
-                        am.getHistoricalProcessExitReasons(
-                            context.getPackageName(),
-                            if (previousPid > 0) previousPid else 0,
-                            8,
-                        )) {
+                        am?.getHistoricalProcessExitReasons(
+                                context.getPackageName(),
+                                if (previousPid > 0) previousPid else 0,
+                                8,
+                            )
+                            .orEmpty()) {
                         if (
                             (context.getPackageName() != exit.getProcessName()) ||
                                 (previousPid > 0 && exit.getPid() != previousPid) ||

@@ -21,10 +21,10 @@ open class QuickPanelPairingTest {
     open fun portraitMergesOnlyCorrectCompanionBelow() {
         val pairs =
             QuickPanelPairing.pairs(
-                List.of<QuickPanelPairing.Cell?>(
+                List.of<QuickPanelPairing.Cell>(
                     cell(0, "BrightBar", "", 3, 4, 1, 2),
                     cell(1, "QuickTile", "UiModeNight", 3, 6, 1, 1),
-                )
+                ),
             )
         assertEquals(List.of(QuickPanelPairing.Pair(0, 1, 3, 4, 1, 3)), pairs)
     }
@@ -33,10 +33,10 @@ open class QuickPanelPairingTest {
     open fun landscapeMergesRightHandButton() {
         val pairs =
             QuickPanelPairing.pairs(
-                List.of<QuickPanelPairing.Cell?>(
+                List.of<QuickPanelPairing.Cell>(
                     cell(0, "VolumeBar", "", 1, 2, 3, 1),
                     cell(1, "QuickTile", "SoundMode", 4, 2, 1, 1),
-                )
+                ),
             )
         assertEquals(List.of(QuickPanelPairing.Pair(0, 1, 1, 2, 4, 1)), pairs)
     }
@@ -45,12 +45,12 @@ open class QuickPanelPairingTest {
     open fun detachedButtonsNeverMoveAcrossOtherItems() {
         assertTrue(
             QuickPanelPairing.pairs(
-                    List.of<QuickPanelPairing.Cell?>(
+                    List.of<QuickPanelPairing.Cell>(
                         cell(0, "BrightBar", "", 3, 4, 1, 2),
                         cell(1, "QuickTile", "UiModeNight", 2, 6, 1, 1),
-                    )
+                    ),
                 )
-                .isEmpty()
+                .isEmpty(),
         )
     }
 
@@ -58,12 +58,12 @@ open class QuickPanelPairingTest {
     open fun wrongButtonNeverAttaches() {
         assertTrue(
             QuickPanelPairing.pairs(
-                    List.of<QuickPanelPairing.Cell?>(
+                    List.of<QuickPanelPairing.Cell>(
                         cell(0, "BrightBar", "", 3, 4, 1, 2),
                         cell(1, "QuickTile", "SoundMode", 3, 6, 1, 1),
-                    )
+                    ),
                 )
-                .isEmpty()
+                .isEmpty(),
         )
     }
 
@@ -71,13 +71,13 @@ open class QuickPanelPairingTest {
     open fun overlappingThirdItemPreventsMerge() {
         assertTrue(
             QuickPanelPairing.pairs(
-                    List.of<QuickPanelPairing.Cell?>(
+                    List.of<QuickPanelPairing.Cell>(
                         cell(0, "VolumeBar", "", 3, 4, 1, 2),
                         cell(1, "QuickTile", "SoundMode", 3, 6, 1, 1),
                         cell(2, "MediaPlayer", "", 3, 6, 2, 2),
-                    )
+                    ),
                 )
-                .isEmpty()
+                .isEmpty(),
         )
     }
 
@@ -85,12 +85,12 @@ open class QuickPanelPairingTest {
     open fun outsideNativeGroupBoundsStaysUnchanged() {
         assertTrue(
             QuickPanelPairing.pairs(
-                    List.of<QuickPanelPairing.Cell?>(
+                    List.of<QuickPanelPairing.Cell>(
                         cell(0, "BrightBar", "", 0, 0, 1, 4),
                         cell(1, "QuickTile", "UiModeNight", 0, 4, 1, 1),
-                    )
+                    ),
                 )
-                .isEmpty()
+                .isEmpty(),
         )
     }
 
@@ -98,19 +98,19 @@ open class QuickPanelPairingTest {
     open fun unplacedItemStaysUnchanged() {
         assertTrue(
             QuickPanelPairing.pairs(
-                    List.of<QuickPanelPairing.Cell?>(
+                    List.of<QuickPanelPairing.Cell>(
                         cell(0, "BrightBar", "", -1, -1, 1, 2),
                         cell(1, "QuickTile", "UiModeNight", 0, 1, 1, 1),
-                    )
+                    ),
                 )
-                .isEmpty()
+                .isEmpty(),
         )
     }
 
     @Test
     open fun sourceCellsAreNeverMutated() {
         val cells =
-            List.of<QuickPanelPairing.Cell?>(
+            List.of<QuickPanelPairing.Cell>(
                 cell(0, "VolumeBar", "", 0, 0, 1, 2),
                 cell(1, "QuickTile", "SoundMode", 0, 2, 1, 1),
             )
