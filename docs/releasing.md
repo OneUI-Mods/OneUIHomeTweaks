@@ -2,7 +2,7 @@
 
 ユーザーへ渡すAPKとGitHub Release添付APKには、継続使用中の配布鍵で署名したrelease variantだけを使います。debug版、未署名APK、検証専用Activityを配布しません。
 
-JDK 21、Android SDK / Build Tools 37.0.0を使用します。鍵はリポジトリ外へ保管し、`ONEUI_SIGNING_PROPERTIES`でその設定ファイルを渡します。秘密の値をコマンド引数・ログ・Gitへ書かないでください。設定項目は[開発手順](development.md)を参照してください。
+JDK 27、Android SDK / Build Tools 37.0.0を使用します。鍵はリポジトリ外へ保管し、`ONEUI_SIGNING_PROPERTIES`でその設定ファイルを渡します。秘密の値をコマンド引数・ログ・Gitへ書かないでください。設定項目は[開発手順](development.md)を参照してください。
 
 1. 意図した変更・公開用リリース文・開発用検証記録をコミットし、作業ツリーをcleanにします。
 2. `python3 tools/package_release.py --source-ref HEAD`を実行します。releaseビルド・JVM試験・Lintに続き、variant、配布証明書、アライメント、API 102、スコープ、検証用Activityの混入を検査します。
