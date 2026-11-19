@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="glass_title">Glass appearance</string>
+    <string name="glass_quick">Quick panel tiles</string>
+    <string name="glass_notifications">Notification panel and cards</string>
+    <string name="glass_volume">Volume panel</string>
+    <string name="glass_home">Home dock and folders</string>
+    <string name="glass_strength">Glass intensity</string>
+    <string name="glass_tint">Glass tint</string>
+    <string name="glass_tint_hint">More transparent on the left, more tinted on the right.</string>
+    <string name="glass_preview">Preview of the three glass surfaces</string>
+    <string name="glass_requirements">Experimental. Reopen the quick panel to apply tile changes. Enable One UI Home or SystemUI in Vector for the surfaces you use.</string>
+    <string name="glass_preview_only">Preview only on this device. The live effect requires SM-S948Q with One UI 9 build BZI9.</string>
+    <string name="glass_status_line">%1$s · %2$s</string>
+    <string name="glass_state_off">Off</string>
+    <string name="glass_state_master_off">Parent switch off</string>
+    <string name="glass_state_reload">Reload required</string>
+    <string name="glass_state_pending">Waiting for first draw</string>
+    <string name="glass_state_drawn">Drawn</string>
+    <string name="glass_state_error">Drawing unavailable</string>
+</resources>

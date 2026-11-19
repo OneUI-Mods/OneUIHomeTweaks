@@ -25,8 +25,8 @@ android {
         applicationId = "dev.ryuya.oneuihometweaks"
         minSdk = 31
         targetSdk = 37
-        versionCode = 51
-        versionName = "0.20.10"
+        versionCode = 85
+        versionName = "0.21.33"
         testInstrumentationRunner = "dev.ryuya.oneuihometweaks.MemoryInstrumentation"
         // Live-card diagnostics are opt-in for local investigation, never default release behavior.
         buildConfigField(

@@ -17,12 +17,12 @@ import kotlin.math.log
 import kotlin.math.max
 
 /* Host-private persistent startup protection; never touches system partitions. */
-class CrashGuard private constructor(context: Context) {
+class CrashGuard private constructor(context: Context, fileName: String) {
     private val file: AtomicFile
     private val state: Properties = Properties()
 
     init {
-        file = AtomicFile(File(context.getFilesDir(), CrashGuard.FILE))
+        file = AtomicFile(File(context.getFilesDir(), fileName))
     }
 
     fun blocked(): Boolean {
@@ -57,11 +57,17 @@ class CrashGuard private constructor(context: Context) {
 
     companion object {
         const val FILE: String = "dev.ryuya.oneuihometweaks.guard"
+        const val EDGE_LIGHTING_FILE = "$FILE.edgelighting"
 
         @JvmStatic
         @Throws(Exception::class)
-        fun enter(context: Context): CrashGuard {
-            val guard = CrashGuard(context)
+        fun enter(context: Context): CrashGuard = enter(context, context.packageName, FILE)
+
+        internal fun enterEdgeLighting(context: Context): CrashGuard =
+            enter(context, "${context.packageName}:edgelighting", EDGE_LIGHTING_FILE)
+
+        private fun enter(context: Context, processName: String, fileName: String): CrashGuard {
+            val guard = CrashGuard(context, fileName)
             try {
                 guard.file.openRead().use { `in` ->
                     guard.state.load(`in`)
@@ -88,7 +94,7 @@ class CrashGuard private constructor(context: Context) {
                             )
                             .orEmpty()) {
                         if (
-                            (context.getPackageName() != exit.getProcessName()) ||
+                            (processName != exit.getProcessName()) ||
                                 (previousPid > 0 && exit.getPid() != previousPid) ||
                                 exit.getTimestamp() < previous
                         )

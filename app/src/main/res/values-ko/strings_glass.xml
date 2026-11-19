@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="glass_title">유리 효과</string>
+    <string name="glass_quick">빠른 설정 타일</string>
+    <string name="glass_notifications">알림 패널과 카드</string>
+    <string name="glass_volume">음량 패널</string>
+    <string name="glass_home">홈 화면 독과 폴더</string>
+    <string name="glass_strength">유리 효과 강도</string>
+    <string name="glass_tint">유리 색조</string>
+    <string name="glass_tint_hint">왼쪽은 더 투명하고 오른쪽은 색조가 더 짙습니다.</string>
+    <string name="glass_preview">세 가지 유리 효과 미리보기</string>
+    <string name="glass_requirements">실험 기능입니다. 타일 설정을 변경한 후 빠른 설정을 다시 여세요. Vector에서 SystemUI 또는 One UI 홈을 활성화하세요.</string>
+    <string name="glass_preview_only">이 기기에서는 미리보기만 가능합니다. 실제 적용은 One UI 9 BZI9가 설치된 SM-S948Q에서 지원됩니다.</string>
+    <string name="glass_status_line">%1$s · %2$s</string>
+    <string name="glass_state_off">꺼짐</string>
+    <string name="glass_state_master_off">상위 설정 꺼짐</string>
+    <string name="glass_state_reload">다시 로드 필요</string>
+    <string name="glass_state_pending">첫 그리기 대기 중</string>
+    <string name="glass_state_drawn">그리기 확인됨</string>
+    <string name="glass_state_error">그릴 수 없음</string>
+</resources>

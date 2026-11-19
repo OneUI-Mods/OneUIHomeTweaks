@@ -271,6 +271,9 @@ class MainActivity : AppCompatActivity() {
                     startActivity(Intent(this, QuickPanelActivity::class.java))
                 },
             )
+        requireViewById<View>(R.id.glass_settings).setOnClickListener {
+            startActivity(Intent(this, GlassActivity::class.java))
+        }
         val navigation = requireViewById<BottomNavigationView>(R.id.navigation)
         val pageIds = intArrayOf(R.id.page_0, R.id.page_1, R.id.page_2, R.id.page_3)
         val navigationIds =
@@ -855,15 +858,18 @@ class MainActivity : AppCompatActivity() {
 
     private fun resetProtection() {
         val cmd = StringBuilder("rm -f")
-        for (root in arrayOf<String>("/data/user/0/", "/data/user_de/0/")) for (host in
-            ConfigProvider.HOSTS!!) for (suffix in arrayOf<String>("", ".bak", ".new")) cmd.append(
-                ' ',
-            )
-            .append(root)
-            .append(host)
-            .append("/files/")
-            .append(CrashGuard.FILE)
-            .append(suffix)
+        for (root in listOf("/data/user/0/", "/data/user_de/0/")) {
+            for (host in ConfigProvider.HOSTS.orEmpty()) {
+                val files = if (host == "com.android.systemui") {
+                    listOf(CrashGuard.FILE, CrashGuard.EDGE_LIGHTING_FILE)
+                } else listOf(CrashGuard.FILE)
+                for (file in files) {
+                    for (suffix in listOf("", ".bak", ".new")) {
+                        cmd.append(' ').append(root).append(host).append("/files/").append(file).append(suffix)
+                    }
+                }
+            }
+        }
         commands!!.execute(
             Runnable {
                 val success = MainActivity.command(cmd.toString(), 20, false)

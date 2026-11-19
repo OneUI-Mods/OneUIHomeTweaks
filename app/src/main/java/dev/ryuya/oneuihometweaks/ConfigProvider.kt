@@ -77,6 +77,12 @@ class ConfigProvider : ContentProvider() {
                     "icon_overlap_fix",
                     "settings_enabled",
                     "hide_circle_search",
+                    GlassAppearance.QUICK,
+                    GlassAppearance.NOTIFICATIONS,
+                    GlassAppearance.HOME,
+                    GlassAppearance.STRENGTH,
+                    GlassAppearance.TINT,
+                    GlassAppearance.VOLUME,
                 )
             )
         c.addRow(
@@ -108,6 +114,12 @@ class ConfigProvider : ContentProvider() {
                 if (p.getBoolean("icon_overlap_fix", true)) 1 else 0,
                 if (p.getBoolean("settings_enabled", true)) 1 else 0,
                 if (p.getBoolean("hide_circle_search", true)) 1 else 0,
+                if (p.getBoolean(GlassAppearance.QUICK, false)) 1 else 0,
+                if (p.getBoolean(GlassAppearance.NOTIFICATIONS, false)) 1 else 0,
+                if (p.getBoolean(GlassAppearance.HOME, false)) 1 else 0,
+                p.getInt(GlassAppearance.STRENGTH, GlassAppearance.DEFAULT_STRENGTH).coerceIn(0, 100),
+                GlassAppearance.tintPercent(p.getInt(GlassAppearance.TINT, GlassAppearance.DEFAULT_TINT)),
+                if (p.getBoolean(GlassAppearance.VOLUME, false)) 1 else 0,
             )
         )
         return c
@@ -180,11 +192,14 @@ class ConfigProvider : ContentProvider() {
         if (host != extras.getString("host")) throw SecurityException("Host mismatch")
         val feature = extras.getString("feature")
         if (feature != null) {
-            if (
-                "com.android.systemui" != host ||
-                    ("clock_date" != feature && "quick_panel" != feature)
-            )
-                throw SecurityException("Unsupported feature")
+            val allowed = when (host) {
+                "com.android.systemui" -> feature in setOf(
+                    "clock_date", "quick_panel", GlassAppearance.QUICK, GlassAppearance.NOTIFICATIONS, GlassAppearance.VOLUME,
+                )
+                HookEntry.LAUNCHER -> feature == GlassAppearance.HOME
+                else -> false
+            }
+            if (!allowed) throw SecurityException("Unsupported feature")
             host += "." + feature
         }
         val state = extras.getString("state", "ERROR")
@@ -197,6 +212,7 @@ class ConfigProvider : ContentProvider() {
             .putString(host + ".detail", detail)
             .putLong(host + ".elapsed", extras.getLong("elapsed"))
             .putInt(host + ".pid", extras.getInt("pid"))
+            .putInt(host + ".version", extras.getInt("version"))
             .putInt(host + ".boot", extras.getInt("boot", -1))
             .apply()
         getContext()!!.getContentResolver().notifyChange(ConfigProvider.STATUS_URI!!, null)

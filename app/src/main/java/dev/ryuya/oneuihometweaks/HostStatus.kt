@@ -15,13 +15,15 @@ object HostStatus {
     }
 
     @JvmStatic
-    fun reportFeature(context: Context?, feature: String?, state: String?, detail: String?) {
+    @JvmOverloads
+    fun reportFeature(context: Context?, feature: String?, state: String?, detail: String?, version: Int = 0) {
         if (context == null) return
         try {
             val b = Bundle()
             b.putString("state", state)
             b.putString("detail", detail)
             b.putInt("pid", Process.myPid())
+            b.putInt("version", version)
             b.putLong("elapsed", SystemClock.elapsedRealtime())
             b.putInt(
                 "boot",

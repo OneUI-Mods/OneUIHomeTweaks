@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="glass_title">玻璃外观</string>
+    <string name="glass_quick">快捷设置磁贴</string>
+    <string name="glass_notifications">通知面板和卡片</string>
+    <string name="glass_volume">音量面板</string>
+    <string name="glass_home">主屏幕底栏与文件夹</string>
+    <string name="glass_strength">玻璃效果强度</string>
+    <string name="glass_tint">玻璃着色</string>
+    <string name="glass_tint_hint">向左更透明，向右颜色更浓。</string>
+    <string name="glass_preview">三种玻璃效果的预览</string>
+    <string name="glass_requirements">实验功能。更改磁贴设置后，请重新打开快捷设置面板。在 Vector 中为相应界面启用 SystemUI 或 One UI 主屏幕。</string>
+    <string name="glass_preview_only">此设备仅支持预览。实际应用需要运行 One UI 9 BZI9 的 SM-S948Q。</string>
+    <string name="glass_status_line">%1$s · %2$s</string>
+    <string name="glass_state_off">关闭</string>
+    <string name="glass_state_master_off">上级开关已关闭</string>
+    <string name="glass_state_reload">需要重新载入</string>
+    <string name="glass_state_pending">等待首帧绘制</string>
+    <string name="glass_state_drawn">已绘制</string>
+    <string name="glass_state_error">无法绘制</string>
+</resources>

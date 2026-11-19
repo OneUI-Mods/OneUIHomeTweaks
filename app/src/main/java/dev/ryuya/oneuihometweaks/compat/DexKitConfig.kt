@@ -14,6 +14,7 @@ internal object DexKitConfig {
             "layout-v2:",
             "home-preview-v2",
             "volumestar-v2",
+            "volumestar-glass-v2",
             "diy-position-v2",
             "volume-v2",
             "scroll-v2:",

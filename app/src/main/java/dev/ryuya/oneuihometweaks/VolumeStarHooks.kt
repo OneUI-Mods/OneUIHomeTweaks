@@ -74,6 +74,7 @@ class VolumeStarHooks {
                             VolumeStarHooks.PACKAGE != ctx.getPackageName()
                     val loader = if (!patternPrefix1) p.args[1] as? ClassLoader else null
                     if (patternPrefix1 || loader == null || !seen!!.add(loader)) return
+                    notifyGlassPlugin(requireNotNull(ctx), loader)
                     try {
                         attach(ctx, loader)
                     } catch (t: Throwable) {
@@ -377,6 +378,25 @@ class VolumeStarHooks {
 
     companion object {
         private const val PACKAGE: String = "com.samsung.android.soundassistant"
+        private var glassContext = WeakReference<Context>(null)
+        private var glassLoader = WeakReference<ClassLoader>(null)
+        private var glassObserver: ((Context, ClassLoader) -> Unit)? = null
+
+        @Synchronized
+        internal fun observeGlassPlugin(observer: (Context, ClassLoader) -> Unit) {
+            glassObserver = observer
+            val context = glassContext.get()
+            val loader = glassLoader.get()
+            if (context != null && loader != null) observer(context, loader)
+        }
+
+        @Synchronized
+        private fun notifyGlassPlugin(context: Context, loader: ClassLoader) {
+            glassContext = WeakReference(context)
+            glassLoader = WeakReference(loader)
+            glassObserver?.invoke(context, loader)
+        }
+
         private val COLORS: MutableMap<String?, String?>? =
             Map.of<String?, String?>(
                 "PRIMARY",

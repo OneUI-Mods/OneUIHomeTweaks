@@ -126,8 +126,10 @@ class HookEntry : XposedModule() {
     }
 
     private fun handleLoadPackage(p: HookEntry.TargetPackage) {
+        val edgeLighting = p.packageName == "com.android.systemui" &&
+            p.processName == "com.android.systemui:edgelighting"
         if (
-            p.packageName != p.processName ||
+            (!edgeLighting && p.packageName != p.processName) ||
                 !Arrays.asList<String?>(*ConfigProvider.HOSTS!!).contains(p.packageName)
         )
             return
@@ -172,6 +174,11 @@ class HookEntry : XposedModule() {
                     if (hostAttached || p.packageName != app!!.getPackageName()) return
                     hostAttached = true
                     context = app
+                    if (edgeLighting) {
+                        val loader = p.classLoader ?: return
+                        HostStartupGate.whenUnlocked(app) { installEdgeLighting(app, loader) }
+                        return
+                    }
                     val prepare: () -> Unit = {
                         DexSymbols.configure(app)
                         DexSymbols.whenPrepared(app) {
@@ -205,6 +212,9 @@ class HookEntry : XposedModule() {
                                         )
                                     HookEntry.log("CRASH_GUARD blocked " + p.packageName)
                                     return@whenPrepared
+                                }
+                                if ((p.packageName == HookEntry.LAUNCHER || p.packageName == "com.android.systemui") && p.classLoader != null) {
+                                    GlassHost(app, p.classLoader, pendingHomeActivity.get()).start()
                                 }
                                 if (HookEntry.LAUNCHER == p.packageName) {
                                     homeLayout.start(app)
@@ -243,6 +253,24 @@ class HookEntry : XposedModule() {
                 }
             },
         )
+    }
+
+    private fun installEdgeLighting(app: Application, loader: ClassLoader) {
+        if (!HookCompatibility.isCurrentSupported() || Build.MODEL != "SM-S948Q" ||
+            Build.VERSION.SDK_INT != 37 || Build.FINGERPRINT != Android17Hooks.FINGERPRINT ||
+            Process.myUid() / 100000 != 0
+        ) return
+        try {
+            val guard = CrashGuard.enterEdgeLighting(app)
+            if (guard.blocked()) {
+                log("CRASH_GUARD blocked com.android.systemui:edgelighting")
+                return
+            }
+            GlassHost(app, loader, null, briefOnly = true).start()
+            Handler(Looper.getMainLooper()).postDelayed({ guard.healthy() }, 90000)
+        } catch (error: Exception) {
+            log("GLASS_BRIEF_HOST_UNAVAILABLE ${error.javaClass.simpleName}: ${error.message}")
+        }
     }
 
     private fun installLauncher(p: HookEntry.TargetPackage, app: Application) {
