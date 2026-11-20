@@ -245,6 +245,18 @@ object DexEvidence {
     }
 
     @JvmStatic
+    fun deoptimizeDiyWidgetPlacement(apk: String, loader: ClassLoader?) {
+        val values = cached(apk, "diy-widget-placement-v2") { bridge ->
+            val layout = "com.honeyspace.ui.honeypots.freegrid.presentation.FreeGridCellLayout"
+            val model = "com.honeyspace.ui.honeypots.freegrid.viewmodel.FreeGridViewModel"
+            val calls = listOf("syncPosition", "translateTarget", "onDrop").flatMap { callers(bridge, layout, it) } +
+                callers(bridge, model, "findDropPosition")
+            records(calls)
+        }
+        deoptimize(values, loader, 64, "DIY widget placement")
+    }
+
+    @JvmStatic
     fun deoptimizeVolumeCalls(apk: String?, loader: ClassLoader?) {
         val values =
             cached(apk, "volume-v2") { bridge ->

@@ -68,9 +68,14 @@ object ModernHook {
 
     @JvmStatic
     fun aroundMethod(executable: Executable, around: Around): Handle {
+        return aroundMethod(executable, XposedInterface.PRIORITY_DEFAULT, around)
+    }
+
+    internal fun aroundMethod(executable: Executable, priority: Int, around: Around): Handle {
         val handle =
             requireModule()
                 .hook(executable)
+                .setPriority(priority)
                 .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
                 .intercept(around::run)
         return Handle { handle.unhook() }

@@ -136,4 +136,5 @@
   <string name="icon_overlap_fix_note">Corrects Home Up overlap detection so separate home icons do not disappear during the return animation. Icons actually placed over one another keep their original behavior. On by default; changes apply without reloading Home.</string>
     <string name="hide_circle_search">Hide Circle to Search from Recents</string>
     <string name="hide_circle_search_note">Keep Circle to Search working while hiding its separate task. Regular Google and Lens tasks remain visible.</string>
+  <string name="diy_avoid_widgets">Avoid placing DIY Home icons over widgets</string>
 </resources>

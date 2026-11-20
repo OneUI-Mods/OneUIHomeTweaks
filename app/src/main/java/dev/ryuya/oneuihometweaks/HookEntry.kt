@@ -60,7 +60,8 @@ class HookEntry : XposedModule() {
     private var wm: WallpaperManager? = null
     private val pages: PageBridge = PageBridge()
     private val homeLayout: HomeLayoutGuard = HomeLayoutGuard()
-    private val diyGrid: DiyGridBridge = DiyGridBridge()
+    private val diyWidgets = DiyWidgetPlacementGuard()
+    private val diyGrid: DiyGridBridge = DiyGridBridge().also { it.widgetPlacementGuard = diyWidgets }
     private val gridSave: GridSaveCoordinator = GridSaveCoordinator(diyGrid)
     private val drawer: DrawerBridge = DrawerBridge()
     private val homeLabels: HomeLabelBridge = HomeLabelBridge()
@@ -87,10 +88,12 @@ class HookEntry : XposedModule() {
             Consumer { view: ViewGroup? ->
                 homeLayout.observe(view!!)
                 diyGrid.observe(view!!)
+                diyWidgets.observe(view)
                 iconOverlap.observe(view)
             }
         )
         diyGrid.setChanged(Runnable { this.requestRefresh() })
+        diyWidgets.onChanged = diyGrid::widgetPlacementChanged
         iconOverlap.setChanged(Runnable { this.requestRefresh() })
         processName = param.getProcessName()
         HookEntry.log(
@@ -607,6 +610,7 @@ class HookEntry : XposedModule() {
             var recentsLive: Boolean = false
             var hideCircleSearch = false
             var diyGridMode: Boolean = false
+            var avoidWidgets = false
             context!!
                 .getContentResolver()
                 .query(ConfigProvider.URI!!, null, null, null, null)
@@ -632,6 +636,8 @@ class HookEntry : XposedModule() {
                         if (recentsLive && focusColumn >= 0) cursor.getInt(focusColumn) else 0
                     diyGridMode =
                         master && cursor.getInt(cursor.getColumnIndexOrThrow("diy_icon_grid")) != 0
+                    val widgetPlacementColumn = cursor.getColumnIndex("diy_avoid_widgets")
+                    avoidWidgets = master && widgetPlacementColumn >= 0 && cursor.getInt(widgetPlacementColumn) != 0
                     drawerMode = cursor.getInt(cursor.getColumnIndexOrThrow("drawer"))
                     label = cursor.getInt(cursor.getColumnIndexOrThrow("label"))
                     // Status bar belongs to the user's separate module; never override it.
@@ -658,6 +664,7 @@ class HookEntry : XposedModule() {
             val currentFolderReturn: Boolean = folderReturn
             val currentOverlapFix = master && iconOverlapFix
             val currentDiyGrid: Boolean = diyGridMode
+            val currentAvoidWidgets = avoidWidgets
             val gridRequest =
                 context!!
                     .getContentResolver()
@@ -676,6 +683,7 @@ class HookEntry : XposedModule() {
                     circleRecents.setEnabled(currentHideCircleSearch)
                     folders.configure(currentMaster, currentFolderReturn)
                     iconOverlap.setEnabled(currentOverlapFix)
+                    diyWidgets.setEnabled(currentAvoidWidgets)
                     diyGrid.setEnabled(currentDiyGrid)
                     gridSave.accept(context!!, gridRequest)
                     HostStatus.report(
@@ -729,6 +737,7 @@ class HookEntry : XposedModule() {
                 Runnable {
                     homeLabels.setEnabled(false)
                     diyGrid.setEnabled(false)
+                    diyWidgets.setEnabled(false)
                     iconOverlap.setEnabled(false)
                 }
             )
@@ -789,6 +798,7 @@ class HookEntry : XposedModule() {
                     homeLabels.setEnabled(false)
                     recentsBar.setEnabled(false)
                     diyGrid.setEnabled(false)
+                    diyWidgets.setEnabled(false)
                     iconOverlap.setEnabled(false)
                 }
             )

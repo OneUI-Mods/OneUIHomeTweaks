@@ -236,6 +236,13 @@
               android:minHeight="56dp"
               android:text="@string/diy_icon_grid"
               android:textAppearance="@style/TextAppearance.Material3.TitleMedium" />
+            <com.google.android.material.materialswitch.MaterialSwitch
+              android:id="@+id/diy_avoid_widgets"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:minHeight="56dp"
+              android:text="@string/diy_avoid_widgets"
+              android:textAppearance="@style/TextAppearance.Material3.TitleMedium" />
             <com.google.android.material.button.MaterialButton
               android:id="@+id/layout_diagnostics"
               android:layout_width="match_parent"

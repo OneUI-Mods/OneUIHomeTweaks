@@ -35,6 +35,7 @@ import kotlin.math.round
 
 /* Projects native DIY icon coordinates without changing widgets, DIY mode, or stored positions. */
 class DiyGridBridge {
+    internal var widgetPlacementGuard: DiyWidgetPlacementGuard? = null
     private val main: Handler = Handler(Looper.getMainLooper())
     private val hooks: MutableList<ModernHook.Handle?> = ArrayList<ModernHook.Handle?>()
     private val states: MutableMap<Any?, DiyGridBridge.State?> =
@@ -247,6 +248,10 @@ class DiyGridBridge {
 
     fun diagnostic(): String {
         return diagnostic
+    }
+
+    internal fun widgetPlacementChanged() {
+        if (enabled && ready && !failed) queueRender()
     }
 
     fun setEnabled(on: Boolean) {
@@ -581,7 +586,9 @@ class DiyGridBridge {
                                             if (state == null || !state.valid()) return
                                             val snapped =
                                                 state.snap(p.args[0]!!, p.args[2] as Int, desired!!)
-                                            if (snapped != null) p.args[1] = snapped
+                                            if (snapped != null &&
+                                                widgetPlacementGuard?.permitsSnappedDrop(p.thisObject, snapped) != false
+                                            ) p.args[1] = snapped
                                         } catch (error: Throwable) {
                                             disable(error)
                                         }
@@ -921,7 +928,7 @@ class DiyGridBridge {
                             binding!!.key,
                         )
                     if (child !is View || child.getParent() !== layout) continue
-                    val slot: GridSnapPlan.Slot? = if (use) state!!.position(model) else null
+                    val slot: GridSnapPlan.Slot? = if (use) state!!.position(model, layout, child) else null
                     val point: Point? =
                         if (slot == null) Point(number(model, "getX"), number(model, "getY"))
                         else Point(slot.x, slot.y)
@@ -1274,7 +1281,7 @@ class DiyGridBridge {
         }
 
         @Throws(ReflectiveOperationException::class)
-        fun position(model: Any): GridSnapPlan.Slot? {
+        fun position(model: Any, knownLayout: ViewGroup? = null, knownChild: View? = null): GridSnapPlan.Slot? {
             if (geometry == null || JavaBoolean.TRUE == call(model, "getLand")) return null
             val current = source(model)
             if (
@@ -1286,7 +1293,18 @@ class DiyGridBridge {
                 plan()
                 queueRender()
             }
-            return positions.get(current!!.id)
+            val slot = positions[current.id] ?: return null
+            val placement = widgetPlacementGuard ?: return slot
+            if (!placement.checksGridProjection()) return slot
+            val pageId = number(model, "getPageId")
+            val page = knownLayout ?: layouts.entries.firstOrNull { (page, owner) ->
+                owner === this && page?.isAttachedToWindow == true && number(page, "getPageId") == pageId
+            }?.key ?: return slot
+            val child = knownChild ?: call(page, "getChildWithId",
+                arrayOf<Class<*>?>(Int::class.javaPrimitiveType), current.id) as? View ?: return slot
+            return slot.takeIf {
+                placement.permitsGridProjection(page, child, Point(current.x, current.y), Point(it.x, it.y))
+            }
         }
 
         @Throws(ReflectiveOperationException::class)

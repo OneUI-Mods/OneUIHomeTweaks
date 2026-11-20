@@ -74,6 +74,7 @@ class MainActivity : AppCompatActivity() {
             "recents_live_tile",
             "clock_date_left",
             "diy_icon_grid",
+            "diy_avoid_widgets",
             "folder_return",
             "icon_overlap_fix",
             "settings_enabled",
@@ -92,6 +93,7 @@ class MainActivity : AppCompatActivity() {
             R.id.recents_live_tile,
             R.id.clock_date_left,
             R.id.diy_icon_grid,
+            R.id.diy_avoid_widgets,
             R.id.folder_return,
             R.id.icon_overlap_fix,
             R.id.settings_enabled,
@@ -181,6 +183,7 @@ class MainActivity : AppCompatActivity() {
                         !key!!.startsWith("recents_") &&
                         (key != "clock_date_left") &&
                         (key != "diy_icon_grid") &&
+                        (key != "diy_avoid_widgets") &&
                         (key != InteractionRefresh.KEY),
                 ),
             )
