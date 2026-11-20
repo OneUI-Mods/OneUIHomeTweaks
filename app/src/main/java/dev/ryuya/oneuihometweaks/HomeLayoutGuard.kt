@@ -223,8 +223,26 @@ class HomeLayoutGuard {
                     false,
                     loader,
                 )
-            updateAll = vm.compatibleDeclaredMethod("updateAllItemByLayoutChanged")
-            updateAll!!.setAccessible(true)
+            val layoutUpdate = vm.compatibleDeclaredMethod("updateAllItemByLayoutChanged")
+                .apply { isAccessible = true }
+            updateAll = layoutUpdate
+            val sanitizer = DexSymbols.findClass(
+                "com.honeyspace.ui.honeypots.freegrid.domain.model.FreeGridDataSanitizer",
+                false,
+                loader,
+            ).declaredMethods.single {
+                it.compatibleName() == "sanitizeOnCellLayoutSizeChanged" && it.parameterCount == 5
+            }
+            val repository = DexSymbols.findClass(
+                "com.honeyspace.ui.honeypots.freegrid.domain.repository.FreeGridRepository",
+                false,
+                loader,
+            )
+            val repositoryUpdates = repository.declaredMethods.filter {
+                it.compatibleName() == "update" && it.parameterTypes.firstOrNull() == itemType
+            }
+            check(repositoryUpdates.isNotEmpty()) { "No DIY repository update found" }
+            val targets = listOf(updateBounds, layoutUpdate, sanitizer) + repositoryUpdates
             vm.compatibleDeclaredField("uiContext")
             vm.compatibleDeclaredMethod("isPreview")
             // Resolve every repair contract before intercepting any behavior.
@@ -240,7 +258,7 @@ class HomeLayoutGuard {
                     },
                 ),
             )
-            hookSanitizer(loader)
+            hookSanitizer(sanitizer)
             installDiagnostics(vm, loader)
             val apk =
                 app!!
@@ -250,11 +268,12 @@ class HomeLayoutGuard {
             io!!.post(
                 Runnable {
                     try {
-                        var count = DexEvidence.deoptimizeLayoutCalls(apk, loader)
+                        var count = DexEvidence.deoptimizeLayoutCalls(apk, loader, targets)
                         count +=
                             DexEvidence.deoptimizeLayoutCalls(
                                 app!!.getApplicationInfo().sourceDir,
                                 app!!.getClassLoader(),
+                                targets,
                             )
                         record("callsites_ready", "count", count)
                     } catch (error: Throwable) {
@@ -396,21 +415,7 @@ class HomeLayoutGuard {
         )
     }
 
-    @Throws(ReflectiveOperationException::class)
-    private fun hookSanitizer(loader: ClassLoader?) {
-        val type =
-            DexSymbols.findClass(
-                "com.honeyspace.ui.honeypots.freegrid.domain.model.FreeGridDataSanitizer",
-                false,
-                loader,
-            )
-        var method: Method? = null
-        for (candidate in type.getDeclaredMethods()) if (
-            candidate.compatibleName() == "sanitizeOnCellLayoutSizeChanged" &&
-                candidate.getParameterCount() == 5
-        )
-            method = candidate
-        if (method == null) throw NoSuchMethodException("Layout sanitizer")
+    private fun hookSanitizer(method: Method) {
         handles.add(
             ModernHook.hookMethod(
                 method,

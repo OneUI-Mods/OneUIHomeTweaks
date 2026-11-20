@@ -294,12 +294,7 @@ class VolumeHooks {
                     main!!.post(
                         Runnable {
                             if (mode == selected) {
-                                HostStatus.report(
-                                    context,
-                                    if (enabled) (if (volumeStar.hasError()) "ERROR" else "ACTIVE")
-                                    else "OFF",
-                                    "Volume hook ready; mode=" + mode,
-                                )
+                                reportMode(enabled)
                                 return@Runnable
                             }
                             mode = selected
@@ -307,12 +302,7 @@ class VolumeHooks {
                             try {
                                 val current = panel.get()
                                 if (current != null) recreate!!.invoke(current)
-                                HostStatus.report(
-                                    context,
-                                    if (enabled) (if (volumeStar.hasError()) "ERROR" else "ACTIVE")
-                                    else "OFF",
-                                    "Volume mode=" + mode,
-                                )
+                                reportMode(enabled)
                             } catch (t: Throwable) {
                                 disable(t)
                             }
@@ -348,6 +338,16 @@ class VolumeHooks {
                 }
             )
         }
+    }
+
+    private fun reportMode(enabled: Boolean) {
+        val failure = if (enabled) volumeStar.failure() else null
+        val state = when {
+            !enabled -> "OFF"
+            failure != null -> "ERROR"
+            else -> "ACTIVE"
+        }
+        HostStatus.report(context, state, failure ?: "Volume mode=$mode")
     }
 
     private fun disable(t: Throwable) {

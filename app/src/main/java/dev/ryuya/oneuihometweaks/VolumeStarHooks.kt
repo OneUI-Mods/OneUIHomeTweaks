@@ -34,7 +34,8 @@ class VolumeStarHooks {
     @Volatile private var mode: Int = 0
     private var lightPreset: Int = 0
     private var darkPreset: Int = 0
-    private var failed: Boolean = false
+    @Volatile private var failureDetail: String? = null
+    private val failed: Boolean get() = failureDetail != null
     private var hostContext: Context? = null
     private var plugin: WeakReference<Any?> = WeakReference<Any?>(null)
     private var reconfigure: Method? = null
@@ -336,9 +337,7 @@ class VolumeStarHooks {
         HookEntry.log("VOLUMESTAR_HOOK_READY callers=" + callers.size)
     }
 
-    fun hasError(): Boolean {
-        return failed
-    }
+    fun failure(): String? = failureDetail
 
     fun setMode(next: Int) {
         if (mode == next) return
@@ -354,12 +353,15 @@ class VolumeStarHooks {
 
     private fun fail(t: Throwable) {
         if (failed) return
-        failed = true
+        val cause = t.cause ?: t
+        val detail = "VolumeStar: ${cause.javaClass.simpleName}" +
+            (cause.message?.let { ": $it" } ?: "")
+        failureDetail = detail
         mode = 0
         for (hook in installed) hook!!.unhook()
         installed.clear()
         HookEntry.log("VOLUMESTAR_DISABLED " + t)
-        HostStatus.report(hostContext, "ERROR", "VolumeStar: " + t.javaClass.getSimpleName())
+        HostStatus.report(hostContext, "ERROR", detail)
         Handler(Looper.getMainLooper())
             .post(
                 Runnable {

@@ -227,10 +227,12 @@ class DeveloperAnimationHooks {
         closeDialog()
         for (hook in hooks) hook!!.unhook()
         hooks.clear()
+        val cause = error.cause ?: error
         HostStatus.report(
             context,
             if (error is UnsupportedOperationException) "UNSUPPORTED" else "ERROR",
-            "Animation editor: " + error.javaClass.getSimpleName(),
+            "Animation editor: ${cause.javaClass.simpleName}" +
+                (cause.message?.let { ": $it" } ?: ""),
         )
         HookEntry.log("ANIMATION_EDITOR_DISABLED " + error)
     }

@@ -2,7 +2,6 @@ package dev.ryuya.oneuihometweaks
 
 import dev.ryuya.oneuihometweaks.compat.DexRuntimeCache
 import dev.ryuya.oneuihometweaks.compat.DexSymbols
-import dev.ryuya.oneuihometweaks.compat.compatibleName
 import java.lang.reflect.Executable
 import java.lang.reflect.Field
 import java.lang.reflect.Method
@@ -168,32 +167,14 @@ object DexEvidence {
     }
 
     @JvmStatic
-    fun deoptimizeLayoutCalls(apk: String?, loader: ClassLoader?): Int {
-        val logical =
-            listOf(
-                "z5.b" to "j",
-                "com.honeyspace.ui.honeypots.freegrid.viewmodel.FreeGridViewModel" to
-                    "updateAllItemByLayoutChanged",
-                "com.honeyspace.ui.honeypots.freegrid.domain.model.FreeGridDataSanitizer" to
-                    "sanitizeOnCellLayoutSizeChanged",
-                "com.honeyspace.ui.honeypots.freegrid.domain.repository.FreeGridRepository" to
-                    "update",
-            )
-        val targets = logical.map { (name, method) ->
-            val type = DexSymbols.findClass(name, false, loader)
-            val actual =
-                type.declaredMethods
-                    .filter { it.compatibleName() == method }
-                    .map { it.name }
-                    .distinct()
-                    .single()
-            type.name to actual
+    fun deoptimizeLayoutCalls(apk: String, callerLoader: ClassLoader?, methods: List<Method>): Int {
+        // The callers live in two APKs. An invoke can reference a class that only the other
+        // APK's loader can resolve, so use the already verified declaring methods for the query.
+        val targets = methods.map { it.declaringClass.name to it.name }.distinct()
+        val values = cached(apk, "layout-v3:$targets") { bridge ->
+            records(targets.flatMap { (owner, method) -> callers(bridge, owner, method) })
         }
-        val values =
-            cached(apk, "layout-v2:$targets") { bridge ->
-                records(targets.flatMap { (owner, method) -> callers(bridge, owner, method) })
-            }
-        return deoptimize(values, loader, 160, "Layout")
+        return deoptimize(values, callerLoader, 160, "Layout")
     }
 
     @JvmStatic
