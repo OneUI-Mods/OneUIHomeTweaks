@@ -180,7 +180,8 @@ class MainActivity : AppCompatActivity() {
                     (key != "preview") &&
                         !key!!.startsWith("recents_") &&
                         (key != "clock_date_left") &&
-                        (key != "diy_icon_grid"),
+                        (key != "diy_icon_grid") &&
+                        (key != InteractionRefresh.KEY),
                 ),
             )
             control.setOnCheckedChangeListener(
