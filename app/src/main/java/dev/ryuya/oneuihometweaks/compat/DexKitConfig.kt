@@ -7,13 +7,17 @@ internal object DexKitConfig {
         get() = dev.ryuya.oneuihometweaks.BuildConfig.VERSION_CODE
 
     const val PROFILE_HASH = "ea9838826a2b31edafd21ca06b6e8fe93ea404c05033c4f87c03149df9d42b5d"
+    const val LAYOUT_RULE = "layout-v3:"
+    const val VOLUMESTAR_RULE = "volumestar-v3"
     val FEATURE_PREFIXES =
         setOf<String>(
             "recents-live-v2:",
             "captured-emitter-v2:",
             "layout-v2:",
+            LAYOUT_RULE,
             "home-preview-v2",
             "volumestar-v2",
+            VOLUMESTAR_RULE,
             "volumestar-glass-v2",
             "diy-position-v2",
             "diy-widget-placement-v2",

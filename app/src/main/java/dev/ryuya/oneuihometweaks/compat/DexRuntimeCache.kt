@@ -39,10 +39,10 @@ object DexRuntimeCache {
                             bridge.setThreadNum(2)
                             GenerationStore.Result("ready", block(bridge))
                         }
-                    } catch (_: Exception) {
-                        GenerationStore.Result("failed")
-                    } catch (_: LinkageError) {
-                        GenerationStore.Result("native-unavailable")
+                    } catch (error: Exception) {
+                        discoveryFailure("failed", error)
+                    } catch (error: LinkageError) {
+                        discoveryFailure("native-unavailable", error)
                     }
                 val bytes = GenerationStore.encode(explored)
                 check(bytes.size <= 512 * 1024) { "Feature result too large" }
@@ -58,8 +58,16 @@ object DexRuntimeCache {
                 check(saved?.getBoolean("saved") == true) { "Discovery claim changed" }
                 explored
             }
-        check(result.state == "ready") { "Discovery unavailable for this version: ${result.state}" }
+        check(result.state == "ready") {
+            "Discovery unavailable for this version: ${result.state}" +
+                (result.bindings["detail"]?.let { " ($it)" } ?: "")
+        }
         return result.bindings
+    }
+
+    private fun discoveryFailure(state: String, error: Throwable): GenerationStore.Result {
+        val message = error.message?.take(280)?.let { ": $it" } ?: ""
+        return GenerationStore.Result(state, mapOf("detail" to error.javaClass.simpleName + message))
     }
 
     fun list(values: Map<String, String?>, key: String): List<String> =

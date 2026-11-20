@@ -38,7 +38,7 @@ class VolumeHooks {
     private var lightPreset: Int = 0
     private var darkPreset: Int = 0
     private var lastBlur: String = ""
-    private val volumeStar: VolumeStarHooks = VolumeStarHooks()
+    private val volumeStar = VolumeStarHooks { worker?.post { refresh() } }
 
     @Throws(Exception::class)
     fun install(app: Context, loader: ClassLoader?) {

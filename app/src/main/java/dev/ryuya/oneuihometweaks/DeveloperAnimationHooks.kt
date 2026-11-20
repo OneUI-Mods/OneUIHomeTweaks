@@ -33,6 +33,7 @@ class DeveloperAnimationHooks {
     private val main: Handler = Handler(Looper.getMainLooper())
     private var context: Context? = null
     private var enabled: Boolean = false
+    private var waitingForConfig = false
     private var failed: Boolean = false
     private var dialog: AnimationScaleDialog? = null
 
@@ -154,7 +155,9 @@ class DeveloperAnimationHooks {
 
                     override fun onActivityStarted(activity: Activity) {}
 
-                    override fun onActivityResumed(activity: Activity) {}
+                    override fun onActivityResumed(activity: Activity) {
+                        if (waitingForConfig) readConfig()
+                    }
 
                     override fun onActivityPaused(activity: Activity) {}
 
@@ -197,25 +200,29 @@ class DeveloperAnimationHooks {
 
     private fun readConfig() {
         if (failed) return
+        val host = context ?: return
+        val selected = try {
+            host.contentResolver.query(ConfigProvider.URI!!, null, null, null, null).use { cursor ->
+                check(cursor != null && cursor.moveToFirst()) { "Configuration is not available yet" }
+                cursor.getInt(cursor.getColumnIndexOrThrow("enabled")) != 0 &&
+                    cursor.getInt(cursor.getColumnIndexOrThrow("settings_enabled")) != 0
+            }
+        } catch (error: Exception) {
+            // The provider can disappear during an APK update. Keep the installed hooks and
+            // retry on the next configuration notification or return to Settings.
+            enabled = false
+            waitingForConfig = true
+            closeDialog()
+            HostStatus.report(host, "WAITING", "Animation editor configuration: ${error.message ?: error.javaClass.simpleName}")
+            HookEntry.log("ANIMATION_EDITOR_CONFIG_UNAVAILABLE $error")
+            return
+        }
+        waitingForConfig = false
         try {
-            context!!
-                .getContentResolver()
-                .query(ConfigProvider.URI!!, null, null, null, null)
-                .use { c ->
-                    check(!(c == null || !c.moveToFirst())) { "Missing settings" }
-                    enabled =
-                        c.getInt(c.getColumnIndexOrThrow("enabled")) != 0 &&
-                            c.getInt(c.getColumnIndexOrThrow("settings_enabled")) != 0
-                    if (!enabled) closeDialog()
-                    for (binding in
-                        ArrayList<DeveloperAnimationHooks.Binding?>(bindings.values)) binding!!
-                        .refresh()
-                    HostStatus.report(
-                        context,
-                        if (enabled) "ACTIVE" else "OFF",
-                        "Developer animation scale editor",
-                    )
-                }
+            enabled = selected
+            if (!enabled) closeDialog()
+            bindings.values.toList().forEach { it?.refresh() }
+            HostStatus.report(host, if (enabled) "ACTIVE" else "OFF", "Developer animation scale editor")
         } catch (error: Exception) {
             fail(error)
         }

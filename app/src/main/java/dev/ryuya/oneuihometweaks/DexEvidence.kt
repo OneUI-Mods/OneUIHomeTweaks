@@ -1,5 +1,6 @@
 package dev.ryuya.oneuihometweaks
 
+import dev.ryuya.oneuihometweaks.compat.DexKitConfig
 import dev.ryuya.oneuihometweaks.compat.DexRuntimeCache
 import dev.ryuya.oneuihometweaks.compat.DexSymbols
 import java.lang.reflect.Executable
@@ -171,7 +172,7 @@ object DexEvidence {
         // The callers live in two APKs. An invoke can reference a class that only the other
         // APK's loader can resolve, so use the already verified declaring methods for the query.
         val targets = methods.map { it.declaringClass.name to it.name }.distinct()
-        val values = cached(apk, "layout-v3:$targets") { bridge ->
+        val values = cached(apk, DexKitConfig.LAYOUT_RULE + targets) { bridge ->
             records(targets.flatMap { (owner, method) -> callers(bridge, owner, method) })
         }
         return deoptimize(values, callerLoader, 160, "Layout")

@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.Parcelable
 import android.view.View
+import dev.ryuya.oneuihometweaks.compat.DexKitConfig
 import dev.ryuya.oneuihometweaks.compat.DexRuntimeCache
 import java.lang.Boolean as JavaBoolean
 import java.lang.ref.WeakReference
@@ -15,9 +16,7 @@ import java.lang.reflect.Field
 import java.lang.reflect.Method
 import java.util.ArrayList
 import java.util.Arrays
-import java.util.Collections
 import java.util.HashSet
-import java.util.IdentityHashMap
 import java.util.Map
 import java.util.function.Supplier
 import kotlin.concurrent.Volatile
@@ -26,9 +25,8 @@ import kotlin.math.log
 import kotlin.math.max
 
 /* Sound Assistant's dynamically loaded panel, inside SystemUI only. */
-class VolumeStarHooks {
-    private val seen: MutableSet<ClassLoader?>? =
-        Collections.newSetFromMap<ClassLoader?>(IdentityHashMap<ClassLoader?, Boolean?>())
+class VolumeStarHooks(private val onReady: () -> Unit) {
+    @Volatile private var pluginLoader: ClassLoader? = null
     private val blurDepth: ThreadLocal<Int?>? = ThreadLocal.withInitial<Int?>(Supplier { 0 })
     private val installed: MutableList<ModernHook.Handle?> = ArrayList<ModernHook.Handle?>()
     @Volatile private var mode: Int = 0
@@ -37,8 +35,8 @@ class VolumeStarHooks {
     @Volatile private var failureDetail: String? = null
     private val failed: Boolean get() = failureDetail != null
     private var hostContext: Context? = null
-    private var plugin: WeakReference<Any?> = WeakReference<Any?>(null)
-    private var reconfigure: Method? = null
+    @Volatile private var plugin: WeakReference<Any?> = WeakReference<Any?>(null)
+    @Volatile private var reconfigure: Method? = null
     private var lastColor: String = ""
     private var lastBlur: String = ""
 
@@ -67,22 +65,31 @@ class VolumeStarHooks {
             constructor,
             object : ModernHook.Callback() {
                 override fun afterHookedMethod(p: ModernHook.Param) {
-                    val patternPrefix0 = p.hasThrowable()
-                    val ctx = if (!patternPrefix0) p.args[0] as? Context else null
-                    val patternPrefix1 =
-                        patternPrefix0 ||
-                            ctx == null ||
-                            VolumeStarHooks.PACKAGE != ctx.getPackageName()
-                    val loader = if (!patternPrefix1) p.args[1] as? ClassLoader else null
-                    if (patternPrefix1 || loader == null || !seen!!.add(loader)) return
-                    try {
-                        attach(ctx, loader)
-                    } catch (t: Throwable) {
-                        fail(t)
-                    }
+                    if (p.hasThrowable()) return
+                    val ctx = p.args[0] as? Context ?: return
+                    if (ctx.packageName != PACKAGE) return
+                    val loader = p.args[1] as? ClassLoader ?: return
+                    bindPlugin(ctx, loader)
                 }
             },
         )
+    }
+
+    @Synchronized
+    private fun bindPlugin(ctx: Context, loader: ClassLoader) {
+        if (loader === pluginLoader) return
+        // Sound Assistant can replace its plugin without restarting SystemUI.
+        pluginLoader = loader
+        installed.forEach { it?.unhook() }
+        installed.clear()
+        plugin = WeakReference(null)
+        reconfigure = null
+        failureDetail = null
+        try {
+            attach(ctx, loader)
+        } catch (error: Throwable) {
+            fail(error, loader)
+        }
     }
 
     @Throws(Exception::class)
@@ -99,7 +106,7 @@ class VolumeStarHooks {
         reconfigure = impl.getDeclaredMethod("onConfigurationChanged")
         reconfigure!!.setAccessible(true)
         val proof =
-            DexRuntimeCache.query(ctx.applicationInfo.sourceDir, "volumestar-v2") { bridge ->
+            DexRuntimeCache.query(ctx.applicationInfo.sourceDir, DexKitConfig.VOLUMESTAR_RULE) { bridge ->
                 val palettes =
                     bridge
                         .findClass { matcher { usingStrings("ColorThemeWrapper") } }
@@ -268,7 +275,7 @@ class VolumeStarHooks {
                                 HookEntry.log(report)
                             }
                         } catch (t: Throwable) {
-                            fail(t)
+                            fail(t, loader)
                         }
                     }
                 },
@@ -329,35 +336,42 @@ class VolumeStarHooks {
                 init,
                 object : ModernHook.Callback() {
                     override fun afterHookedMethod(p: ModernHook.Param) {
-                        if (!p.hasThrowable()) plugin = WeakReference<Any?>(p.thisObject)
+                        if (!p.hasThrowable() && pluginLoader === loader) {
+                            plugin = WeakReference(p.thisObject)
+                        }
                     }
                 },
             )
         )
         HookEntry.log("VOLUMESTAR_HOOK_READY callers=" + callers.size)
+        onReady()
     }
 
     fun failure(): String? = failureDetail
 
     fun setMode(next: Int) {
         if (mode == next) return
-        mode = if (failed) 0 else next
-        val current = plugin.get()
-        if (current == null || failed) return
+        mode = next
+        val loader = pluginLoader ?: return
+        val current = plugin.get() ?: return
+        val update = reconfigure ?: return
+        if (failed || update.declaringClass.classLoader !== loader ||
+            current.javaClass.classLoader !== loader) return
         try {
-            reconfigure!!.invoke(current)
+            update.invoke(current)
         } catch (t: Throwable) {
-            fail(t)
+            fail(t, loader)
         }
     }
 
-    private fun fail(t: Throwable) {
-        if (failed) return
+    @Synchronized
+    private fun fail(t: Throwable, loader: ClassLoader?) {
+        if (failed || loader !== pluginLoader) return
         val cause = t.cause ?: t
         val detail = "VolumeStar: ${cause.javaClass.simpleName}" +
             (cause.message?.let { ": $it" } ?: "")
         failureDetail = detail
-        mode = 0
+        val failedLoader = pluginLoader
         for (hook in installed) hook!!.unhook()
         installed.clear()
         HookEntry.log("VOLUMESTAR_DISABLED " + t)
@@ -367,7 +381,7 @@ class VolumeStarHooks {
                 Runnable {
                     try {
                         val current = plugin.get()
-                        if (current != null && reconfigure != null) reconfigure!!.invoke(current)
+                        if (pluginLoader === failedLoader && current != null) reconfigure?.invoke(current)
                     } catch (restore: Throwable) {
                         HookEntry.log(
                             "VOLUMESTAR_NATIVE_RESTORE_ERROR " + restore.javaClass.getSimpleName()
