@@ -137,4 +137,5 @@
     <string name="hide_circle_search">在最近任务中隐藏即圈即搜</string>
     <string name="hide_circle_search_note">保留搜索功能，仅隐藏搜索专用任务。普通 Google 应用和 Google 智能镜头仍会显示。</string>
   <string name="diy_avoid_widgets">DIY Home 中禁止图标与小组件重叠</string>
+  <string name="diy_avoid_widgets_note">打开 DIY 主屏幕页面时，已与小组件重叠的应用图标也会移到空白处。空间不足时，图标会保持原有大小并移到其他页面。</string>
 </resources>

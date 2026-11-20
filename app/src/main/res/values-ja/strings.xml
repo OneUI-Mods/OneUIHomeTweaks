@@ -137,4 +137,5 @@
     <string name="hide_circle_search">かこって検索を履歴に表示しない</string>
     <string name="hide_circle_search_note">検索機能はそのまま使えます。通常のGoogleアプリやGoogleレンズは履歴に残します。</string>
   <string name="diy_avoid_widgets">ウィジェットへのアイコン重ね置きを防ぐ</string>
+  <string name="diy_avoid_widgets_note">DIYホームでページを開くと、すでに重なっているアプリアイコンも空きへ移します。収まらないアイコンは大きさを保って別ページに移ります。</string>
 </resources>

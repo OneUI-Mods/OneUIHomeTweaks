@@ -137,4 +137,5 @@
     <string name="hide_circle_search">在最近使用的應用程式中隱藏畫圈搜尋</string>
     <string name="hide_circle_search_note">保留搜尋功能，僅隱藏搜尋專用工作。一般 Google 應用程式和 Google 智慧鏡頭仍會顯示。</string>
   <string name="diy_avoid_widgets">DIY Home 中禁止圖示與小工具重疊</string>
+  <string name="diy_avoid_widgets_note">開啟 DIY 主畫面頁面時，已與小工具重疊的應用程式圖示也會移至空白處。空間不足時，圖示會維持原有大小並移至其他頁面。</string>
 </resources>

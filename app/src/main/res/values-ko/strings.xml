@@ -137,4 +137,5 @@
     <string name="hide_circle_search">서클 투 서치을 최근 앱에서 숨기기</string>
     <string name="hide_circle_search_note">검색 기능은 유지하고 검색 전용 작업만 숨깁니다. 일반 Google 앱과 Google 렌즈는 계속 표시됩니다.</string>
   <string name="diy_avoid_widgets">DIY Home에서 아이콘을 위젯 위에 놓지 않기</string>
+  <string name="diy_avoid_widgets_note">DIY 홈 페이지를 열면 위젯과 겹치는 기존 앱 아이콘을 빈 공간으로 옮깁니다. 공간이 부족하면 아이콘 크기를 유지한 채 다른 페이지로 옮깁니다.</string>
 </resources>

@@ -40,7 +40,9 @@ Page-size notifications also reapply alignment after the first measurement, avoi
 
 Configure DIY Home alignment in **Home** with DIY Home enabled in Home Up. It uses the normal home-grid settings, while widgets and stickers retain free placement. Toggling alignment itself does not rewrite saved positions. **Save aligned layout** shows the affected item/page counts before confirmation; saved positions then remain even without root or hooks. Apps and folders moved while alignment is enabled are saved by the original editor, so disabling alignment does not undo those edits. Landscape and RTL layouts use stock free placement.
 
-If alignment dimensions do not match the current home screen, icons and folders use their original saved positions to avoid overlap. The alignment switch stays on, and no layout is automatically saved.
+With **Avoid placing DIY Home icons over widgets** enabled, opening a portrait DIY page also checks existing placements. App icons overlapping widgets keep their size and move into open space on that page first, then into verified space on another page. One UI Home saves the new positions when there is room for every affected icon.
+
+If alignment dimensions do not match the current home screen, icons and folders use their original saved positions to avoid overlap. The alignment switch stays on and saving the aligned layout is unavailable until the dimensions match.
 
 **Home → Layout protection and diagnostics** prevents DIY Home positions from being saved using temporary rotation dimensions. Stock layout correction proceeds only after the launcher returns to the foreground and dimensions stabilize. Widget sizing remains with the original drawing code. This protection targets Android 17 / One UI 9 BZI9, One UI Home 18.0.07.53, and Home Up 18.0.00.36. Protection and logging have separate switches. Previously saved incorrect positions are not guessed or automatically restored.
 

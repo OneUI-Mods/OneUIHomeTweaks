@@ -137,4 +137,5 @@
     <string name="hide_circle_search">Hide Circle to Search from Recents</string>
     <string name="hide_circle_search_note">Keep Circle to Search working while hiding its separate task. Regular Google and Lens tasks remain visible.</string>
   <string name="diy_avoid_widgets">Avoid placing DIY Home icons over widgets</string>
+  <string name="diy_avoid_widgets_note">Existing overlaps are moved to open space when you visit a DIY Home page. If needed, app icons move to another page at their current size.</string>
 </resources>

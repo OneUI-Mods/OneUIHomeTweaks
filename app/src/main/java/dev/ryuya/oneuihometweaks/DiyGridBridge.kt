@@ -1303,7 +1303,7 @@ class DiyGridBridge {
             val child = knownChild ?: call(page, "getChildWithId",
                 arrayOf<Class<*>?>(Int::class.javaPrimitiveType), current.id) as? View ?: return slot
             return slot.takeIf {
-                placement.permitsGridProjection(page, child, Point(current.x, current.y), Point(it.x, it.y))
+                placement.permitsGridProjection(page, child, current.id, Point(current.x, current.y), Point(it.x, it.y))
             }
         }
 

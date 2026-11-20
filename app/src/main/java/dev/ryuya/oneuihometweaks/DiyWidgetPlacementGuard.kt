@@ -39,17 +39,20 @@ internal class DiyWidgetPlacementGuard {
     private var edit: Edit? = null
     private var drop: Drop? = null
     private var loggedBlocks = 0
+    private var reflow: DiyWidgetReflow? = null
     var onChanged: () -> Unit = {}
 
     fun observe(view: ViewGroup) {
         workspace = WeakReference(view)
         prepare()
+        if (enabled) reflow?.observe(view)
     }
 
     fun setEnabled(on: Boolean) {
         if (enabled == on) return
         enabled = on
         prepare()
+        reflow?.observe(workspace.get().takeIf { on })
         onChanged()
     }
 
@@ -208,18 +211,32 @@ internal class DiyWidgetPlacementGuard {
         }
         geometry = Geometry(widget, widgetDrop, iconView, folder, cellX, cellY, actualX, actualY)
         HookEntry.log("DIY_WIDGET_PLACEMENT_READY")
-        main.post { onChanged() }
+        main.post {
+            reflow = runCatching {
+                DiyWidgetReflow(
+                    loader, layout, vm, params,
+                    { isWidget(it, widget, widgetDrop) },
+                    { isAppIcon(it, iconView, folder) },
+                    { onChanged() },
+                )
+            }.onFailure {
+                HookEntry.log("DIY_WIDGET_REFLOW_UNAVAILABLE ${it.javaClass.simpleName}: ${it.message}")
+            }.getOrNull()
+            if (enabled) reflow?.observe(workspace.get())
+            onChanged()
+        }
     }
 
     @Volatile private var geometry: Geometry? = null
 
     fun checksGridProjection(): Boolean = enabled && geometry != null
 
-    fun permitsGridProjection(page: ViewGroup, view: View, saved: Point, projected: Point): Boolean {
+    fun permitsGridProjection(page: ViewGroup, view: View, id: Int, saved: Point, projected: Point): Boolean {
         val shapes = geometry ?: return true
         if (!active(page) || view.parent !== page || !isAppIcon(view, shapes.icon, shapes.folder) ||
             saved == projected || view.width <= 0 || view.height <= 0) return true
         return runCatching {
+            if (reflow?.preservesPosition(page, id, saved.x, saved.y) == true) return false
             val lp = view.layoutParams
             val cellX = shapes.cellX.invoke(lp) as Int
             val cellY = shapes.cellY.invoke(lp) as Int
@@ -269,11 +286,14 @@ internal class DiyWidgetPlacementGuard {
         for (index in 0 until page.childCount) {
             val child = page.getChildAt(index)
             if (child.visibility != View.VISIBLE || child.width <= 0 || child.height <= 0 ||
-                !(child is AppWidgetHostView || widget.isInstance(child) || widgetDrop.isInstance(child))) continue
+                !isWidget(child, widget, widgetDrop)) continue
             if (RectF.intersects(icon, boundsInPage(child))) return true
         }
         return false
     }
+
+    private fun isWidget(view: View, widget: Class<*>, widgetDrop: Class<*>): Boolean =
+        view is AppWidgetHostView || widget.isInstance(view) || widgetDrop.isInstance(view)
 
     private fun isAppIcon(view: View, icon: Class<*>, folder: Class<*>): Boolean {
         if (icon.isInstance(view)) return !folder.isInstance(view)
