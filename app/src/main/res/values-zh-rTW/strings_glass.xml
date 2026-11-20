@@ -1,21 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="glass_title">玻璃外觀</string>
-    <string name="glass_quick">快速設定圖塊</string>
-    <string name="glass_notifications">通知面板與卡片</string>
-    <string name="glass_volume">音量面板</string>
-    <string name="glass_home">主畫面底欄與資料夾</string>
-    <string name="glass_strength">玻璃效果強度</string>
-    <string name="glass_tint">玻璃著色</string>
-    <string name="glass_tint_hint">向左更透明，向右顏色更深。</string>
-    <string name="glass_preview">三種玻璃效果的預覽</string>
-    <string name="glass_requirements">實驗功能。更改圖塊設定後，請重新開啟快速設定面板。在 Vector 中為相應介面啟用 SystemUI 或 One UI 主螢幕。</string>
-    <string name="glass_preview_only">此裝置僅支援預覽。實際套用需要執行 One UI 9 BZI9 的 SM-S948Q。</string>
-    <string name="glass_status_line">%1$s · %2$s</string>
-    <string name="glass_state_off">關閉</string>
-    <string name="glass_state_master_off">上層開關已關閉</string>
-    <string name="glass_state_reload">需要重新載入</string>
-    <string name="glass_state_pending">等待首次繪製</string>
-    <string name="glass_state_drawn">已繪製</string>
-    <string name="glass_state_error">無法繪製</string>
+    <string name="glass_title">Galaxy Glass Tools</string>
+    <string name="glass_moved">請安裝 Galaxy Glass Tools。</string>
 </resources>

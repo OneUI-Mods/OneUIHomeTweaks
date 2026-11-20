@@ -8,7 +8,7 @@ For home-screen app names and the Finder area at the bottom, the module can insp
 
 **Development and physical-device validation are ongoing.** The verified baseline is Galaxy S26 Ultra (SM-S948Q), Android 16, and Vector 2.2. Installing the APK alone on an ordinary unrooted phone is insufficient. Android 17 / One UI 9 support is experimental on SM-S948Q / BZI9. Separate compatibility paths are maintained for Android 16 and 17.
 
-On the development branch `main`, use **Appearance → Glass appearance** to style Quick Panel tiles, notifications and pop-up banners, the volume-key panel, and the Home dock and folders. Folder glass also covers closed folders on DIY Home pages and the opening and closing animations. Adjust tint in 5-point increments independently of glass intensity. Live styling is experimental on the SM-S948Q with One UI 9 BZI9. [Implementation notes](docs/glass-appearance.md)
+Starting with 0.21.52, [Galaxy Glass Tools](https://github.com/OneUI-Mods/GalaxyGlassTools) manages the glass appearance and imports existing glass preferences once.
 
 ## DIY icon grid recovery
 

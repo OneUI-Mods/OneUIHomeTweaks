@@ -272,7 +272,9 @@ class MainActivity : AppCompatActivity() {
                 },
             )
         requireViewById<View>(R.id.glass_settings).setOnClickListener {
-            startActivity(Intent(this, GlassActivity::class.java))
+            val target = packageManager.getLaunchIntentForPackage("dev.ryuya.galaxyglass")
+            if (target != null) startActivity(target)
+            else android.widget.Toast.makeText(this, R.string.glass_moved, android.widget.Toast.LENGTH_LONG).show()
         }
         val navigation = requireViewById<BottomNavigationView>(R.id.navigation)
         val pageIds = intArrayOf(R.id.page_0, R.id.page_1, R.id.page_2, R.id.page_3)
@@ -861,7 +863,7 @@ class MainActivity : AppCompatActivity() {
         for (root in listOf("/data/user/0/", "/data/user_de/0/")) {
             for (host in ConfigProvider.HOSTS.orEmpty()) {
                 val files = if (host == "com.android.systemui") {
-                    listOf(CrashGuard.FILE, CrashGuard.EDGE_LIGHTING_FILE)
+                    CrashGuard.systemUiFiles()
                 } else listOf(CrashGuard.FILE)
                 for (file in files) {
                     for (suffix in listOf("", ".bak", ".new")) {

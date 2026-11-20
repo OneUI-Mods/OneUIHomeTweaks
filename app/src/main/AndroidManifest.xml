@@ -1,5 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <queries>
+        <package android:name="dev.ryuya.galaxyglass"/>
         <package android:name="com.samsung.android.soundassistant"/>
         <package android:name="com.samsung.android.app.smartcapture"/>
         <package android:name="com.samsung.android.app.homestar"/>
@@ -17,7 +18,6 @@
             </intent-filter>
         </activity>
         <activity android:name=".QuickPanelActivity" android:exported="false" />
-        <activity android:name=".GlassActivity" android:exported="false" />
         <activity android:name=".HomeLayoutActivity" android:exported="false" />
         <provider android:name="androidx.core.content.FileProvider" android:authorities="${applicationId}.diagnostics" android:exported="false" android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/diagnostic_paths" />

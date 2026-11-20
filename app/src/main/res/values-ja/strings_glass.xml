@@ -1,21 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="glass_title">ガラスの外観</string>
-    <string name="glass_quick">クイックパネルのタイル</string>
-    <string name="glass_notifications">通知パネルとカード</string>
-    <string name="glass_volume">音量パネル</string>
-    <string name="glass_home">ホームのドックとフォルダ</string>
-    <string name="glass_strength">ガラスの強さ</string>
-    <string name="glass_tint">ガラスの着色</string>
-    <string name="glass_tint_hint">左ほど透明に、右ほど色が濃くなります。</string>
-    <string name="glass_preview">3つのガラス効果のプレビュー</string>
-    <string name="glass_requirements">試験機能です。タイルの変更後はクイックパネルを開き直してください。使用する画面に合わせてVectorでSystemUIまたはOne UIホームを対象にします。</string>
-    <string name="glass_preview_only">この端末ではプレビューのみ利用できます。実際の画面への適用にはSM-S948QのOne UI 9 BZI9が必要です。</string>
-    <string name="glass_status_line">%1$s · %2$s</string>
-    <string name="glass_state_off">オフ</string>
-    <string name="glass_state_master_off">対象の全体設定がオフ</string>
-    <string name="glass_state_reload">対象の再読み込みが必要</string>
-    <string name="glass_state_pending">最初の描画を待機中</string>
-    <string name="glass_state_drawn">描画を確認済み</string>
-    <string name="glass_state_error">描画できません</string>
+    <string name="glass_title">Galaxy Glass Tools</string>
+    <string name="glass_moved">Galaxy Glass Toolsをインストールしてください。</string>
 </resources>

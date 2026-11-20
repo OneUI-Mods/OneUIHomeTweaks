@@ -57,14 +57,22 @@ class CrashGuard private constructor(context: Context, fileName: String) {
 
     companion object {
         const val FILE: String = "dev.ryuya.oneuihometweaks.guard"
-        const val EDGE_LIGHTING_FILE = "$FILE.edgelighting"
+        private const val SYSTEM_UI_PREFIX = "com.android.systemui:"
+        private val appearanceHelpers = setOf("edgelighting", "screenshot", "fgservices", "multiwindowui")
+
+        internal fun isSystemUiAppearanceHelper(process: String?): Boolean =
+            process?.startsWith(SYSTEM_UI_PREFIX) == true && process.removePrefix(SYSTEM_UI_PREFIX) in appearanceHelpers
+
+        internal fun systemUiFiles() = listOf(FILE) + appearanceHelpers.map { "$FILE.$it" }
 
         @JvmStatic
         @Throws(Exception::class)
         fun enter(context: Context): CrashGuard = enter(context, context.packageName, FILE)
 
-        internal fun enterEdgeLighting(context: Context): CrashGuard =
-            enter(context, "${context.packageName}:edgelighting", EDGE_LIGHTING_FILE)
+        internal fun enterSystemUiAppearanceHelper(context: Context, process: String): CrashGuard {
+            require(isSystemUiAppearanceHelper(process))
+            return enter(context, process, "$FILE.${process.removePrefix(SYSTEM_UI_PREFIX)}")
+        }
 
         private fun enter(context: Context, processName: String, fileName: String): CrashGuard {
             val guard = CrashGuard(context, fileName)

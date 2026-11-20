@@ -8,7 +8,7 @@ SamsungのOne UI HomeをカスタマイズするAndroidアプリです。ホー�
 
 **現在は開発・実機検証中です。** 対応を確認している環境はGalaxy S26 Ultra（SM-S948Q）、Android 16、Vector 2.2です。通常の未root端末にAPKをインストールするだけでは動作しません。Android 17 / One UI 9はSM-S948Q / BZI9で実験対応しています。Android 16用と17用の互換処理は別に維持しています。
 
-開発中の `main` ブランチでは、**外観 → ガラスの外観**で、クイックパネルのタイル、通知パネルとポップアップ、音量キーで出るパネル、ホームのドックとフォルダに個別にガラス効果を設定できます。DIYホームの閉じたフォルダにも対応します。ガラスの着色量は効果の強さとは別に5％刻みで調整できます。試験対応は SM-S948Q の One UI 9 BZI9 です。[開発者向けの実装資料](docs/glass-appearance.md)
+0.21.52以降、ガラスの設定は専用の [Galaxy Glass Tools](https://github.com/OneUI-Mods/GalaxyGlassTools) に移りました。旧版のガラス設定は専用アプリが一度引き継ぎます。
 
 ## DIYアイコン整列の復帰
 

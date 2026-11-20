@@ -77,12 +77,7 @@ class ConfigProvider : ContentProvider() {
                     "icon_overlap_fix",
                     "settings_enabled",
                     "hide_circle_search",
-                    GlassAppearance.QUICK,
-                    GlassAppearance.NOTIFICATIONS,
-                    GlassAppearance.HOME,
-                    GlassAppearance.STRENGTH,
-                    GlassAppearance.TINT,
-                    GlassAppearance.VOLUME,
+
                 )
             )
         c.addRow(
@@ -114,18 +109,37 @@ class ConfigProvider : ContentProvider() {
                 if (p.getBoolean("icon_overlap_fix", true)) 1 else 0,
                 if (p.getBoolean("settings_enabled", true)) 1 else 0,
                 if (p.getBoolean("hide_circle_search", true)) 1 else 0,
-                if (p.getBoolean(GlassAppearance.QUICK, false)) 1 else 0,
-                if (p.getBoolean(GlassAppearance.NOTIFICATIONS, false)) 1 else 0,
-                if (p.getBoolean(GlassAppearance.HOME, false)) 1 else 0,
-                p.getInt(GlassAppearance.STRENGTH, GlassAppearance.DEFAULT_STRENGTH).coerceIn(0, 100),
-                GlassAppearance.tintPercent(p.getInt(GlassAppearance.TINT, GlassAppearance.DEFAULT_TINT)),
-                if (p.getBoolean(GlassAppearance.VOLUME, false)) 1 else 0,
+
             )
         )
         return c
     }
 
     override fun call(method: String, arg: String?, extras: Bundle?): Bundle? {
+        if (method == "glass_export") {
+            val app = requireNotNull(context)
+            val pkg = "dev.ryuya.galaxyglass"
+            val cert = "e19cfbca86a4988919d8eb58a9655518a126f3d2d96f03cf96285438364bad7e"
+                .chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+            if (Binder.getCallingUid() / 100000 != 0 || callingPackage != pkg ||
+                !app.packageManager.hasSigningCertificate(pkg, cert, android.content.pm.PackageManager.CERT_INPUT_SHA256)) {
+                throw SecurityException("Galaxy Glass Tools only")
+            }
+            val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val master = prefs.getBoolean("enabled", true)
+            val shade = master && prefs.getBoolean("systemui_enabled", true)
+            val system = prefs.getBoolean("glass_system_surfaces", false)
+            return Bundle().apply {
+                for (key in listOf("glass_quick", "glass_notifications", "glass_volume", "glass_system_surfaces"))
+                    putBoolean(key, shade && prefs.getBoolean(key, false))
+                putBoolean("glass_lock_screen", shade && prefs.getBoolean("glass_lock_screen", system))
+                putBoolean("glass_home", master && prefs.getBoolean("home_enabled", true) &&
+                    prefs.getBoolean("glass_home", false))
+                putInt("glass_strength", prefs.getInt("glass_strength", 60))
+                putInt("glass_tint", prefs.getInt("glass_tint", 50))
+                putInt("volume", prefs.getInt("volume", 0))
+            }
+        }
         if ("layout_config" == method || "layout_append" == method) {
             if (Binder.getCallingUid() != Process.myUid() && HookEntry.LAUNCHER != hostCaller())
                 throw SecurityException("Launcher only")
@@ -192,13 +206,7 @@ class ConfigProvider : ContentProvider() {
         if (host != extras.getString("host")) throw SecurityException("Host mismatch")
         val feature = extras.getString("feature")
         if (feature != null) {
-            val allowed = when (host) {
-                "com.android.systemui" -> feature in setOf(
-                    "clock_date", "quick_panel", GlassAppearance.QUICK, GlassAppearance.NOTIFICATIONS, GlassAppearance.VOLUME,
-                )
-                HookEntry.LAUNCHER -> feature == GlassAppearance.HOME
-                else -> false
-            }
+            val allowed = host == "com.android.systemui" && feature in setOf("clock_date", "quick_panel")
             if (!allowed) throw SecurityException("Unsupported feature")
             host += "." + feature
         }
