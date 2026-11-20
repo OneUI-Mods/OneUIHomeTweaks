@@ -65,6 +65,7 @@ class MainActivity : AppCompatActivity() {
             "enabled",
             "home_enabled",
             "systemui_enabled",
+            InteractionRefresh.KEY,
             "preview_enabled",
             "pages",
             "preview",
@@ -82,6 +83,7 @@ class MainActivity : AppCompatActivity() {
             R.id.master,
             R.id.home_enabled,
             R.id.systemui_enabled,
+            R.id.interaction_refresh,
             R.id.preview_enabled,
             R.id.pages,
             R.id.preview,
@@ -188,6 +190,10 @@ class MainActivity : AppCompatActivity() {
                 },
             )
         }
+        requireViewById<View>(R.id.interaction_refresh).visibility =
+            if (InteractionRefresh.supported()) View.VISIBLE else View.GONE
+        requireViewById<View>(R.id.interaction_refresh_hint).visibility =
+            if (InteractionRefresh.supported()) View.VISIBLE else View.GONE
         val focusMode = requireViewById<MaterialAutoCompleteTextView>(R.id.recents_focus_mode)
         val focusChoices =
             arrayOf<String?>(

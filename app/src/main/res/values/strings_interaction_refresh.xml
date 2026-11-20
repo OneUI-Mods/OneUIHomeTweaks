@@ -1,0 +1,4 @@
+<resources>
+    <string name="interaction_refresh">Prefer 120 Hz while interacting</string>
+    <string name="interaction_refresh_hint">Applies briefly to Home and the notification panel during touch or after unlocking. Power saving and thermal limits take priority.</string>
+</resources>

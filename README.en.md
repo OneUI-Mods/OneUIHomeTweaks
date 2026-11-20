@@ -10,6 +10,8 @@ For home-screen app names and the Finder area at the bottom, the module can insp
 
 Starting with 0.21.52, [Galaxy Glass Tools](https://github.com/OneUI-Mods/GalaxyGlassTools) manages the glass appearance and imports existing glass preferences once.
 
+On Android 17 BZI9, the interaction setting briefly requests 120 Hz during Home and notification-panel interactions and after unlocking. The display setting, power-saving mode, and thermal limits still apply.
+
 ## DIY icon grid recovery
 
 On Android 17, icon alignment retries native home-context geometry when dimensions do not fit the measured page. The viewport check remains enforced, with no changes to saved positions or widgets.

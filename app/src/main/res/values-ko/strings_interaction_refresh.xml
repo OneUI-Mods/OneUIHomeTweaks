@@ -1,0 +1,4 @@
+<resources>
+    <string name="interaction_refresh">조작 중 120 Hz 우선</string>
+    <string name="interaction_refresh_hint">홈과 알림 패널을 조작하거나 잠금을 해제한 직후 잠시 적용합니다. 절전 모드와 온도 제한이 우선합니다.</string>
+</resources>

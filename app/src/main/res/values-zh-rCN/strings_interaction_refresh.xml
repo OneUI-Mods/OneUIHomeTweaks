@@ -1,0 +1,4 @@
+<resources>
+    <string name="interaction_refresh">操作时优先使用 120 Hz</string>
+    <string name="interaction_refresh_hint">操作主屏幕和通知面板或刚解锁时短暂生效。省电模式和温度限制优先。</string>
+</resources>

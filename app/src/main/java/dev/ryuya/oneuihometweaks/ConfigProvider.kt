@@ -77,7 +77,7 @@ class ConfigProvider : ContentProvider() {
                     "icon_overlap_fix",
                     "settings_enabled",
                     "hide_circle_search",
-
+                    InteractionRefresh.KEY,
                 )
             )
         c.addRow(
@@ -109,7 +109,7 @@ class ConfigProvider : ContentProvider() {
                 if (p.getBoolean("icon_overlap_fix", true)) 1 else 0,
                 if (p.getBoolean("settings_enabled", true)) 1 else 0,
                 if (p.getBoolean("hide_circle_search", true)) 1 else 0,
-
+                if (p.getBoolean(InteractionRefresh.KEY, true)) 1 else 0,
             )
         )
         return c

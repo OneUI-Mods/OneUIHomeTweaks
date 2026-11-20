@@ -207,9 +207,11 @@ class HookEntry : XposedModule() {
                                     return@whenPrepared
                                 }
                                 if (HookEntry.LAUNCHER == p.packageName) {
+                                    InteractionRefresh.install(app, p.classLoader, home = true)
                                     homeLayout.start(app)
                                     installLauncher(p, app!!)
                                 } else if ("com.android.systemui" == p.packageName) {
+                                    InteractionRefresh.install(app, p.classLoader, home = false)
                                     QuickPanelHooks().install(app, p.classLoader)
                                     ClockDateHooks().install(app, p.classLoader)
                                     VolumeHooks().install(app, p.classLoader)

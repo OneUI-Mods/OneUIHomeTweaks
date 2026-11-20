@@ -1,0 +1,4 @@
+<resources>
+    <string name="interaction_refresh">操作中は120 Hzを優先</string>
+    <string name="interaction_refresh_hint">ホームや通知パネルの操作中、ロック解除直後だけ適用します。省電力モードと温度制限を優先します。</string>
+</resources>

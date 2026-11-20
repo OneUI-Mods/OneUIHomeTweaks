@@ -473,6 +473,20 @@
               android:minHeight="56dp"
               android:text="@string/scope_volume"
               android:textAppearance="@style/TextAppearance.Material3.TitleMedium" />
+            <com.google.android.material.materialswitch.MaterialSwitch
+              android:id="@+id/interaction_refresh"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:minHeight="56dp"
+              android:text="@string/interaction_refresh"
+              android:textAppearance="@style/TextAppearance.Material3.TitleMedium" />
+            <TextView
+              android:id="@+id/interaction_refresh_hint"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:text="@string/interaction_refresh_hint"
+              android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+              android:textColor="?attr/colorOnSurfaceVariant" />
           </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
         <com.google.android.material.card.MaterialCardView
