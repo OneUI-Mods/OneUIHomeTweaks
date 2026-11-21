@@ -302,6 +302,7 @@ class HookEntry : XposedModule() {
                 return
             }
             DexEvidence.verifyAndDeoptimize(p.appInfo.sourceDir, launcherLoader)
+            LauncherBlurCacheHooks.install(app, p.classLoader)
             val reads: ModernHook.Callback =
                 object : ModernHook.Callback() {
                     override fun afterHookedMethod(param: ModernHook.Param) {
