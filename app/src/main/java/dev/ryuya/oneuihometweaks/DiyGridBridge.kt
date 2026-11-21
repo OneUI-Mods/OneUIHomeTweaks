@@ -82,7 +82,8 @@ class DiyGridBridge {
     private var homeGeometryReadsReady = false
     private var recoveryReported = false
     private var diagnostic: String = "off"
-    private var observedGeometry: String = ""
+    private val observedGeometry = WorkspaceGeometry()
+    private var observedPage = -1
     private var changed: Runnable = Runnable {}
     private val render: Runnable = Runnable { this.renderNow() }
 
@@ -269,30 +270,16 @@ class DiyGridBridge {
 
     fun observe(view: ViewGroup) {
         val replaced: Boolean = workspace.get() !== view
-        workspace = WeakReference<ViewGroup?>(view)
+        if (replaced) workspace = WeakReference(view)
         if (!ready) {
             if (enabled) ensureReady()
             return
         }
         try {
-            val key: String =
-                (view.getWidth().toString() +
-                    ":" +
-                    view.getHeight() +
-                    ":" +
-                    view.getChildCount() +
-                    ":" +
-                    number(view, "getCurrentPage") +
-                    ":" +
-                    view.getResources().getConfiguration().orientation +
-                    ":" +
-                    view.getResources().getConfiguration().screenWidthDp +
-                    ":" +
-                    view.getResources().getConfiguration().screenHeightDp +
-                    ":" +
-                    view.getResources().getConfiguration().densityDpi)
-            if (!replaced && key == observedGeometry) return
-            observedGeometry = key
+            val page = number(view, "getCurrentPage")
+            val geometryChanged = observedGeometry.update(view)
+            if (!replaced && !geometryChanged && page == observedPage) return
+            observedPage = page
             collect(view)
             queueRender()
         } catch (error: Throwable) {

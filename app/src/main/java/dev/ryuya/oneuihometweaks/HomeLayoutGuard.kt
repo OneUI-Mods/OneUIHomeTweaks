@@ -70,7 +70,7 @@ class HomeLayoutGuard {
     private var installed: Boolean = false
     @Volatile private var stopped: Boolean = false
     private val previousItems: MutableMap<Int?, String?> = HashMap<Int?, String?>()
-    private var observed: String = ""
+    private val observed = WorkspaceGeometry()
     private val repositoryTypes: MutableSet<Class<*>?> = HashSet<Class<*>?>()
     private var sequence: Long = 0
     private var geometryChanged: Long = 0
@@ -138,23 +138,7 @@ class HomeLayoutGuard {
             if (!installed) return
         }
         try {
-            val config = workspace.getResources().getConfiguration()
-            val key: String =
-                (workspace.getWidth().toString() +
-                    "x" +
-                    workspace.getHeight() +
-                    "/" +
-                    workspace.getChildCount() +
-                    "/" +
-                    config.orientation +
-                    "/" +
-                    config.screenWidthDp +
-                    "/" +
-                    config.screenHeightDp +
-                    "/" +
-                    config.densityDpi)
-            if (key == observed) return
-            observed = key
+            if (!observed.update(workspace)) return
             collectLayouts(workspace)
 
             for (layout in ArrayList<ViewGroup?>(layouts)) {

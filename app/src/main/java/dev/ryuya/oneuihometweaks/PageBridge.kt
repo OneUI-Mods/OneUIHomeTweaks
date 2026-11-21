@@ -25,7 +25,13 @@ import kotlin.math.round
 class PageBridge {
     @Volatile private var enabled: Boolean = false
     private var last: WeakReference<ViewGroup?> = WeakReference<ViewGroup?>(null)
-    private var pending: Boolean = false
+    private var pendingView: WeakReference<ViewGroup?>? = null
+    private val sendWallpaperOffset = Runnable {
+        val view = pendingView?.get()
+        pendingView = null
+        if (view != null && enabled && !failed) send(view)
+    }
+    private var pagePositions = IntArray(0)
     private var failed: Boolean = false
     private var scrollForPage: Method? = null
     private var cellType: Method? = null
@@ -355,16 +361,11 @@ class PageBridge {
             val expected = owner.getWindow().getDecorView().getWindowToken()
             if (expected != null && view.getWindowToken() !== expected) return
         }
-        last = WeakReference<ViewGroup?>(view)
-        if (isFreeGrid && freeGridObserver != null) freeGridObserver!!.accept(view)
-        if (!enabled || failed || pending) return
-        pending = true
-        view.postOnAnimation(
-            Runnable {
-                pending = false
-                if (enabled && !failed) send(view)
-            }
-        )
+        if (last.get() !== view) last = WeakReference(view)
+        if (isFreeGrid) freeGridObserver?.accept(view)
+        if (!enabled || failed || pendingView != null) return
+        pendingView = last
+        view.postOnAnimation(sendWallpaperOffset)
     }
 
     private data class Position(
@@ -403,8 +404,9 @@ class PageBridge {
                 currentState!!.invoke(view).javaClass.compatibleName()
         )
             return null
-        val positions = ArrayList<Int?>()
-        for (i in 0 until view.getChildCount()) {
+        if (pagePositions.size < view.childCount) pagePositions = IntArray(view.childCount)
+        var count = 0
+        for (i in 0 until view.childCount) {
             val child = view.getChildAt(i)
             if (
                 if (indexedCellType != null)
@@ -413,18 +415,14 @@ class PageBridge {
                     cells!!.isInstance(child) &&
                         "CELL_LAYOUT" == (cellType!!.invoke(child) as Enum<*>).name
             )
-                positions.add(scrollForPage!!.invoke(view, i) as Int?)
+                pagePositions[count++] = scrollForPage!!.invoke(view, i) as Int
         }
-        if (positions.isEmpty()) return null
-        val array = IntArray(positions.size)
-        for (i in array.indices) array[i] = positions.get(i)!!
-        if (array.size > 1 && array[0] == array[array.size - 1]) return null // not laid out yet
+        if (count == 0 || (count > 1 && pagePositions[0] == pagePositions[count - 1])) return null
 
-        val offset = PagePolicy.offset(view.getScrollX(), array)
-        val step: Float = if (array.size > 1) 1f / (array.size - 1) else 0f
-        val token = view.getWindowToken()
-        if (token == null) return null
-        return Position(token, offset, step, array.size)
+        val offset = PagePolicy.offset(view.scrollX, pagePositions, count)
+        val step = if (count > 1) 1f / (count - 1) else 0f
+        val token = view.windowToken ?: return null
+        return Position(token, offset, step, count)
     }
 
     private fun send(view: ViewGroup) {

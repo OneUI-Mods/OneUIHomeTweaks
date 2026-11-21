@@ -43,7 +43,7 @@ internal class DiyWidgetPlacementGuard {
     var onChanged: () -> Unit = {}
 
     fun observe(view: ViewGroup) {
-        workspace = WeakReference(view)
+        if (workspace.get() !== view) workspace = WeakReference(view)
         prepare()
         if (enabled) reflow?.observe(view)
     }
