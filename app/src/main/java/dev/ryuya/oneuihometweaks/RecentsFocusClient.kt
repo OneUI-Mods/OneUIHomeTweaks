@@ -7,19 +7,12 @@ import android.os.IBinder
 import dev.ryuya.oneuihometweaks.compat.DexSymbols
 import dev.ryuya.oneuihometweaks.compat.compatibleMethod
 import kotlin.concurrent.Volatile
-import kotlin.jvm.JvmRecord
 
 /* Launcher-only discovery. No injection or hooks in the source application. */
 class RecentsFocusClient {
-    @JvmRecord
-    private data class Connection(val backend: IBinder?, val anchor: IBinder?) {
-        override fun toString(): String = "Connection[backend=$backend, anchor=$anchor]"
-    }
+    private data class Connection(val backend: IBinder, val anchor: IBinder, val viaTaskManager: Boolean)
 
-    @JvmRecord
-    data class Lease(val backend: IBinder?, val owner: IBinder?) {
-        override fun toString(): String = "Lease[backend=$backend, owner=$owner]"
-    }
+    data class Lease(val backend: IBinder, val owner: IBinder, val viaTaskManager: Boolean)
 
     @Volatile private var connection: RecentsFocusClient.Connection? = null
     @Volatile private var state: String = "backend-missing"
@@ -31,8 +24,9 @@ class RecentsFocusClient {
 
     fun connect(context: Context) {
         try {
-            val current: RecentsFocusClient.Connection? = connection
-            var backend: IBinder? = if (current == null) null else current.backend
+            val current = connection
+            var backend = current?.backend
+            var viaTaskManager = current?.viaTaskManager == true
             if (backend == null || !backend.isBinderAlive()) {
                 val services = DexSymbols.findClass("android.os.ServiceManager")
                 val atm: IBinder? =
@@ -40,25 +34,27 @@ class RecentsFocusClient {
                         .compatibleMethod("getService", String::class.java)
                         .invoke(null, "activity_task") as IBinder?
                 val found = RecentsFocusWire.call(atm!!, RecentsFocusWire.DISCOVER, null)
-                backend = found!!.getBinder("backend")
-                checkNotNull(backend) { "No backend" }
+                viaTaskManager = found!!.getBoolean(RecentsFocusWire.TASK_MANAGER)
+                backend = if (viaTaskManager) atm else checkNotNull(found.getBinder("backend"))
             }
             val data = Bundle()
             data.putBinder("backend", backend)
+            data.putBoolean(RecentsFocusWire.TASK_MANAGER, viaTaskManager)
             val reply =
                 context
                     .getContentResolver()
                     .call(ConfigProvider.URI!!, "focus_register", null, data)
             val anchor: IBinder? = if (reply == null) null else reply.getBinder("anchor")
             checkNotNull(anchor) { "No provider anchor" }
-            connection = RecentsFocusClient.Connection(backend, anchor)
+            connection = Connection(backend, anchor, viaTaskManager)
             state =
-                RecentsFocusWire.call(backend, RecentsFocusWire.STATUS, null)!!.getString(
+                RecentsFocusWire.call(backend, RecentsFocusWire.STATUS, null, viaTaskManager)!!.getString(
                     "state",
                     "error",
                 )
             lastFailure = null
         } catch (error: Throwable) {
+            connection = null
             state = "backend-missing"
             val failure = error.javaClass.simpleName + ": " + error.message
             if (failure != lastFailure) {
@@ -80,9 +76,9 @@ class RecentsFocusClient {
         data.putInt("task", task)
         data.putInt("mode", mode)
         try {
-            val reply = RecentsFocusWire.call(backend!!, RecentsFocusWire.BEGIN, data)
+            val reply = RecentsFocusWire.call(backend, RecentsFocusWire.BEGIN, data, current.viaTaskManager)
             state = reply!!.getString("state", "error")
-            return if (reply!!.getBoolean("accepted")) RecentsFocusClient.Lease(backend, owner)
+            return if (reply!!.getBoolean("accepted")) Lease(backend, owner, current.viaTaskManager)
             else null
         } catch (error: Throwable) {
             state = "error"
@@ -96,7 +92,7 @@ class RecentsFocusClient {
         data.putBinder("owner", lease.owner)
         try {
             state =
-                RecentsFocusWire.call(lease.backend!!, RecentsFocusWire.END, data)!!.getString(
+                RecentsFocusWire.call(lease.backend, RecentsFocusWire.END, data, lease.viaTaskManager)!!.getString(
                     "state",
                     "error",
                 )

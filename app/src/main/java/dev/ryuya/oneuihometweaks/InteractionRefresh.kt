@@ -31,6 +31,7 @@ internal class InteractionRefresh(private val app: Application, private val home
     private var unlockUntil = 0L
     private var deadline = 0L
     @Volatile private var allowed = false
+    @Volatile private var retired = false
     @Volatile private var wantsRate = false
     private var active: Any? = null
     private var unavailable = false
@@ -92,11 +93,9 @@ internal class InteractionRefresh(private val app: Application, private val home
             override fun onChange(selfChange: Boolean) = refreshSettings()
         }
         val resolver = app.contentResolver
-        resolver.registerContentObserver(requireNotNull(ConfigProvider.URI), false, settings)
-        resolver.registerContentObserver(Settings.System.getUriFor("peak_refresh_rate"), false, settings)
-        resolver.registerContentObserver(Settings.Secure.getUriFor("refresh_rate_mode"), false, settings)
-        app.registerReceiver(object : BroadcastReceiver() {
+        val screen = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
+                if (retired) return
                 when (intent.action) {
                     Intent.ACTION_USER_PRESENT -> {
                         unlockUntil = SystemClock.uptimeMillis() + UNLOCK_MS
@@ -108,19 +107,37 @@ internal class InteractionRefresh(private val app: Application, private val home
                     }
                 }
             }
-        }, IntentFilter().apply {
-            addAction(Intent.ACTION_USER_PRESENT)
-            addAction(Intent.ACTION_SCREEN_OFF)
-            addAction(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED)
-        }, Context.RECEIVER_NOT_EXPORTED)
-        power.addThermalStatusListener(app.mainExecutor) { status ->
-            if (status >= PowerManager.THERMAL_STATUS_MODERATE) stop()
         }
-        refreshSettings()
+        val thermal = PowerManager.OnThermalStatusChangedListener { status ->
+            if (!retired && status >= PowerManager.THERMAL_STATUS_MODERATE) stop()
+        }
+        ModernHook.onGenerationRetired {
+            retired = true
+            allowed = false
+            runCatching { resolver.unregisterContentObserver(settings) }
+            runCatching { app.unregisterReceiver(screen) }
+            runCatching { power.removeThermalStatusListener(thermal) }
+            main.removeCallbacksAndMessages(null)
+            stop()
+            worker.shutdown()
+        }
+        ModernHook.afterGenerationActivation {
+            resolver.registerContentObserver(requireNotNull(ConfigProvider.URI), false, settings)
+            resolver.registerContentObserver(Settings.System.getUriFor("peak_refresh_rate"), false, settings)
+            resolver.registerContentObserver(Settings.Secure.getUriFor("refresh_rate_mode"), false, settings)
+            app.registerReceiver(screen, IntentFilter().apply {
+                addAction(Intent.ACTION_USER_PRESENT)
+                addAction(Intent.ACTION_SCREEN_OFF)
+                addAction(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED)
+            }, Context.RECEIVER_NOT_EXPORTED)
+            power.addThermalStatusListener(app.mainExecutor, thermal)
+            refreshSettings()
+        }
         HookEntry.log("INTERACTION_REFRESH_READY ${app.packageName}")
     }
 
     private fun refreshSettings() {
+        if (retired) return
         worker.execute {
             val enabled = runCatching {
                 val resolver = app.contentResolver
@@ -133,6 +150,7 @@ internal class InteractionRefresh(private val app: Application, private val home
                         row.getInt(row.getColumnIndexOrThrow(KEY)) == 1
                 } == true
             }.getOrDefault(false)
+            if (retired) return@execute
             allowed = enabled
             if (!enabled) main.post(::stop)
         }

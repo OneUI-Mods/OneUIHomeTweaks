@@ -61,6 +61,11 @@ class HomeLabelBridge {
     private var enabled: Boolean = false
     private var failed: Boolean = false
     private var busy: Boolean = false
+    private var retryWhenIdle = false
+    // These buffers are only used by the serial capture worker.
+    private var regionPixels = IntArray(0)
+    private var sampledPixels = IntArray(256)
+    private var sampledLuminance = DoubleArray(256)
     private var ownTextColor: Boolean = false
     private var geometryBlocked: Boolean = false
     private var initialReveals: Int = 0
@@ -213,6 +218,17 @@ class HomeLabelBridge {
         HookEntry.log("LOCAL_LABEL_READY wallpaper-only screenshot; native per-icon color API")
     }
 
+    internal fun idleForHotReload() = !busy
+
+    internal fun closeForReload() {
+        enabled = false
+        home.get()?.let(::detach)
+        home.clear()
+        cancel()
+        restore()
+        main.removeCallbacksAndMessages(null)
+    }
+
     fun setHome(activity: Activity) {
         if ("com.sec.android.app.launcher.Launcher" != activity.javaClass.compatibleName()) return
         val old = home.get()
@@ -270,8 +286,9 @@ class HomeLabelBridge {
     fun invalidate() {
         if (!enabled || failed) return
         cancel()
-        main.postDelayed(sample, 180)
-        main.postDelayed(sample, 400)
+        main.postDelayed(sample, 48)
+        main.postDelayed(sample, 120)
+        main.postDelayed(sample, 270)
         main.postDelayed(sample, 750)
         main.postDelayed(sample, 1200)
         main.postDelayed(sample, 1800)
@@ -281,6 +298,7 @@ class HomeLabelBridge {
 
     private fun cancel() {
         generation++
+        retryWhenIdle = false
         main.removeCallbacks(sample)
         main.removeCallbacks(expirePending)
     }
@@ -385,7 +403,11 @@ class HomeLabelBridge {
 
     private fun sample() {
         val activity = home.get()
-        if (busy || !usable(activity)) return
+        if (!usable(activity)) return
+        if (busy) {
+            retryWhenIdle = true
+            return
+        }
         try {
             val screen = activity!!.getWindowManager().getMaximumWindowMetrics().getBounds()
             if (
@@ -640,59 +662,11 @@ class HomeLabelBridge {
                         Rect(0, 0, bitmap.getWidth(), bitmap.getHeight()),
                         Paint(Paint.FILTER_BITMAP_FLAG),
                     )
-                for (target in targets) {
-                    val pixels = ArrayList<Int?>()
-                    for (region in target!!.regions) {
-                        val left =
-                            max(0, (region!!.left * bitmap.getWidth() / screen.width()).toInt())
-                        val right =
-                            min(
-                                bitmap.getWidth(),
-                                (ceil(region!!.right * bitmap.getWidth() / screen.width())).toInt(),
-                            )
-                        val top = max(0, (region!!.top * ratio).toInt())
-                        val bottom =
-                            min(bitmap.getHeight(), (ceil(region!!.bottom * ratio)).toInt())
-                        var y: Int = top
-                        while (y < bottom) {
-                            var x: Int = left
-                            while (x < right) {
-                                var color = bitmap.getPixel(x, y)
-                                if (target!!.overlay != null) {
-                                    val bounds = target!!.overlayBounds
-                                    val ox =
-                                        max(
-                                            0,
-                                            min(
-                                                bounds!!.width() - 1,
-                                                Math.round(
-                                                    (x + 0.5f) * screen.width() / bitmap.getWidth()
-                                                ) - bounds!!.left,
-                                            ),
-                                        )
-                                    val oy =
-                                        max(
-                                            0,
-                                            min(
-                                                bounds!!.height() - 1,
-                                                Math.round((y + 0.5f) / ratio) - bounds!!.top,
-                                            ),
-                                        )
-                                    color =
-                                        ColorUtils.compositeColors(
-                                            target!!.overlay!![oy * bounds!!.width() + ox],
-                                            color,
-                                        )
-                                }
-                                pixels.add(color)
-                                x += max(1, (right - left) / 24)
-                            }
-                            y += max(1, (bottom - top) / 8)
-                        }
-                    }
-                    target!!.pixels =
-                        pixels.stream().mapToInt { obj: Int? -> obj!!.toInt() }.toArray()
-                    target!!.color = LocalContrast.choose(target!!.pixels!!, target!!.previous)
+                for (entry in targets) {
+                    val target = requireNotNull(entry)
+                    val pixels = readSamples(bitmap, target, screen.width(), ratio)
+                    target.pixels = pixels
+                    target.color = LocalContrast.choose(pixels, target.previous, sampledLuminance)
                 }
             }
         } catch (t: Throwable) {
@@ -706,6 +680,10 @@ class HomeLabelBridge {
         main.post(
             Runnable {
                 busy = false
+                if (retryWhenIdle) {
+                    retryWhenIdle = false
+                    main.postDelayed(sample, 32)
+                }
                 if (epoch != generation || !usable(home.get())) return@Runnable
                 if (error != null) {
                     disable(error)
@@ -798,6 +776,50 @@ class HomeLabelBridge {
                 }
             }
         )
+    }
+
+    private fun readSamples(bitmap: Bitmap, target: Target, screenWidth: Int, ratio: Float): IntArray {
+        val width = bitmap.width
+        val overlay = target.overlay
+        val overlayBounds = target.overlayBounds
+        var count = 0
+        for (entry in target.regions) {
+            val region = requireNotNull(entry)
+            val left = max(0, (region.left * width / screenWidth).toInt())
+            val right = min(width, ceil(region.right * width / screenWidth).toInt())
+            val top = max(0, (region.top * ratio).toInt())
+            val bottom = min(bitmap.height, ceil(region.bottom * ratio).toInt())
+            val regionWidth = right - left
+            val regionHeight = bottom - top
+            if (regionWidth <= 0 || regionHeight <= 0) continue
+
+            val area = regionWidth * regionHeight
+            if (regionPixels.size < area) regionPixels = IntArray(area)
+            bitmap.getPixels(regionPixels, 0, regionWidth, left, top, regionWidth, regionHeight)
+            val stepX = max(1, regionWidth / 24)
+            val stepY = max(1, regionHeight / 8)
+            val columns = (regionWidth + stepX - 1) / stepX
+            val rows = (regionHeight + stepY - 1) / stepY
+            val required = count + columns * rows
+            if (sampledPixels.size < required) {
+                sampledPixels = sampledPixels.copyOf(max(required, sampledPixels.size * 2))
+                sampledLuminance = DoubleArray(sampledPixels.size)
+            }
+            for (y in 0 until regionHeight step stepY) {
+                for (x in 0 until regionWidth step stepX) {
+                    var color = regionPixels[y * regionWidth + x]
+                    if (overlay != null && overlayBounds != null) {
+                        val ox = (Math.round((left + x + 0.5f) * screenWidth / width) -
+                            overlayBounds.left).coerceIn(0, overlayBounds.width() - 1)
+                        val oy = (Math.round((top + y + 0.5f) / ratio) -
+                            overlayBounds.top).coerceIn(0, overlayBounds.height() - 1)
+                        color = ColorUtils.compositeColors(overlay[oy * overlayBounds.width() + ox], color)
+                    }
+                    sampledPixels[count++] = color
+                }
+            }
+        }
+        return sampledPixels.copyOf(count)
     }
 
     private fun tintSearchIcon(text: TextView, original: HomeLabelBridge.Saved, color: Int) {

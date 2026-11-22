@@ -83,7 +83,7 @@ class ClockDateHooks {
                             )
                                 return
                             try {
-                                clocks.put(p.thisObject as TextView, true)
+                                track(p.thisObject as TextView)
                                 if (enabled) reorder(p.thisObject as TextView, p.args[0])
                             } catch (error: Throwable) {
                                 disable(error)
@@ -98,9 +98,9 @@ class ClockDateHooks {
                     object : ModernHook.Callback() {
                         override fun afterHookedMethod(p: ModernHook.Param) {
                             if (failed || p.hasThrowable()) return
-                            val view: TextView? = p.thisObject as TextView?
-                            clocks.put(view, true)
-                            main.post(Runnable { refreshClock(view!!) })
+                            val view = p.thisObject as? TextView ?: return
+                            track(view)
+                            main.post { refreshClock(view) }
                         }
                     },
                 )
@@ -108,17 +108,22 @@ class ClockDateHooks {
             val thread = HandlerThread("OneUiClockDateConfig")
             thread.start()
             worker = Handler(thread.getLooper())
-            app.getContentResolver()
-                .registerContentObserver(
-                    ConfigProvider.URI!!,
-                    false,
-                    object : ContentObserver(worker) {
-                        override fun onChange(self: Boolean, uri: Uri?) {
-                            readConfig()
-                        }
-                    },
-                )
-            worker!!.post(Runnable { this.readConfig() })
+            val observer = object : ContentObserver(worker) {
+                override fun onChange(self: Boolean, uri: Uri?) = readConfig()
+            }
+            ModernHook.onGenerationRetired {
+                failed = true
+                enabled = false
+                runCatching { app.contentResolver.unregisterContentObserver(observer) }
+                worker?.removeCallbacksAndMessages(null)
+                thread.quitSafely()
+                for (view in clocks.keys.toList()) if (view != null) refreshClock(view, restoring = true)
+            }
+            ModernHook.afterGenerationActivation {
+                for (view in SystemUiLiveObjects.snapshot("clock")) if (view is TextView) track(view)
+                app.contentResolver.registerContentObserver(ConfigProvider.URI!!, false, observer)
+                worker?.post { readConfig() }
+            }
             HookEntry.log("CLOCK_DATE_READY native notifyTimeChanged + getDateText")
         } catch (error: Throwable) {
             disable(error)
@@ -163,8 +168,12 @@ class ClockDateHooks {
         }
     }
 
-    private fun refreshClock(view: TextView) {
-        if (failed || !view.isAttachedToWindow()) return
+    private fun track(view: TextView) {
+        if (clocks.put(view, true) == null) SystemUiLiveObjects.track("clock", view)
+    }
+
+    private fun refreshClock(view: TextView, restoring: Boolean = false) {
+        if ((!restoring && failed) || !view.isAttachedToWindow()) return
         try {
             val sound = lastSound!!.get(view)
             if (sound != null) notifyTime!!.invoke(view, sound)

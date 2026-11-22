@@ -59,6 +59,8 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
     private var installed: Boolean = false
     private var broken: Boolean = false
     private var state: String = "disarmed"
+    private var legacyEndpointExported = false
+    private var restorePending = false
 
     private class Active(
         owner: IBinder,
@@ -87,79 +89,86 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
         }
     }
 
-    private val endpoint: Binder =
+    private val endpoint: Binder by lazy {
         object : Binder() {
-            override fun onTransact(code: Int, `in`: Parcel, out: Parcel?, flags: Int): Boolean {
-                if (code < RecentsFocusWire.STATUS || code > RecentsFocusWire.STOP) return false
+            override fun onTransact(code: Int, input: Parcel, reply: Parcel?, flags: Int): Boolean {
+                if (code !in RecentsFocusWire.STATUS..RecentsFocusWire.STOP) return false
                 try {
-                    if (!HostStartupGate.unlocked(context))
-                        throw SecurityException("First owner unlock required")
-                    val uid = Binder.getCallingUid()
-                    val app =
-                        RecentsFocusServer.requireUid(
-                            context,
-                            uid,
-                            code == RecentsFocusWire.ARM || code == RecentsFocusWire.STOP,
-                        )
-                    if (out == null || (flags and IBinder.FLAG_ONEWAY) != 0)
-                        throw SecurityException("Synchronous requests only")
-                    if (code == RecentsFocusWire.BEGIN || code == RecentsFocusWire.END) {
-                        if (app) throw SecurityException("Launcher only")
-                    }
-                    `in`.enforceInterface(RecentsFocusWire.DESCRIPTOR)
-                    var data = `in`.readBundle(RecentsFocusServer::class.java.getClassLoader())
-                    `in`.enforceNoDataAvail()
-                    if (data == null) data = Bundle()
-                    val identity = Binder.clearCallingIdentity()
-                    var reply: Bundle? = null
-                    try {
-                        synchronized(lock) {
-                            var accepted: Boolean = false
-                            when (code) {
-                                RecentsFocusWire.ARM -> {
-                                    restore("mode changed")
-                                    armedMode =
-                                        if (broken) 0
-                                        else RecentsFocusPolicy.mode(data.getInt("mode", 0))
-                                    if (!broken && armedMode != 0) {
-                                        installActiveHooks()
-                                        state = "ready"
-                                    } else if ("restore-error" != state)
-                                        state = if (broken) "error" else "disarmed"
-                                }
-                                RecentsFocusWire.STOP -> {
-                                    armedMode = 0
-                                    restore("disabled")
-                                    if (!broken) state = "disarmed"
-                                }
-                                RecentsFocusWire.BEGIN -> accepted = begin(data)
-                                RecentsFocusWire.END -> {
-                                    if (active != null && active!!.owner == data.getBinder("owner"))
-                                        restore("gesture ended")
-                                }
-                                else -> {}
-                            }
-                            reply = reply(accepted)
-                        }
-                    } finally {
-                        Binder.restoreCallingIdentity(identity)
-                    }
-                    out.writeNoException()
-                    out.writeBundle(reply)
-                } catch (error: SecurityException) {
-                    if (out != null) out.writeException(error)
-                } catch (error: Throwable) {
-                    synchronized(lock) {
-                        fail(error)
-                    }
-                    if (out != null) {
-                        out.writeNoException()
-                        out.writeBundle(reply(false))
-                    }
+                    requireRequest(context, reply, flags)
+                    requireUid(context, Binder.getCallingUid(), false)
+                    transact(code, readRequest(input), requireNotNull(reply))
+                } catch (error: Exception) {
+                    reply?.writeException(error)
                 }
                 return true
             }
         }
+    }
+
+    private fun transact(code: Int, data: Bundle, output: Parcel) {
+        require(code in RecentsFocusWire.STATUS..RecentsFocusWire.STOP)
+        val app = requireUid(context, Binder.getCallingUid(),
+            code == RecentsFocusWire.ARM || code == RecentsFocusWire.STOP)
+        if (app && (code == RecentsFocusWire.BEGIN || code == RecentsFocusWire.END)) {
+            throw SecurityException("Launcher only")
+        }
+        val identity = Binder.clearCallingIdentity()
+        val response = try {
+            synchronized(lock) {
+                val accepted = try {
+                    when (code) {
+                        RecentsFocusWire.ARM -> {
+                            restore("mode changed")
+                            armedMode = if (broken) 0
+                                else RecentsFocusPolicy.mode(data.getInt("mode", 0))
+                            if (!broken && armedMode != 0) {
+                                installActiveHooks()
+                                state = "ready"
+                            } else if (state != "restore-error") {
+                                state = if (broken) "error" else "disarmed"
+                            }
+                            false
+                        }
+                        RecentsFocusWire.STOP -> {
+                            armedMode = 0
+                            restore("disabled")
+                            if (!broken) state = "disarmed"
+                            false
+                        }
+                        RecentsFocusWire.BEGIN -> begin(data)
+                        RecentsFocusWire.END -> {
+                            if (active?.owner == data.getBinder("owner")) restore("gesture ended")
+                            false
+                        }
+                        else -> false
+                    }
+                } catch (error: Throwable) {
+                    fail(error)
+                    false
+                }
+                reply(accepted)
+            }
+        } finally {
+            Binder.restoreCallingIdentity(identity)
+        }
+        output.writeNoException()
+        output.writeBundle(response)
+    }
+
+    private fun discover(useTaskManager: Boolean): Bundle = synchronized(lock) {
+        reply(false).apply {
+            putBoolean(RecentsFocusWire.TASK_MANAGER, useTaskManager)
+            if (!useTaskManager) {
+                legacyEndpointExported = true
+                putBinder("backend", endpoint)
+            }
+        }
+    }
+
+    private fun handOff(save: (Array<*>) -> Unit): Boolean = synchronized(lock) {
+        if (active != null || restorePending || state == "restore-error" || legacyEndpointExported) return false
+        SystemUiHookScopes.tryRetire { save(arrayOf(loader, atm, armedMode, broken, state)) }
+    }
 
     init {
         this.atm = atm
@@ -508,22 +517,29 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
     }
 
     private fun retryRestore(old: RecentsFocusServer.Active, remaining: Int) {
-        if (remaining <= 0) return
-        handler.postDelayed(
-            Runnable {
-                synchronized(lock) {
-                    if (!old.process.isBinderAlive() || active != null) return@synchronized
-                    try {
-                        send(old.thread, states())
-                        state = "error"
-                    } catch (error: Throwable) {
-                        HookEntry.log("RECENTS_FOCUS_RESTORE_RETRY_FAILED " + remaining)
-                        retryRestore(old, remaining - 1)
-                    }
+        if (remaining <= 0) {
+            restorePending = false
+            return
+        }
+        restorePending = true
+        val posted = handler.postDelayed({
+            synchronized(lock) {
+                restorePending = false
+                if (!old.process.isBinderAlive()) {
+                    state = "error"
+                    return@synchronized
                 }
-            },
-            1000,
-        )
+                if (active != null) return@synchronized
+                try {
+                    send(old.thread, states())
+                    state = "error"
+                } catch (error: Throwable) {
+                    HookEntry.log("RECENTS_FOCUS_RESTORE_RETRY_FAILED " + remaining)
+                    retryRestore(old, remaining - 1)
+                }
+            }
+        }, 1000)
+        if (!posted) restorePending = false
     }
 
     private fun unlink(old: RecentsFocusServer.Active) {
@@ -552,81 +568,112 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
 
     companion object {
         private const val KEY: String = "stay_focus_activity"
-        private var instance: RecentsFocusServer? = null
+        @Volatile private var instance: RecentsFocusServer? = null
+        @Volatile private var installedLoader: ClassLoader? = null
+        @Volatile private var recovery: Array<*>? = null
 
-        @JvmStatic
-        @Throws(Exception::class)
-        fun install(loader: ClassLoader) {
-            if (
-                !HookCompatibility.supportsRecentsFocus(Build.VERSION.SDK_INT, Build.FINGERPRINT) ||
-                    Process.myUid() != 1000
-            )
-                return
-            val type =
-                DexSymbols.findClass(
-                    "com.android.server.wm.ActivityTaskManagerService",
-                    false,
-                    loader,
-                )
-            val transact =
-                type.compatibleDeclaredMethod(
-                    "onTransact",
-                    Int::class.javaPrimitiveType,
-                    Parcel::class.java,
-                    Parcel::class.java,
-                    Int::class.javaPrimitiveType,
-                )
-            ModernHook.findAndHookMethod(
-                type,
-                transact.compatibleName(),
-                Int::class.javaPrimitiveType,
-                Parcel::class.java,
-                Parcel::class.java,
-                Int::class.javaPrimitiveType,
-                object : ModernHook.Callback() {
-                    override fun beforeHookedMethod(p: ModernHook.Param) {
-                        if (p.args[0] as Int? != RecentsFocusWire.DISCOVER) return
-                        val `in`: Parcel? = p.args[1] as Parcel?
-                        val out: Parcel? = p.args[2] as Parcel?
-                        // Never turn a module protocol/compatibility failure into a system_server
-                        // exception.
-                        try {
-                            val context: Context? =
-                                RecentsFocusServer.get(p.thisObject!!, "mContext") as Context?
-                            if (!HostStartupGate.unlocked(requireNotNull(context)))
-                                throw SecurityException("First owner unlock required")
-                            RecentsFocusServer.requireUid(context, Binder.getCallingUid(), false)
-                            if (out == null || (p.args[3] as Int and IBinder.FLAG_ONEWAY) != 0)
-                                throw SecurityException("Synchronous discovery only")
-                            `in`!!.enforceInterface(RecentsFocusWire.DESCRIPTOR)
-                            `in`!!.readBundle(RecentsFocusServer::class.java.getClassLoader())
-                            `in`!!.enforceNoDataAvail()
-                            synchronized(RecentsFocusServer::class.java) {
-                                if (RecentsFocusServer.instance == null)
-                                    RecentsFocusServer.instance =
-                                        RecentsFocusServer(p.thisObject!!, loader)
-                            }
-                            val reply = RecentsFocusServer.instance!!.reply(false)
-                            reply.putBinder("backend", RecentsFocusServer.instance!!.endpoint)
-                            out.writeNoException()
-                            out.writeBundle(reply)
-                        } catch (error: Throwable) {
-                            if (out != null)
-                                out.writeException(SecurityException("Focus discovery unavailable"))
-                            HookEntry.log(
-                                ("RECENTS_FOCUS_DISCOVERY_REJECTED " +
-                                    error.javaClass.getSimpleName() +
-                                    ": " +
-                                    error.message +
-                                    " flags=" +
-                                    p.args[3]),
-                            )
-                        }
-                        p.setResult(true)
+        fun retire(save: (Array<*>) -> Unit): Boolean {
+            val current = instance
+            if (current != null) return current.handOff(save)
+            val loader = installedLoader
+            if (loader != null) return SystemUiHookScopes.tryRetireIf {
+                // A first discovery may have initialized a session before the lock was acquired.
+                if (instance != null) false
+                else {
+                    save(arrayOf(loader))
+                    true
+                }
+            }
+            val retry = recovery ?: return false
+            save(retry)
+            recovery = null
+            return true
+        }
+
+        fun resume(saved: Array<*>) {
+            val loader = requireNotNull(saved.getOrNull(0) as? ClassLoader)
+            recovery = saved
+            check(install(loader, saved)) { "Focus backend is unavailable on this build" }
+            recovery = null
+        }
+
+        fun install(loader: ClassLoader, previous: Array<*> = emptyArray<Any>()): Boolean {
+            if (!HookCompatibility.supportsRecentsFocus(Build.VERSION.SDK_INT, Build.FINGERPRINT) ||
+                Process.myUid() != 1000) return false
+            val scope = SystemUiHookScope { HookEntry.log("RECENTS_FOCUS_SCOPE $it") }
+            try {
+                SystemUiHookScopes.bind(scope) {
+                    val atm = previous.getOrNull(1)
+                    if (atm != null) {
+                        val backend = RecentsFocusServer(atm, loader)
+                        backend.armedMode = previous[2] as Int
+                        backend.broken = previous[3] as Boolean
+                        backend.state = previous[4] as String
+                        if (backend.armedMode != 0 && !backend.broken) backend.installActiveHooks()
+                        instance = backend
                     }
-                },
-            )
+                    installDispatch(loader)
+                }
+                check(SystemUiHookScopes.trySwitch(scope) { it?.close() })
+            } catch (error: Throwable) {
+                instance = null
+                scope.close()
+                throw error
+            }
+            installedLoader = loader
             HookEntry.log("RECENTS_FOCUS_SERVER_DISCOVERY_READY build=" + BuildConfig.VERSION_CODE)
+            return true
+        }
+
+        private fun installDispatch(loader: ClassLoader) {
+            val type = DexSymbols.findClass("com.android.server.wm.ActivityTaskManagerService", false, loader)
+            val transact = type.compatibleDeclaredMethod("onTransact", Int::class.javaPrimitiveType,
+                Parcel::class.java, Parcel::class.java, Int::class.javaPrimitiveType)
+            ModernHook.hookMethod(transact, object : ModernHook.Callback() {
+                override fun beforeHookedMethod(p: ModernHook.Param) {
+                    if (p.args[0] != RecentsFocusWire.DISCOVER) return
+                    val output = p.args[2] as? Parcel
+                    try {
+                        val atm = requireNotNull(p.thisObject)
+                        val context = get(atm, "mContext") as Context
+                        requireRequest(context, output, p.args[3] as Int)
+                        requireUid(context, Binder.getCallingUid(), false)
+                        val data = readRequest(p.args[1] as Parcel)
+                        val operation = data.getInt(RecentsFocusWire.OPERATION, 0)
+                        val taskManager = data.getBoolean(RecentsFocusWire.TASK_MANAGER)
+                        if (operation != 0 && !taskManager)
+                            throw SecurityException("Unsupported focus transport")
+
+                        val backend = synchronized(RecentsFocusServer::class.java) {
+                            instance ?: RecentsFocusServer(atm, loader).also { instance = it }
+                        }
+                        if (taskManager && operation != 0) {
+                            backend.transact(operation, data, requireNotNull(output))
+                        } else {
+                            val response = backend.discover(taskManager)
+                            output!!.writeNoException()
+                            output.writeBundle(response)
+                        }
+                    } catch (error: Throwable) {
+                        output?.writeException(SecurityException("Focus service unavailable"))
+                        HookEntry.log("RECENTS_FOCUS_REQUEST_REJECTED " + error.javaClass.simpleName)
+                    }
+                    p.setResult(true)
+                }
+            })
+        }
+
+        private fun requireRequest(context: Context, reply: Parcel?, flags: Int) {
+            if (!HostStartupGate.unlocked(context)) throw SecurityException("First owner unlock required")
+            if (reply == null || flags and IBinder.FLAG_ONEWAY != 0)
+                throw SecurityException("Synchronous requests only")
+        }
+
+        private fun readRequest(input: Parcel): Bundle {
+            input.enforceInterface(RecentsFocusWire.DESCRIPTOR)
+            return (input.readBundle(RecentsFocusServer::class.java.classLoader) ?: Bundle()).also {
+                input.enforceNoDataAvail()
+            }
         }
 
         @JvmStatic /* true: module app; false: Launcher. No root/shell/arbitrary app caller is accepted. */

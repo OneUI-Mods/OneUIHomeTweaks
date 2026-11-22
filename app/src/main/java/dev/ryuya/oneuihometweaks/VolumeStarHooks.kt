@@ -69,10 +69,23 @@ class VolumeStarHooks(private val onReady: () -> Unit) {
                     val ctx = p.args[0] as? Context ?: return
                     if (ctx.packageName != PACKAGE) return
                     val loader = p.args[1] as? ClassLoader ?: return
+                    if (loader !== pluginLoader) {
+                        SystemUiLiveObjects.remember("volumestar-context", ctx)
+                        SystemUiLiveObjects.remember("volumestar-loader", loader)
+                    }
                     bindPlugin(ctx, loader)
                 }
             },
         )
+        val existing = SystemUiLiveObjects.find("volumestar-context") as? Context
+        val existingLoader = SystemUiLiveObjects.find("volumestar-loader") as? ClassLoader
+        if (existing != null && existingLoader != null) {
+            bindPlugin(existing, existingLoader)
+            val current = SystemUiLiveObjects.find("volumestar-panel")
+            if (current != null && current.javaClass.classLoader === pluginLoader) {
+                plugin = WeakReference(current)
+            }
+        }
     }
 
     @Synchronized
@@ -338,6 +351,7 @@ class VolumeStarHooks(private val onReady: () -> Unit) {
                     override fun afterHookedMethod(p: ModernHook.Param) {
                         if (!p.hasThrowable() && pluginLoader === loader) {
                             plugin = WeakReference(p.thisObject)
+                            p.thisObject?.let { SystemUiLiveObjects.remember("volumestar-panel", it) }
                         }
                     }
                 },

@@ -34,6 +34,9 @@ class QuickPanelAndroid17(owner: QuickPanelHooks, loader: ClassLoader?) : QuickP
         ThreadLocal<QuickPanelAndroid17.BarFrame?>()
     private val buttonKind: ThreadLocal<Int?> = ThreadLocal<Int?>()
     private val evidence: MutableSet<String?> = HashSet<String?>()
+    private val reportedSizes = FloatArray(4) { Float.NaN }
+    private val reportedNativeSizes = FloatArray(4) { Float.NaN }
+    private var legacySliderDimension = 0
     private val nativeButtonModifiers: MutableMap<Any?, Any?> = WeakHashMap<Any?, Any?>()
     private val requiredWidth: Method
     private val requiredHeight: Method
@@ -114,19 +117,19 @@ class QuickPanelAndroid17(owner: QuickPanelHooks, loader: ClassLoader?) : QuickP
             ModernHook.aroundMethod(
                 companion,
                 ModernHook.Around { chain: Chain? ->
-                    val args = chain!!.getArgs().toTypedArray()
+                    val call = checkNotNull(chain)
+                    if (!owner.needsRefresh()) return@Around call.proceed()
+                    val kind = buttonIndex(spec.get(call.args[2]))
                     val previous = buttonKind.get()
                     try {
-                        val name: String? = spec.get(args[2]) as String?
-                        if (evidence.add("button:" + name))
-                            HookEntry.log("QUICK_PANEL_BUTTON " + name)
-                        val kind: Int =
-                            if ("UiModeNight" == name) 2 else if ("SoundMode" == name) 3 else -1
-                        if (kind >= 0 && owner.needsRefresh()) {
-                            buttonKind.set(kind)
-                            args[4] = args[4] as Int or 1
-                        } else buttonKind.remove()
-                        return@Around chain!!.proceed(args)
+                        if (kind < 0 || !owner.needsSizeRefresh(kind)) {
+                            if (previous != null) buttonKind.remove()
+                            return@Around call.proceed()
+                        }
+                        buttonKind.set(kind)
+                        val args = call.args.toTypedArray()
+                        args[4] = args[4] as Int or 1
+                        return@Around call.proceed(args)
                     } finally {
                         QuickPanelAndroid17.restore<Int?>(buttonKind, previous)
                     }
@@ -147,44 +150,47 @@ class QuickPanelAndroid17(owner: QuickPanelHooks, loader: ClassLoader?) : QuickP
                 "QuickTile",
                 8,
             )
+        val scalePrefixes = arrayOfNulls<Any>(2)
+        val scalePercentages = IntArray(2)
         owner.add(
             ModernHook.aroundMethod(
                 quickTile!!,
                 ModernHook.Around { chain: Chain? ->
-                    val args = chain!!.getArgs().toTypedArray()
-                    val name: String? = spec.get(args[2]) as String?
-                    val kind: Int =
-                        if ("UiModeNight" == name) 2 else if ("SoundMode" == name) 3 else -1
-                    if (kind >= 0 && owner.needsRefresh()) {
-                        args[6] = args[6] as Int or 1
-                        val supplied: Any? = args[1]
-                        val nativeModifier: Any? =
-                            if ((args[7] as Int and 1) != 0) emptyModifier
-                            else nativeButtonModifiers.getOrDefault(supplied, supplied)
-                        if (nativeModifier !== supplied) {
-                            args[1] = nativeModifier
-                            args[6] =
-                                ComposeRecomposeFlags.tileModifierChanged(
-                                    args[6] as Int,
-                                    (args[7] as Int and 1) != 0,
-                                )
-                            args[7] = args[7] as Int and 1.inv()
-                        }
-                        if (owner.size(kind) != 100) {
-                            val ratio: Float = owner.size(kind) / 100f
-                            val scaled = scale.invoke(null, emptyModifier, ratio, ratio)
-                            args[1] = then.invoke(scaled, nativeModifier)
-                            nativeButtonModifiers.put(args[1], nativeModifier)
-                            args[6] =
-                                ComposeRecomposeFlags.tileModifierChanged(
-                                    args[6] as Int,
-                                    (args[7] as Int and 1) != 0,
-                                )
-                            args[7] = args[7] as Int and 1.inv()
-                            evidence(kind, 100f, owner.size(kind).toFloat())
-                        }
+                    val call = checkNotNull(chain)
+                    if (!owner.needsRefresh()) return@Around call.proceed()
+                    val kind = buttonIndex(spec.get(call.args[2]))
+                    if (kind < 0 || !owner.needsSizeRefresh(kind)) return@Around call.proceed()
+                    val args = call.args.toTypedArray()
+                    args[6] = args[6] as Int or 1
+                    val supplied = args[1]
+                    val nativeModifier =
+                        if ((args[7] as Int and 1) != 0) emptyModifier
+                        else nativeButtonModifiers.getOrDefault(supplied, supplied)
+                    if (nativeModifier !== supplied) {
+                        args[1] = nativeModifier
+                        args[6] = ComposeRecomposeFlags.tileModifierChanged(
+                            args[6] as Int, (args[7] as Int and 1) != 0,
+                        )
+                        args[7] = args[7] as Int and 1.inv()
                     }
-                    chain!!.proceed(args)
+                    val percent = owner.size(kind)
+                    if (percent != 100) {
+                        val index = kind - 2
+                        if (scalePercentages[index] != percent) {
+                            val ratio = percent / 100f
+                            scalePrefixes[index] = scale.invoke(null, emptyModifier, ratio, ratio)
+                            scalePercentages[index] = percent
+                        }
+                        val scaled = scalePrefixes[index]
+                        args[1] = then.invoke(scaled, nativeModifier)
+                        nativeButtonModifiers[args[1]] = nativeModifier
+                        args[6] = ComposeRecomposeFlags.tileModifierChanged(
+                            args[6] as Int, (args[7] as Int and 1) != 0,
+                        )
+                        args[7] = args[7] as Int and 1.inv()
+                        evidence(kind, 100f, percent.toFloat())
+                    }
+                    call.proceed(args)
                 },
             )
         )
@@ -278,46 +284,47 @@ class QuickPanelAndroid17(owner: QuickPanelHooks, loader: ClassLoader?) : QuickP
             ModernHook.aroundMethod(
                 invoke,
                 ModernHook.Around { chain: Chain? ->
+                    val call = checkNotNull(chain)
+                    if (!owner.needsRefresh()) return@Around call.proceed()
                     val previous = barFrame.get()
-                    val args = chain!!.getArgs().toTypedArray()
                     try {
-                        val discriminator = kindField.getInt(chain!!.getThisObject())
-                        if (evidence.add("bar:" + discriminator))
-                            HookEntry.log("QUICK_PANEL_BAR " + discriminator)
+                        val receiver = call.thisObject
+                        val discriminator = kindField.getInt(receiver)
                         var kind: Int =
                             if (discriminator == 100) 0 else if (discriminator == 150) 1 else -1
-                        val previewKind = previewScopes.get(scopeField.get(chain!!.getThisObject()))
+                        val scope = scopeField.get(receiver)
+                        val previewKind = previewScopes[scope]
                         if (previewKind != null) kind = previewKind
-                        if (kind >= 0 && owner.needsRefresh()) {
+                        if (kind >= 0 && owner.needsSizeRefresh(kind)) {
+                            val args = call.args.toTypedArray()
                             var dp: Float =
-                                (if (verticalField.get(chain!!.getThisObject()) as Boolean) maxWidth
+                                (if (verticalField.get(receiver) as Boolean) maxWidth
                                     else maxHeight)
                                     .invoke(args[0]) as Float
-                            val grouped: Boolean =
-                                owner.legacy() &&
-                                    groupedScopes.containsKey(
-                                        scopeField.get(chain!!.getThisObject())
-                                    )
+                            val grouped = owner.legacy() && groupedScopes.containsKey(scope)
                             if (grouped) {
                                 val context: Context? =
-                                    contextField.get(chain!!.getThisObject()) as Context?
+                                    contextField.get(receiver) as Context?
                                 val resources = context!!.getResources()
-                                val dimension =
-                                    resources.getIdentifier(
+                                if (legacySliderDimension == 0) {
+                                    legacySliderDimension = resources.getIdentifier(
                                         "sec_style_qs_slider_tile_size",
                                         "dimen",
                                         "com.android.systemui",
                                     )
-                                if (dimension == 0)
+                                }
+                                if (legacySliderDimension == 0)
                                     throw UnsupportedOperationException("Legacy bar dimension")
                                 dp =
-                                    resources.getDimension(dimension) /
+                                    resources.getDimension(legacySliderDimension) /
                                         resources.getDisplayMetrics().density
                             }
                             barFrame.set(QuickPanelAndroid17.BarFrame(kind, dp, grouped))
                             args[2] = args[2] as Int or 1
-                        } else barFrame.remove()
-                        return@Around chain!!.proceed(args)
+                            return@Around call.proceed(args)
+                        }
+                        if (previous != null) barFrame.remove()
+                        return@Around call.proceed()
                     } finally {
                         QuickPanelAndroid17.restore<QuickPanelAndroid17.BarFrame?>(
                             barFrame,
@@ -408,14 +415,16 @@ class QuickPanelAndroid17(owner: QuickPanelHooks, loader: ClassLoader?) : QuickP
                     name,
                     5,
                 )
+            val kind = if (name.startsWith("Bright")) 0 else 1
+            val grouped = name.endsWith("WithTile")
             owner.add(
                 ModernHook.hookMethod(
                     root!!,
                     object : ModernHook.Callback() {
                         override fun beforeHookedMethod(p: ModernHook.Param) {
-                            if (name.endsWith("WithTile") && owner.legacy())
+                            if (grouped && owner.legacy())
                                 groupedScopes.put(p.args[0], true)
-                            if (owner.needsRefresh()) p.args[4] = p.args[4] as Int or 1
+                            if (owner.needsSizeRefresh(kind)) p.args[4] = p.args[4] as Int or 1
                         }
                     },
                 )
@@ -424,6 +433,9 @@ class QuickPanelAndroid17(owner: QuickPanelHooks, loader: ClassLoader?) : QuickP
     }
 
     private fun evidence(kind: Int, from: Float, to: Float) {
+        if (reportedSizes[kind] == to && reportedNativeSizes[kind] == from) return
+        reportedSizes[kind] = to
+        reportedNativeSizes[kind] = from
         val value: String = kind.toString() + ":" + from + ":" + to
         if (evidence.size < 64 && evidence.add(value)) HookEntry.log("QUICK_PANEL_SIZE " + value)
     }
@@ -439,6 +451,12 @@ class QuickPanelAndroid17(owner: QuickPanelHooks, loader: ClassLoader?) : QuickP
 
     companion object {
         private const val TILES: String = "com.android.systemui.samsung.quicksetting.ui.tiles."
+
+        private fun buttonIndex(spec: Any?): Int = when (spec) {
+            "UiModeNight" -> 2
+            "SoundMode" -> 3
+            else -> -1
+        }
 
         @JvmStatic
         private fun <T> restore(local: ThreadLocal<T?>, value: T?) {

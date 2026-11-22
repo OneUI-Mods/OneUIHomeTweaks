@@ -87,6 +87,14 @@ class RecentsLiveSurface(loader: ClassLoader?, unsupported: Runnable) {
         INVALID,
     }
 
+    // The draw hook only uses these matrices synchronously, before submitting the transaction.
+    private val shaderMatrix = Matrix()
+    private val sceneMatrix = Matrix()
+    private val outputMatrix = Matrix()
+    private val shaderValues = FloatArray(9)
+    private val sceneValues = FloatArray(9)
+    private val outputValues = FloatArray(9)
+    private val geometryWorkspace = RecentsLiveGeometry.Workspace()
     private var updating: Boolean = false
     private var logged: Boolean = false
     private var visualSuspended: Boolean = false
@@ -434,13 +442,14 @@ class RecentsLiveSurface(loader: ClassLoader?, unsupported: Runnable) {
         val image = if (!patternPrefix1) bitmap.invoke(data!!.get(0)) as? Bitmap else null
         if (patternPrefix1 || image == null) return RecentsLiveSurface.Draw.INVALID
         val scale = (snapshotScale.invoke(data!!.get(0)) as Number).toFloat()
-        val shader = Matrix()
-        paint.getShader().getLocalMatrix(shader)
-        val global = Matrix()
+        shaderMatrix.reset()
+        paint.getShader().getLocalMatrix(shaderMatrix)
+        val global = sceneMatrix
+        global.reset()
         scene!!.transformMatrixToGlobal(global)
-        val sh = FloatArray(9)
-        val gl = FloatArray(9)
-        shader.getValues(sh)
+        val sh = shaderValues
+        val gl = sceneValues
+        shaderMatrix.getValues(sh)
         global.getValues(gl)
         val transform: RecentsAffine.Transform?
         try {
@@ -453,6 +462,7 @@ class RecentsLiveSurface(loader: ClassLoader?, unsupported: Runnable) {
                     scale.toDouble(),
                     sh,
                     gl,
+                    geometryWorkspace,
                 )
         } catch (unsupportedGeometry: RecentsLiveGeometry.PerspectiveCard) {
             if (BuildConfig.RECENTS_LIVE_TRACE && perspectiveSamples++ < 48)
@@ -465,20 +475,16 @@ class RecentsLiveSurface(loader: ClassLoader?, unsupported: Runnable) {
             suspendVisual("RECENTS_LIVE_NATIVE_PERSPECTIVE app continues drawing")
             return RecentsLiveSurface.Draw.SNAPSHOT
         }
-        val output = Matrix()
-        output.setValues(
-            floatArrayOf(
-                (transform!!.a).toFloat(),
-                (transform!!.c).toFloat(),
-                (transform!!.tx).toFloat(),
-                (transform!!.b).toFloat(),
-                (transform!!.d).toFloat(),
-                (transform!!.ty).toFloat(),
-                (0).toFloat(),
-                (0).toFloat(),
-                (1).toFloat(),
-            )
-        )
+        val output = outputMatrix
+        val affine = requireNotNull(transform)
+        outputValues[Matrix.MSCALE_X] = affine.a.toFloat()
+        outputValues[Matrix.MSKEW_X] = affine.c.toFloat()
+        outputValues[Matrix.MTRANS_X] = affine.tx.toFloat()
+        outputValues[Matrix.MSKEW_Y] = affine.b.toFloat()
+        outputValues[Matrix.MSCALE_Y] = affine.d.toFloat()
+        outputValues[Matrix.MTRANS_Y] = affine.ty.toFloat()
+        outputValues[Matrix.MPERSP_2] = 1f
+        output.setValues(outputValues)
         val bounds: MutableList<*>? = args[2] as MutableList<*>?
         val corners: MutableList<*>? = args[3] as MutableList<*>?
         if (bounds!!.size != 1 || corners!!.size != 1) return RecentsLiveSurface.Draw.INVALID

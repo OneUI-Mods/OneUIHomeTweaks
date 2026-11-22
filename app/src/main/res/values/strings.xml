@@ -60,10 +60,16 @@
   <string name="scope_preview">Wallpaper and style</string>
   <string name="license_unavailable">License data could not be loaded.</string>
   <string name="reload_targets">Reload other targets</string>
-  <string name="reload_title">Reload target process</string>
-  <string name="reload_volume">Restart System UI</string>
+  <string name="reload_title">Update or restart target</string>
+  <string name="reload_volume">Update SystemUI hooks in place</string>
   <string name="reload_preview">Restart Wallpaper and style</string>
   <string name="reload_warning">This briefly closes the selected interface. It does not reboot the device.</string>
+  <string name="hot_current">Vector reports the current version is already loaded.</string>
+  <string name="hot_initial">Load a hot-update-capable version in SystemUI once.</string>
+  <string name="hot_unavailable">The Vector hot update service is unavailable.</string>
+  <string name="hot_busy">Vector is already updating the SystemUI hooks.</string>
+  <string name="hot_accepted">Vector accepted the update. Check the hook status.</string>
+  <string name="hot_rejected">Vector declined the update. Try again when SystemUI is idle.</string>
   <string name="reload_done">Target process reloaded.</string>
   <string name="reload_failed">Could not reload the target process. Check root access.</string>
   <string name="status_no_colors">No wallpaper colors. Automatic mode uses the original behavior.</string>
@@ -138,4 +144,6 @@
     <string name="hide_circle_search_note">Keep Circle to Search working while hiding its separate task. Regular Google and Lens tasks remain visible.</string>
   <string name="diy_avoid_widgets">Avoid placing DIY Home icons over widgets</string>
   <string name="diy_avoid_widgets_note">Existing overlaps are moved to open space when you visit a DIY Home page. If needed, app icons move to another page at their current size.</string>
+  <string name="home_unlock_motion">Unlock animation</string>
+  <string name="home_unlock_motion_note">After unlocking, icons, widgets, and the dock settle into place in sequence. Returning to the previous app uses a short fade.</string>
 </resources>

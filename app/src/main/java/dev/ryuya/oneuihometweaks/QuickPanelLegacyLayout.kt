@@ -140,7 +140,7 @@ class QuickPanelLegacyLayout(owner: QuickPanelHooks, loader: ClassLoader?) {
                         try {
                             val original = unwrap(p.args[3]!!)
                             previewState = original
-                            if (!owner.needsRefresh()) return
+                            if (!owner.needsLegacyRefresh()) return
                             if (owner.legacy()) p.args[3] = wrap(original, loader)
                             else p.args[3] = original
                             p.args[12] = ComposeRecomposeFlags.panelStateChanged(p.args[12] as Int)

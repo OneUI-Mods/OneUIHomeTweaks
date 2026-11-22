@@ -7,6 +7,7 @@ import dev.ryuya.oneuihometweaks.compat.DexSymbols
 import dev.ryuya.oneuihometweaks.compat.compatibleMethod
 import dev.ryuya.oneuihometweaks.compat.compatibleName
 import java.lang.reflect.Method
+import java.lang.ref.WeakReference
 import java.util.ArrayList
 import java.util.WeakHashMap
 import kotlin.jvm.JvmField
@@ -34,17 +35,7 @@ class DrawerBridge {
             object : ModernHook.Callback() {
                 override fun afterHookedMethod(p: ModernHook.Param) {
                     if (p.hasThrowable()) return
-                    val view: View? = p.thisObject as View?
-                    views.put(view, DrawerBridge.Saved())
-                    view!!.addOnAttachStateChangeListener(
-                        object : OnAttachStateChangeListener {
-                            override fun onViewAttachedToWindow(v: View) {
-                                apply(v)
-                            }
-
-                            override fun onViewDetachedFromWindow(v: View) {}
-                        }
-                    )
+                    watch(p.thisObject as View)
                 }
             },
         )
@@ -57,6 +48,38 @@ class DrawerBridge {
             },
         )
         HookEntry.log("DRAWER_HOOK_READY native custom-label API")
+    }
+
+    private val attachment = object : OnAttachStateChangeListener {
+        override fun onViewAttachedToWindow(view: View) { apply(view) }
+        override fun onViewDetachedFromWindow(view: View) = Unit
+    }
+
+    private fun watch(view: View) {
+        if (views.containsKey(view)) return
+        views[view] = Saved()
+        view.addOnAttachStateChangeListener(attachment)
+    }
+
+    internal fun stateForReload(): Array<WeakReference<View>> =
+        views.keys.filterNotNull().map { WeakReference(it) }.toTypedArray()
+
+    internal fun reconnect(state: Any?) {
+        for (value in (state as? Array<*>).orEmpty()) {
+            ((value as? WeakReference<*>)?.get() as? View)?.let(::watch)
+        }
+    }
+
+    internal fun closeForReload() {
+        active = false
+        for ((view, saved) in views.toList()) {
+            if (view == null) continue
+            view.removeOnAttachStateChangeListener(attachment)
+            if (saved?.applied != null) runCatching {
+                if (getColor?.invoke(view) == saved.applied) setColor?.invoke(view, saved.original)
+            }
+        }
+        views.clear()
     }
 
     fun setMode(mode: Int, active: Boolean) {
@@ -84,8 +107,8 @@ class DrawerBridge {
         try {
             var saved = views.get(view)
             if (saved == null) {
-                saved = DrawerBridge.Saved()
-                views.put(view, saved)
+                watch(view)
+                saved = requireNotNull(views[view])
             }
             var desired: Int? = null
             if (active && drawer(view)) {

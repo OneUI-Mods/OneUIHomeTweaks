@@ -76,6 +76,7 @@ class MainActivity : AppCompatActivity() {
             "diy_icon_grid",
             "diy_avoid_widgets",
             "folder_return",
+            HomeUnlockMotion.KEY,
             "icon_overlap_fix",
             "settings_enabled",
         )
@@ -95,6 +96,7 @@ class MainActivity : AppCompatActivity() {
             R.id.diy_icon_grid,
             R.id.diy_avoid_widgets,
             R.id.folder_return,
+            R.id.home_unlock_motion,
             R.id.icon_overlap_fix,
             R.id.settings_enabled,
         )
@@ -179,7 +181,8 @@ class MainActivity : AppCompatActivity() {
             control.setChecked(
                 prefs!!.getBoolean(
                     key,
-                    (key != "preview") &&
+                    if (key == HomeUnlockMotion.KEY) HomeUnlockMotion.DEFAULT_ENABLED
+                    else (key != "preview") &&
                         !key!!.startsWith("recents_") &&
                         (key != "clock_date_left") &&
                         (key != "diy_icon_grid") &&
@@ -194,6 +197,8 @@ class MainActivity : AppCompatActivity() {
                 },
             )
         }
+        requireViewById<View>(R.id.home_unlock_motion_card).visibility =
+            if (HomeUnlockMotion.supportsDevice()) View.VISIBLE else View.GONE
         requireViewById<View>(R.id.interaction_refresh).visibility =
             if (InteractionRefresh.supported()) View.VISIBLE else View.GONE
         requireViewById<View>(R.id.interaction_refresh_hint).visibility =
@@ -317,22 +322,17 @@ class MainActivity : AppCompatActivity() {
                                 getString(R.string.reload_volume),
                                 getString(R.string.reload_preview),
                             ),
-                            android.content.DialogInterface.OnClickListener { _, index: Int ->
-                                MaterialAlertDialogBuilder(this)
-                                    .setTitle(
-                                        if (index == 0) R.string.reload_volume
-                                        else R.string.reload_preview,
-                                    )
-                                    .setMessage(R.string.reload_warning)
-                                    .setNegativeButton(android.R.string.cancel, null)
-                                    .setPositiveButton(
-                                        android.R.string.ok,
-                                        android.content.DialogInterface.OnClickListener { _, w: Int
-                                            ->
-                                            reloadTarget(index)
-                                        },
-                                    )
-                                    .show()
+                            android.content.DialogInterface.OnClickListener { _, index ->
+                                if (index == 0) {
+                                    reloadSystemUiHooks()
+                                } else {
+                                    MaterialAlertDialogBuilder(this)
+                                        .setTitle(R.string.reload_preview)
+                                        .setMessage(R.string.reload_warning)
+                                        .setNegativeButton(android.R.string.cancel, null)
+                                        .setPositiveButton(android.R.string.ok) { _, _ -> restartPreview() }
+                                        .show()
+                                }
                             },
                         )
                         .show()
@@ -850,12 +850,25 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    private fun reloadTarget(index: Int) {
-        // Package names and operations are constants, never user-provided shell text.
-        val cmd: String? =
-            if (index == 0)
-                "pid=$(pidof com.android.systemui); test -n \"\$pid\" && kill -TERM \$pid"
-            else "am force-stop --user 0 com.samsung.android.app.dressroom"
+    private fun reloadSystemUiHooks() {
+        FrameworkServiceConnection.reloadSystemUi { result ->
+            runOnUiThread {
+                if (isDestroyed) return@runOnUiThread
+                val message = when (result) {
+                    FrameworkServiceConnection.ReloadRequest.ALREADY_CURRENT -> R.string.hot_current
+                    FrameworkServiceConnection.ReloadRequest.INITIAL_LOAD -> R.string.hot_initial
+                    FrameworkServiceConnection.ReloadRequest.UNAVAILABLE -> R.string.hot_unavailable
+                    FrameworkServiceConnection.ReloadRequest.BUSY -> R.string.hot_busy
+                    FrameworkServiceConnection.ReloadRequest.ACCEPTED -> R.string.hot_accepted
+                    FrameworkServiceConnection.ReloadRequest.REJECTED -> R.string.hot_rejected
+                }
+                snack(message)
+            }
+        }
+    }
+
+    private fun restartPreview() {
+        val cmd = "am force-stop --user 0 com.samsung.android.app.dressroom"
         commands!!.execute(
             Runnable {
                 val success = MainActivity.command(cmd, 20, false)

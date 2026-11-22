@@ -14,6 +14,7 @@ import dev.ryuya.oneuihometweaks.compat.DexSymbols
 import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredField
 import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredMethod
 import dev.ryuya.oneuihometweaks.compat.compatibleMethod
+import dev.ryuya.oneuihometweaks.compat.compatibleName
 import java.lang.Boolean as JavaBoolean
 import java.lang.ref.WeakReference
 import java.lang.reflect.Field
@@ -36,8 +37,42 @@ class DeveloperAnimationHooks {
     private var waitingForConfig = false
     private var failed: Boolean = false
     private var dialog: AnimationScaleDialog? = null
+    private var configThread: HandlerThread? = null
+    private var configObserver: ContentObserver? = null
+    private var activityCallbacks: ActivityLifecycleCallbacks? = null
 
-    fun install(context: Context, loader: ClassLoader?) {
+    fun readyForHotReload(): Boolean = !failed && dialog?.showing() != true
+
+    fun liveControllers(): Array<WeakReference<Any?>> =
+        bindings.values.mapNotNull { it?.controller }.filter { it.get() != null }.toTypedArray()
+
+    fun reattachControllers(controllers: Array<*>) {
+        for (reference in controllers) {
+            val controller = (reference as? WeakReference<*>)?.get() ?: continue
+            val index = CONTROLLERS!!.indexOf(controller.javaClass.compatibleName().substringAfterLast('.'))
+            if (index >= 0) {
+                val update = controller.javaClass.compatibleDeclaredMethod(UPDATE!![index])
+                update.isAccessible = true
+                update.invoke(controller)
+            }
+        }
+    }
+
+    fun close() {
+        failed = true
+        closeDialog()
+        main.removeCallbacksAndMessages(null)
+        configObserver?.let { observer ->
+            runCatching { context?.contentResolver?.unregisterContentObserver(observer) }
+                .onFailure { HookEntry.log("ANIMATION_EDITOR_RETIRE $it") }
+        }
+        activityCallbacks?.let { (context as Application).unregisterActivityLifecycleCallbacks(it) }
+        configThread?.quitSafely()
+        bindings.clear()
+        hooks.clear()
+    }
+
+    fun install(context: Application, loader: ClassLoader?): Boolean {
         this.context = context
         try {
             if (
@@ -149,8 +184,7 @@ class DeveloperAnimationHooks {
                 )
             )
             readConfig()
-            (context as Application).registerActivityLifecycleCallbacks(
-                object : ActivityLifecycleCallbacks {
+            val callbacks = object : ActivityLifecycleCallbacks {
                     override fun onActivityCreated(activity: Activity, state: Bundle?) {}
 
                     override fun onActivityStarted(activity: Activity) {}
@@ -171,24 +205,24 @@ class DeveloperAnimationHooks {
                     ) {}
 
                     override fun onActivityDestroyed(activity: Activity) {}
-                }
-            )
+            }
+            context.registerActivityLifecycleCallbacks(callbacks)
+            activityCallbacks = callbacks
             val worker = HandlerThread("OneUiSettingsConfig")
             worker.start()
-            context
-                .getContentResolver()
-                .registerContentObserver(
-                    ConfigProvider.URI!!,
-                    false,
-                    object : ContentObserver(Handler(worker.getLooper())) {
-                        override fun onChange(self: Boolean) {
-                            main.post(Runnable { this@DeveloperAnimationHooks.readConfig() })
-                        }
-                    },
-                )
+            configThread = worker
+            val observer = object : ContentObserver(Handler(worker.looper)) {
+                override fun onChange(self: Boolean) {
+                    main.post { readConfig() }
+                }
+            }
+            context.contentResolver.registerContentObserver(ConfigProvider.URI!!, false, observer)
+            configObserver = observer
             HookEntry.log("ANIMATION_EDITOR_READY sdk=37")
+            return !failed
         } catch (error: Exception) {
             fail(error)
+            return false
         }
     }
 

@@ -60,10 +60,16 @@
   <string name="scope_preview">壁紙とスタイル</string>
   <string name="license_unavailable">ライセンス情報を読み込めませんでした。</string>
   <string name="reload_targets">その他の適用先を再起動</string>
-  <string name="reload_title">適用先の再起動</string>
-  <string name="reload_volume">System UIを再起動</string>
+  <string name="reload_title">適用先の更新・再起動</string>
+  <string name="reload_volume">SystemUIのフックをホット更新</string>
   <string name="reload_preview">壁紙とスタイルを再起動</string>
   <string name="reload_warning">選択した画面が一時的に閉じます。端末自体は再起動しません。</string>
+  <string name="hot_current">Vector上では現在の版が読み込み済みです。</string>
+  <string name="hot_initial">初回は対応版をSystemUIに読み込ませてください。</string>
+  <string name="hot_unavailable">Vectorのホット更新サービスを利用できません。</string>
+  <string name="hot_busy">VectorはSystemUIのフックを更新中です。</string>
+  <string name="hot_accepted">Vectorが更新を受け付けました。フックの状態を確認してください。</string>
+  <string name="hot_rejected">Vectorが更新を見送りました。SystemUIが落ち着いてから再試行してください。</string>
   <string name="reload_done">対象プロセスを起動し直しました。</string>
   <string name="reload_failed">対象を再起動できませんでした。root権限を確認してください。</string>
   <string name="status_no_colors">壁紙の色情報がありません。自動判定は標準動作に戻ります。</string>
@@ -138,4 +144,6 @@
     <string name="hide_circle_search_note">検索機能はそのまま使えます。通常のGoogleアプリやGoogleレンズは履歴に残します。</string>
   <string name="diy_avoid_widgets">ウィジェットへのアイコン重ね置きを防ぐ</string>
   <string name="diy_avoid_widgets_note">DIYホームでページを開くと、すでに重なっているアプリアイコンも空きへ移します。収まらないアイコンは大きさを保って別ページに移ります。</string>
+  <string name="home_unlock_motion">ロック解除アニメーション</string>
+  <string name="home_unlock_motion_note">解除後、アイコン・ウィジェット・ドックが少しずつ時間差で定位置に収まります。開いていたアプリへは短いフェードで戻ります。</string>
 </resources>

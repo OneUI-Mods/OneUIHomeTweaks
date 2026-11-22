@@ -17,16 +17,19 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
-import android.os.HandlerThread
 import android.os.Looper
 import android.os.Process
 import android.provider.Settings.System
 import android.util.Log
 import android.view.ViewGroup
+import android.os.SystemClock
+import dev.ryuya.oneuihometweaks.compat.DexRuntimeCache
 import dev.ryuya.oneuihometweaks.compat.DexSymbols
 import dev.ryuya.oneuihometweaks.compat.compatibleMethod
 import dev.ryuya.oneuihometweaks.compat.compatibleName
 import io.github.libxposed.api.XposedModule
+import io.github.libxposed.api.XposedModuleInterface.HotReloadedParam
+import io.github.libxposed.api.XposedModuleInterface.HotReloadingParam
 import io.github.libxposed.api.XposedModuleInterface.ModuleLoadedParam
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import io.github.libxposed.api.XposedModuleInterface.SystemServerStartingParam
@@ -68,6 +71,7 @@ class HookEntry : XposedModule() {
     private val recentsBar: RecentsBar = RecentsBar()
     private val circleRecents = CircleSearchRecents()
     private val folders: FolderHooks = FolderHooks()
+    private val unlockMotion = HomeUnlockMotion()
     private val iconOverlap = IconOverlapHooks()
     private var initialized: Boolean = false
     private var pendingHomeActivity = WeakReference<Activity>(null)
@@ -80,6 +84,15 @@ class HookEntry : XposedModule() {
     private val liveRecents: RecentsLiveTileHooks = RecentsLiveTileHooks()
     private var lastReport: String = ""
     private var processName: String? = null
+    private var systemServer = false
+    private val launcherMain = Handler(Looper.getMainLooper())
+    private var launcherScope: SystemUiHookScope? = null
+    private var launcherWorker: LauncherWorker? = null
+    private var launcherPackage: TargetPackage? = null
+    private var launcherActivity = WeakReference<Activity>(null)
+    private var healthyDeadline = 0L
+    private var launcherRecovery: Array<*>? = null
+    @Volatile private var launcherRetired = false
     private val refresh: Runnable = Runnable { this.refresh() }
 
     override fun onModuleLoaded(param: ModuleLoadedParam) {
@@ -96,6 +109,7 @@ class HookEntry : XposedModule() {
         diyWidgets.onChanged = diyGrid::widgetPlacementChanged
         iconOverlap.setChanged(Runnable { this.requestRefresh() })
         processName = param.getProcessName()
+        systemServer = param.isSystemServer()
         HookEntry.log(
             ("MODULE_LOADED build=" +
                 BuildConfig.VERSION_CODE +
@@ -106,6 +120,176 @@ class HookEntry : XposedModule() {
                 " process=" +
                 processName)
         )
+    }
+
+    override fun onHotReloading(param: HotReloadingParam): Boolean {
+        if (systemServer) return RecentsFocusServer.retire(param::setSavedInstanceState)
+        return when (processName) {
+            LAUNCHER -> retireLauncher(param::setSavedInstanceState)
+            "com.android.systemui" -> SystemUiCodeRuntime.handOff(param::setSavedInstanceState)
+            AuxiliaryHostRuntime.SETTINGS, AuxiliaryHostRuntime.PREVIEW ->
+                AuxiliaryHostRuntime.handOff(param::setSavedInstanceState)
+            else -> false
+        }
+    }
+
+    override fun onHotReloaded(param: HotReloadedParam) {
+        val state = requireNotNull(param.savedInstanceState as? Array<*>)
+        onModuleLoaded(param)
+        val discardPrevious = { param.oldHookHandles.forEach { it.unhook() } }
+        if (param.isSystemServer()) {
+            RecentsFocusServer.resume(state)
+            discardPrevious()
+            log("ONEUI_MODS_HOT_RELOAD package=${BuildConfig.APPLICATION_ID} " +
+                "version=${BuildConfig.VERSION_CODE} pid=${Process.myPid()}")
+            return
+        }
+        when (param.processName) {
+            LAUNCHER -> resumeLauncher(state, discardPrevious)
+            "com.android.systemui" -> SystemUiCodeRuntime.resume(state, discardPrevious)
+            AuxiliaryHostRuntime.SETTINGS, AuxiliaryHostRuntime.PREVIEW ->
+                AuxiliaryHostRuntime.resume(state, discardPrevious)
+            else -> error("Unsupported hot-update target ${param.processName}")
+        }
+    }
+
+    private fun prepareLauncherScope(): SystemUiHookScope {
+        launcherScope?.let { return it }
+        val scope = SystemUiHookScope { log("LAUNCHER_HOT_RELOAD_SCOPE $it") }
+        ModernHook.trackLauncherHooks(scope)
+        check(SystemUiHookScopes.trySwitch(scope) { it?.close() })
+        launcherScope = scope
+        return scope
+    }
+
+    private fun retireLauncher(save: (Array<*>) -> Unit): Boolean =
+        MainThreadReload.run(launcherMain) retire@{
+            val app = context as? Application
+            val target = launcherPackage
+            val configWorker = launcherWorker
+            if (app == null || target == null || configWorker == null) {
+                val state = launcherRecovery ?: return@retire false
+                if (launcherScope == null) save(state)
+                else if (!SystemUiHookScopes.tryRetire { save(state) } && !launcherRetired) return@retire false
+                launcherRetired = true
+                launcherRecovery = null
+                return@retire true
+            }
+            if (!homeLabels.idleForHotReload() || !liveRecents.idleForHotReload() ||
+                !unlockMotion.idleForHotReload() || !diyWidgets.idleForHotReload() ||
+                !diyGrid.idleForHotReload() || !gridSave.idleForHotReload()
+            ) return@retire false
+
+            SystemUiHookScopes.tryRetireIf {
+                if (!configWorker.tryPause()) return@tryRetireIf false
+                if (!homeLayout.pauseForHotReload()) {
+                    configWorker.resume()
+                    return@tryRetireIf false
+                }
+                try {
+                    val subscriptions = observers.mapNotNull { item ->
+                        item?.takeIf { it.ref.get() != null }?.let { arrayOf(it.key, it.ref) }
+                    }.toTypedArray()
+                    save(arrayOf(app, target.classLoader, launcherActivity, pages.stateForReload(),
+                        drawer.stateForReload(), subscriptions,
+                        DexRuntimeCache.exportProofs(), healthyDeadline))
+                    launcherRetired = true
+                    true
+                } catch (error: Throwable) {
+                    configWorker.resume()
+                    homeLayout.resumeAfterRejectedReload()
+                    throw error
+                }
+            }
+        }
+
+    private fun resumeLauncher(state: Array<*>, discardPrevious: () -> Unit) {
+        val app = requireNotNull(state.getOrNull(0) as? Application)
+        val loader = requireNotNull(state.getOrNull(1) as? ClassLoader)
+        check(app.packageName == LAUNCHER && HostStartupGate.unlocked(app))
+        check(MainThreadReload.run(launcherMain) {
+            launcherRecovery = state
+            DexRuntimeCache.importProofs(state.getOrNull(6))
+            check(DexSymbols.canInstallNow(app))
+            val home = (state.getOrNull(2) as? WeakReference<*>)?.get() as? Activity
+            pendingHomeActivity = WeakReference(home)
+            for (entry in (state.getOrNull(5) as? Array<*>).orEmpty()) {
+                val values = entry as? Array<*> ?: continue
+                val key = values.getOrNull(0) as? String ?: continue
+                val watcher = (values.getOrNull(1) as? WeakReference<*>)?.get() as? ContentObserver
+                if (watcher != null) observers.add(Observed(key, watcher))
+            }
+            val scope = prepareLauncherScope()
+            val target = TargetPackage(LAUNCHER, LAUNCHER, app.applicationInfo, loader)
+            val deadline = state.getOrNull(7) as? Long ?: 0L
+            val guard = if (deadline > 0) CrashGuard.resume(app) else null
+            check(guard?.blocked() != true)
+            try {
+                SystemUiHookScopes.bind(scope) {
+                    attachLauncher(target, app)
+                    check(initialized && !failed) { "Launcher hooks did not attach" }
+                    pages.restoreObservations(state.getOrNull(3))
+                    drawer.reconnect(state.getOrNull(4))
+                    if (guard != null) scheduleHealthy(guard, deadline)
+                }
+            } catch (error: Throwable) {
+                SystemUiHookScopes.tryRetire {}
+                launcherPackage = null
+                launcherWorker = null
+                launcherScope = null
+                throw error
+            }
+            discardPrevious()
+            launcherRecovery = null
+            log("ONEUI_MODS_HOT_RELOAD package=${BuildConfig.APPLICATION_ID} " +
+                "version=${BuildConfig.VERSION_CODE} pid=${Process.myPid()}")
+            true
+        }) { "Launcher main thread was unavailable" }
+    }
+
+    private fun scheduleHealthy(guard: CrashGuard, deadline: Long) {
+        healthyDeadline = deadline
+        launcherMain.postAtTime({
+            healthyDeadline = 0L
+            guard.healthy()
+        }, deadline)
+    }
+
+    private fun attachLauncher(target: TargetPackage, app: Application) {
+        val scope = prepareLauncherScope()
+        SystemUiHookScopes.bind(scope) {
+            scope.onRetire(::closeLauncher)
+            if (BuildConfig.LAUNCHER_PERF_TRACE) LauncherPerformanceTrace.install(target.classLoader)
+            InteractionRefresh.install(app, target.classLoader, home = true)
+            homeLayout.start(app)
+            installLauncher(target, app)
+            if (initialized) launcherPackage = target
+        }
+    }
+
+    private fun closeLauncher() {
+        launcherRetired = true
+        launcherMain.removeCallbacksAndMessages(null)
+        main?.removeCallbacksAndMessages(null)
+        launcherWorker?.close()
+        val retire = listOf<() -> Unit>(
+            { listener?.let { wm?.removeOnColorsChangedListener(it) } },
+            { recentsBar.setEnabled(false) },
+            liveRecents::uninstall,
+            { folders.configure(false, false) },
+            { unlockMotion.configure(false) },
+            homeLabels::closeForReload,
+            pages::closeForReload,
+            drawer::closeForReload,
+            gridSave::closeForReload,
+            diyWidgets::closeForReload,
+            diyGrid::closeForReload,
+            { iconOverlap.setEnabled(false) },
+        )
+        for (cleanup in retire) runCatching(cleanup).onFailure {
+            log("LAUNCHER_RETIRE ${it.javaClass.simpleName}: ${it.message}")
+        }
+        DexSymbols.detachObserver()
     }
 
     override fun onSystemServerStarting(param: SystemServerStartingParam) {
@@ -134,6 +318,7 @@ class HookEntry : XposedModule() {
                 !Arrays.asList<String?>(*ConfigProvider.HOSTS!!).contains(p.packageName)
         )
             return
+        if (p.packageName == LAUNCHER) prepareLauncherScope()
         ModernHook.findAndHookMethod(
             Application::class.java,
             "attach",
@@ -209,20 +394,14 @@ class HookEntry : XposedModule() {
                                     HookEntry.log("CRASH_GUARD blocked " + p.packageName)
                                     return@whenPrepared
                                 }
-                                if (HookEntry.LAUNCHER == p.packageName) {
-                                    InteractionRefresh.install(app, p.classLoader, home = true)
-                                    homeLayout.start(app)
-                                    installLauncher(p, app!!)
+                                if (LAUNCHER == p.packageName) {
+                                    attachLauncher(p, app)
+                                    if (initialized) scheduleHealthy(guard, SystemClock.uptimeMillis() + 90_000L)
                                 } else if ("com.android.systemui" == p.packageName) {
-                                    InteractionRefresh.install(app, p.classLoader, home = false)
-                                    QuickPanelHooks().install(app, p.classLoader)
-                                    ClockDateHooks().install(app, p.classLoader)
-                                    VolumeHooks().install(app, p.classLoader)
-                                } else if ("com.android.settings" == p.packageName) {
-                                    DeveloperAnimationHooks().install(app, p.classLoader)
-                                } else PreviewHooks().install(app, p.classLoader)
-                                Handler(Looper.getMainLooper())
-                                    .postDelayed(Runnable { guard!!.healthy() }, 90000)
+                                    SystemUiCodeRuntime.start(app, p.classLoader, guard)
+                                } else {
+                                    AuxiliaryHostRuntime.start(app, p.classLoader, guard)
+                                }
                             } catch (t: Throwable) {
                                 HostStatus.report(
                                     app,
@@ -302,7 +481,14 @@ class HookEntry : XposedModule() {
                 return
             }
             DexEvidence.verifyAndDeoptimize(p.appInfo.sourceDir, launcherLoader)
-            LauncherBlurCacheHooks.install(app, p.classLoader)
+            LauncherEarlyWakeupHooks.install(app, p.classLoader)
+            unlockMotion.install(app, p.classLoader)
+            if (Build.VERSION.SDK_INT == 37) {
+                StockSurfaceAnimationHooks.install(app, p.classLoader)
+            }
+            if (BuildConfig.LAUNCHER_BLUR_CACHE) {
+                LauncherBlurCacheHooks.install(app, p.classLoader)
+            }
             val reads: ModernHook.Callback =
                 object : ModernHook.Callback() {
                     override fun afterHookedMethod(param: ModernHook.Param) {
@@ -490,6 +676,7 @@ class HookEntry : XposedModule() {
             HookEntry.log("RECENTS_BAR_UNSUPPORTED " + t)
         }
         DexSymbols.whenDiscovered(app) {
+            if (launcherRetired) return@whenDiscovered
             circleRecents.install(launcherLoader)
             requestRefresh()
         }
@@ -513,9 +700,9 @@ class HookEntry : XposedModule() {
             "which=5 incompatible"
         }
         main = Handler(Looper.getMainLooper())
-        val thread = HandlerThread("OneUIHomeTweaks")
-        thread.start()
-        worker = Handler(thread.getLooper())
+        val configWorker = LauncherWorker("OneUIHomeTweaks")
+        launcherWorker = configWorker
+        worker = configWorker.handler
         wm = WallpaperManager.getInstance(app)
         try {
             homeLabels.install(app, launcherLoader, worker, Runnable { this.requestRefresh() })
@@ -535,53 +722,42 @@ class HookEntry : XposedModule() {
             }
         }
         wm!!.addOnColorsChangedListener(listener!!, main!!)
-        context!!
-            .getContentResolver()
-            .registerContentObserver(
-                ConfigProvider.URI!!,
-                false,
-                object : ContentObserver(worker) {
-                    override fun onChange(selfChange: Boolean, uri: Uri?) {
-                        requestRefresh()
-                    }
-                },
-            )
-        context!!.registerReceiver(
-            object : BroadcastReceiver() {
-                override fun onReceive(c: Context?, intent: Intent?) {
-                    requestRefresh()
-                }
-            },
-            IntentFilter(Intent.ACTION_WALLPAPER_CHANGED),
-            Context.RECEIVER_NOT_EXPORTED,
-        )
-        app.registerActivityLifecycleCallbacks(
-            object : ActivityLifecycleCallbacks {
-                override fun onActivityResumed(a: Activity) {
-                    pages.setHomeWindow(a!!)
-                    homeLabels.setHome(a!!)
-                    requestRefresh()
-                }
+        val settings = object : ContentObserver(worker) {
+            override fun onChange(selfChange: Boolean, uri: Uri?) = requestRefresh()
+        }
+        app.contentResolver.registerContentObserver(ConfigProvider.URI!!, false, settings)
+        ModernHook.onGenerationRetired { app.contentResolver.unregisterContentObserver(settings) }
+        val wallpaper = object : BroadcastReceiver() {
+            override fun onReceive(c: Context?, intent: Intent?) = requestRefresh()
+        }
+        app.registerReceiver(wallpaper, IntentFilter(Intent.ACTION_WALLPAPER_CHANGED),
+            Context.RECEIVER_NOT_EXPORTED)
+        ModernHook.onGenerationRetired { app.unregisterReceiver(wallpaper) }
 
-                override fun onActivityCreated(a: Activity, b: Bundle?) {}
-
-                override fun onActivityStarted(a: Activity) {}
-
-                override fun onActivityPaused(a: Activity) {
-                    homeLabels.paused(a)
-                }
-
-                override fun onActivityStopped(a: Activity) {}
-
-                override fun onActivitySaveInstanceState(a: Activity, b: Bundle) {}
-
-                override fun onActivityDestroyed(a: Activity) {
-                    homeLabels.destroyed(a!!)
-                }
+        val lifecycle = object : ActivityLifecycleCallbacks {
+            override fun onActivityResumed(a: Activity) {
+                if (a.javaClass.compatibleName() == "$LAUNCHER.Launcher") launcherActivity = WeakReference(a)
+                pages.setHomeWindow(a)
+                homeLabels.setHome(a)
+                requestRefresh()
             }
-        )
+
+            override fun onActivityPaused(a: Activity) = homeLabels.paused(a)
+            override fun onActivityDestroyed(a: Activity) {
+                if (launcherActivity.get() === a) launcherActivity.clear()
+                homeLabels.destroyed(a)
+            }
+
+            override fun onActivityCreated(a: Activity, b: Bundle?) = Unit
+            override fun onActivityStarted(a: Activity) = Unit
+            override fun onActivityStopped(a: Activity) = Unit
+            override fun onActivitySaveInstanceState(a: Activity, b: Bundle) = Unit
+        }
+        app.registerActivityLifecycleCallbacks(lifecycle)
+        ModernHook.onGenerationRetired { app.unregisterActivityLifecycleCallbacks(lifecycle) }
         initialized = true
         pendingHomeActivity.get()?.takeUnless { it.isDestroyed }?.let { activity ->
+            launcherActivity = WeakReference(activity)
             pages.setHomeWindow(activity)
             homeLabels.setHome(activity)
         }
@@ -591,6 +767,7 @@ class HookEntry : XposedModule() {
     }
 
     private fun requestRefresh() {
+        if (launcherRetired) return
         if (failed || worker == null) return
         worker!!.removeCallbacks(refresh)
         worker!!.postDelayed(refresh, 120)
@@ -604,6 +781,7 @@ class HookEntry : XposedModule() {
             var drawerMode = ColorPolicy.AUTO
             var focusMode: Int = 0
             var folderReturn: Boolean = true
+            var animateUnlock = false
             var iconOverlapFix = true
             var master: Boolean = false
             var pageMode: Boolean = false
@@ -624,6 +802,8 @@ class HookEntry : XposedModule() {
                     hideCircleSearch = master && circleColumn >= 0 && cursor.getInt(circleColumn) != 0
                     val folderColumn = cursor.getColumnIndex("folder_return")
                     folderReturn = folderColumn < 0 || cursor.getInt(folderColumn) != 0
+                    val unlockColumn = cursor.getColumnIndex(HomeUnlockMotion.KEY)
+                    animateUnlock = master && unlockColumn >= 0 && cursor.getInt(unlockColumn) != 0
                     val overlapColumn = cursor.getColumnIndex("icon_overlap_fix")
                     iconOverlapFix = overlapColumn < 0 || cursor.getInt(overlapColumn) != 0
                     pageMode = cursor.getInt(cursor.getColumnIndexOrThrow("pages")) != 0
@@ -663,6 +843,7 @@ class HookEntry : XposedModule() {
             val currentHideCircleSearch = hideCircleSearch
             val currentMaster: Boolean = master
             val currentFolderReturn: Boolean = folderReturn
+            val currentUnlockMotion = animateUnlock
             val currentOverlapFix = master && iconOverlapFix
             val currentDiyGrid: Boolean = diyGridMode
             val currentAvoidWidgets = avoidWidgets
@@ -683,6 +864,7 @@ class HookEntry : XposedModule() {
                     recentsBar.setEnabled(currentHideRecentsBar)
                     circleRecents.setEnabled(currentHideCircleSearch)
                     folders.configure(currentMaster, currentFolderReturn)
+                    unlockMotion.configure(currentUnlockMotion)
                     iconOverlap.setEnabled(currentOverlapFix)
                     diyWidgets.setEnabled(currentAvoidWidgets)
                     diyGrid.setEnabled(currentDiyGrid)
@@ -740,6 +922,7 @@ class HookEntry : XposedModule() {
                     diyGrid.setEnabled(false)
                     diyWidgets.setEnabled(false)
                     iconOverlap.setEnabled(false)
+                    unlockMotion.configure(false)
                 }
             )
             HookEntry.log(

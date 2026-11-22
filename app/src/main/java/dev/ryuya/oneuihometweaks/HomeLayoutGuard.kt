@@ -13,7 +13,6 @@ import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
-import android.os.HandlerThread
 import android.os.Looper
 import android.os.Process
 import android.os.SystemClock
@@ -60,6 +59,7 @@ class HomeLayoutGuard {
     private val journal: ArrayDeque<String?> = ArrayDeque<String?>()
     private var app: Application? = null
     private var io: Handler? = null
+    private var ownerWorker: LauncherWorker? = null
     private var itemType: Class<*>? = null
     private var updateAll: Method? = null
     private var getBounds: Method? = null
@@ -89,47 +89,40 @@ class HomeLayoutGuard {
 
     fun start(application: Application?) {
         app = application
-        val thread = HandlerThread("HomeLayoutJournal", Process.THREAD_PRIORITY_BACKGROUND)
-        thread.start()
-        io = Handler(thread.getLooper())
+        val worker = LauncherWorker("HomeLayoutJournal", Process.THREAD_PRIORITY_BACKGROUND)
+        ownerWorker = worker
+        io = worker.handler
+        ModernHook.onGenerationRetired {
+            stopped = true
+            logging = false
+            main.removeCallbacksAndMessages(null)
+            worker.close()
+        }
         readConfig()
-        app!!
-            .getContentResolver()
-            .registerContentObserver(
-                ConfigProvider.URI!!,
-                false,
-                object : ContentObserver(io) {
-                    override fun onChange(selfChange: Boolean) {
-                        readConfig()
-                    }
-                },
-            )
-        app!!.registerActivityLifecycleCallbacks(
-            object : ActivityLifecycleCallbacks {
-                override fun onActivityResumed(a: Activity) {
-                    activity(a, "resumed")
-                }
-
-                override fun onActivityPaused(a: Activity) {
-                    activity(a, "paused")
-                }
-
-                override fun onActivityCreated(a: Activity, b: Bundle?) {
-                    activity(a, "created")
-                }
-
-                override fun onActivityDestroyed(a: Activity) {
-                    activity(a, "destroyed")
-                }
-
-                override fun onActivityStarted(a: Activity) {}
-
-                override fun onActivityStopped(a: Activity) {}
-
-                override fun onActivitySaveInstanceState(a: Activity, b: Bundle) {}
-            },
-        )
+        val host = requireNotNull(application)
+        val configuration = object : ContentObserver(io) {
+            override fun onChange(selfChange: Boolean) { readConfig() }
+        }
+        host.contentResolver.registerContentObserver(ConfigProvider.URI!!, false, configuration)
+        ModernHook.onGenerationRetired { host.contentResolver.unregisterContentObserver(configuration) }
+        val lifecycle = object : ActivityLifecycleCallbacks {
+            override fun onActivityResumed(a: Activity) = activity(a, "resumed")
+            override fun onActivityPaused(a: Activity) = activity(a, "paused")
+            override fun onActivityCreated(a: Activity, b: Bundle?) = activity(a, "created")
+            override fun onActivityDestroyed(a: Activity) = activity(a, "destroyed")
+            override fun onActivityStarted(a: Activity) = Unit
+            override fun onActivityStopped(a: Activity) = Unit
+            override fun onActivitySaveInstanceState(a: Activity, b: Bundle) = Unit
+        }
+        host.registerActivityLifecycleCallbacks(lifecycle)
+        ModernHook.onGenerationRetired { host.unregisterActivityLifecycleCallbacks(lifecycle) }
     }
+
+    internal fun pauseForHotReload(): Boolean = ownerWorker?.tryPause {
+        !touchDown && !replaying && pending.isEmpty() && synchronized(this) { journal.isEmpty() }
+    } != false
+
+    internal fun resumeAfterRejectedReload() { ownerWorker?.resume() }
 
     fun observe(workspace: ViewGroup) {
         if (app == null || stopped) return

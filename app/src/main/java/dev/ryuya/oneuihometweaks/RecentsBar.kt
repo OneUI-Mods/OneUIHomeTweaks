@@ -175,6 +175,7 @@ class RecentsBar {
                         refresh()
                     }
                 }
+            ModernHook.onGenerationRetired { app.contentResolver.unregisterContentObserver(observer) }
             app.getContentResolver()
                 .registerContentObserver(Secure.getUriFor("navigation_mode"), false, observer)
             app.getContentResolver()

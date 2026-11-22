@@ -69,6 +69,10 @@ class CrashGuard private constructor(context: Context, fileName: String) {
         @Throws(Exception::class)
         fun enter(context: Context): CrashGuard = enter(context, context.packageName, FILE)
 
+        internal fun resume(context: Context): CrashGuard = CrashGuard(context, FILE).also { guard ->
+            guard.file.openRead().use(guard.state::load)
+        }
+
         internal fun enterSystemUiAppearanceHelper(context: Context, process: String): CrashGuard {
             require(isSystemUiAppearanceHelper(process))
             return enter(context, process, "$FILE.${process.removePrefix(SYSTEM_UI_PREFIX)}")

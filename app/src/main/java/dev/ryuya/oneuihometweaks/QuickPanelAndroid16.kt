@@ -69,6 +69,9 @@ class QuickPanelAndroid16(owner: QuickPanelHooks, loader: ClassLoader?) : QuickP
                     height,
                     if (kind == 1) type.compatibleDeclaredField("mSlider") else null,
                 )
+            for (bar in SystemUiLiveObjects.snapshot("qs-bar-$kind")) {
+                if (type.isInstance(bar)) bars[bar] = c
+            }
             // Both native classes recreate their track geometry in updateLayout; clone paths use it
             // too.
             var layout: Method? = null
@@ -87,6 +90,7 @@ class QuickPanelAndroid16(owner: QuickPanelHooks, loader: ClassLoader?) : QuickP
                         override fun afterHookedMethod(p: ModernHook.Param) {
                             if (p.hasThrowable()) return
                             bars.put(p.thisObject, c)
+                            p.thisObject?.let { SystemUiLiveObjects.track("qs-bar-${c.kind}", it) }
                             try {
                                 apply(
                                     p.thisObject,

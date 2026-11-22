@@ -14,6 +14,24 @@ object QuickPanelPolicy {
     const val MAX: Int = 200
     const val STEP: Int = 5
 
+    internal class RefreshState {
+        private var changedSizes = 0
+        var legacyChanged = false
+            private set
+
+        fun record(sizes: IntArray, legacy: Boolean) {
+            for (index in sizes.indices) {
+                if (sizes[index] != 100) changedSizes = changedSizes or (1 shl index)
+            }
+            legacyChanged = legacyChanged || legacy
+        }
+
+        fun any(): Boolean = changedSizes != 0 || legacyChanged
+
+        // A stock size may need to replace a modifier installed by an earlier setting.
+        fun size(index: Int): Boolean = legacyChanged || (changedSizes and (1 shl index)) != 0
+    }
+
     @JvmStatic
     fun percent(value: Int): Int {
         return max(QuickPanelPolicy.MIN, min(QuickPanelPolicy.MAX, value))

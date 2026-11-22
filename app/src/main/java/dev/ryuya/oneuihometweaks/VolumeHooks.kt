@@ -28,7 +28,8 @@ import kotlin.math.log
 /* Local configuration for native Samsung volume dialogs only, never global resources. */
 class VolumeHooks {
     @Volatile private var mode: Int = 0
-    private var failed: Boolean = false
+    @Volatile private var failed: Boolean = false
+    @Volatile private var retired = false
     private var failureDetail: String = "Volume hook stopped"
     private var context: Context? = null
     private var main: Handler? = null
@@ -127,7 +128,10 @@ class VolumeHooks {
             panelClass,
             object : ModernHook.Callback() {
                 override fun afterHookedMethod(p: ModernHook.Param) {
-                    if (!p.hasThrowable()) panel = WeakReference<Any?>(p.thisObject)
+                    if (!p.hasThrowable()) p.thisObject?.let {
+                        panel = WeakReference(it)
+                        SystemUiLiveObjects.remember("volume-panel", it)
+                    }
                 }
             },
         )
@@ -224,27 +228,33 @@ class VolumeHooks {
         val thread = HandlerThread("OneUiVolumeConfig")
         thread.start()
         worker = Handler(thread.getLooper())
-        app.getContentResolver()
-            .registerContentObserver(
-                ConfigProvider.URI!!,
-                false,
-                object : ContentObserver(worker) {
-                    override fun onChange(selfChange: Boolean, uri: Uri?) {
-                        refresh()
-                    }
-                },
-            )
-        app.registerReceiver(
-            object : BroadcastReceiver() {
-                override fun onReceive(context: Context?, intent: Intent) {
-                    if (Intent.ACTION_USER_UNLOCKED == intent.getAction())
-                        worker!!.post(Runnable { this@VolumeHooks.refresh() })
-                }
-            },
-            IntentFilter(Intent.ACTION_USER_UNLOCKED),
-            Context.RECEIVER_NOT_EXPORTED,
-        )
-        worker!!.post(Runnable { this.refresh() })
+        val observer = object : ContentObserver(worker) {
+            override fun onChange(selfChange: Boolean, uri: Uri?) = refresh()
+        }
+        val unlocked = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent) {
+                if (Intent.ACTION_USER_UNLOCKED == intent.action) worker?.post { refresh() }
+            }
+        }
+        ModernHook.onGenerationRetired {
+            retired = true
+            runCatching { app.contentResolver.unregisterContentObserver(observer) }
+            runCatching { app.unregisterReceiver(unlocked) }
+            worker?.removeCallbacksAndMessages(null)
+            thread.quitSafely()
+            if (mode != 0) {
+                mode = 0
+                volumeStar.setMode(0)
+                panel.get()?.let { recreate?.invoke(it) }
+            }
+        }
+        ModernHook.afterGenerationActivation {
+            val current = SystemUiLiveObjects.find("volume-panel")
+            if (panelClass.isInstance(current)) panel = WeakReference(current)
+            app.contentResolver.registerContentObserver(ConfigProvider.URI!!, false, observer)
+            app.registerReceiver(unlocked, IntentFilter(Intent.ACTION_USER_UNLOCKED), Context.RECEIVER_NOT_EXPORTED)
+            worker?.post { refresh() }
+        }
         HookEntry.log("VOLUME_HOOK_READY native context + native recreate")
     }
 
@@ -275,6 +285,7 @@ class VolumeHooks {
     }
 
     private fun refresh() {
+        if (retired) return
         if (failed) {
             HostStatus.report(context, "ERROR", failureDetail)
             return
@@ -293,6 +304,7 @@ class VolumeHooks {
                     val selected: Int = next
                     main!!.post(
                         Runnable {
+                            if (retired || failed) return@Runnable
                             if (mode == selected) {
                                 reportMode(enabled)
                                 return@Runnable
@@ -312,7 +324,7 @@ class VolumeHooks {
         } catch (t: Throwable) {
             main!!.post(
                 Runnable {
-                    if (failed) return@Runnable
+                    if (retired || failed) return@Runnable
                     val restore: Boolean = mode != 0
                     mode = 0
                     volumeStar.setMode(0)

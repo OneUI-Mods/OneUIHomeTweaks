@@ -13,6 +13,7 @@ class RecentsFocusRegistry(context: Context) {
     private val context: Context
     private val anchor: IBinder = Binder()
     private var backend: IBinder? = null
+    private var viaTaskManager = false
 
     init {
         this.context = context
@@ -23,8 +24,10 @@ class RecentsFocusRegistry(context: Context) {
     fun register(data: Bundle?): Bundle {
         val candidate: IBinder? = if (data == null) null else data.getBinder("backend")
         require(!(candidate == null || !candidate.isBinderAlive())) { "Live backend required" }
-        RecentsFocusWire.call(candidate, RecentsFocusWire.STATUS, null)
+        val transport = data?.getBoolean(RecentsFocusWire.TASK_MANAGER) == true
+        RecentsFocusWire.call(candidate, RecentsFocusWire.STATUS, null, transport)
         backend = candidate
+        viaTaskManager = transport
         val result = Bundle()
         result.putBinder("anchor", anchor)
         return result
@@ -34,7 +37,7 @@ class RecentsFocusRegistry(context: Context) {
     fun status(): Bundle? {
         try {
             if (backend != null)
-                return RecentsFocusWire.call(backend!!, RecentsFocusWire.STATUS, null)
+                return RecentsFocusWire.call(backend!!, RecentsFocusWire.STATUS, null, viaTaskManager)
         } catch (ignored: Exception) {
             backend = null
         }
@@ -62,6 +65,7 @@ class RecentsFocusRegistry(context: Context) {
                 backend!!,
                 if (mode == 0) RecentsFocusWire.STOP else RecentsFocusWire.ARM,
                 data,
+                viaTaskManager,
             )
         } catch (ignored: Exception) {
             backend = null

@@ -36,6 +36,7 @@ internal class DiyWidgetPlacementGuard {
     private var workspace = WeakReference<ViewGroup>(null)
     private var enabled = false
     private var started = false
+    private var installing = false
     private var edit: Edit? = null
     private var drop: Drop? = null
     private var loggedBlocks = 0
@@ -56,10 +57,19 @@ internal class DiyWidgetPlacementGuard {
         onChanged()
     }
 
+    internal fun idleForHotReload() = !installing && edit == null && drop == null
+
+    internal fun closeForReload() {
+        enabled = false
+        reflow?.observe(null)
+        main.removeCallbacksAndMessages(null)
+    }
+
     private fun prepare() {
         val owner = workspace.get() ?: return
         if (!enabled || started) return
         started = true
+        installing = true
         val loader = owner.javaClass.classLoader
         val context = owner.context.applicationContext
         Thread({
@@ -69,6 +79,7 @@ internal class DiyWidgetPlacementGuard {
                 install(loader, apk)
             }.onFailure {
                 HookEntry.log("DIY_WIDGET_PLACEMENT_UNAVAILABLE ${it.javaClass.simpleName}: ${it.message}")
+                main.post { installing = false }
             }
         }, "DiyWidgetPlacement").start()
     }
@@ -212,6 +223,7 @@ internal class DiyWidgetPlacementGuard {
         geometry = Geometry(widget, widgetDrop, iconView, folder, cellX, cellY, actualX, actualY)
         HookEntry.log("DIY_WIDGET_PLACEMENT_READY")
         main.post {
+            installing = false
             reflow = runCatching {
                 DiyWidgetReflow(
                     loader, layout, vm, params,

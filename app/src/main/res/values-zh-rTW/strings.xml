@@ -60,10 +60,16 @@
   <string name="scope_preview">桌布與風格</string>
   <string name="license_unavailable">無法載入授權資訊。</string>
   <string name="reload_targets">重新載入其他目標</string>
-  <string name="reload_title">重新載入目標程序</string>
-  <string name="reload_volume">重新啟動System UI</string>
+  <string name="reload_title">更新或重新啟動目標</string>
+  <string name="reload_volume">即時更新 SystemUI 掛鉤</string>
   <string name="reload_preview">重新啟動桌布與風格</string>
   <string name="reload_warning">選取的介面將暫時關閉。不會重新啟動裝置。</string>
+  <string name="hot_current">Vector 已載入目前版本。</string>
+  <string name="hot_initial">請先在 SystemUI 中載入一次支援熱更新的版本。</string>
+  <string name="hot_unavailable">無法使用 Vector 熱更新服務。</string>
+  <string name="hot_busy">Vector 正在更新 SystemUI 掛鉤。</string>
+  <string name="hot_accepted">Vector 已接受更新。請檢查掛鉤狀態。</string>
+  <string name="hot_rejected">Vector 拒絕更新。請在 SystemUI 閒置時重試。</string>
   <string name="reload_done">已重新啟動目標程序。</string>
   <string name="reload_failed">無法重新啟動目標程序。請檢查 root 權限。</string>
   <string name="status_no_colors">沒有桌布顏色資訊。自動模式使用原始行為。</string>
@@ -138,4 +144,6 @@
     <string name="hide_circle_search_note">保留搜尋功能，僅隱藏搜尋專用工作。一般 Google 應用程式和 Google 智慧鏡頭仍會顯示。</string>
   <string name="diy_avoid_widgets">DIY Home 中禁止圖示與小工具重疊</string>
   <string name="diy_avoid_widgets_note">開啟 DIY 主畫面頁面時，已與小工具重疊的應用程式圖示也會移至空白處。空間不足時，圖示會維持原有大小並移至其他頁面。</string>
+  <string name="home_unlock_motion">解鎖動畫</string>
+  <string name="home_unlock_motion_note">解鎖後，圖示、小工具和 Dock 依序回到原位。返回先前的應用程式時會短暫淡入。</string>
 </resources>

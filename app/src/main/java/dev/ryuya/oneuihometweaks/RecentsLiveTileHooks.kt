@@ -1093,6 +1093,8 @@ class RecentsLiveTileHooks {
         return diagnostic
     }
 
+    internal fun idleForHotReload() = sessions.isEmpty() && !releasing && foregroundRecents == null
+
     fun uninstall() {
         enabled = false
         release("uninstall")

@@ -60,10 +60,16 @@
   <string name="scope_preview">壁纸和风格</string>
   <string name="license_unavailable">无法加载许可证信息。</string>
   <string name="reload_targets">重新加载其他目标</string>
-  <string name="reload_title">重新加载目标进程</string>
-  <string name="reload_volume">重启System UI</string>
+  <string name="reload_title">更新或重启目标</string>
+  <string name="reload_volume">即时更新 SystemUI 钩子</string>
   <string name="reload_preview">重启壁纸和风格</string>
   <string name="reload_warning">选中的界面将暂时关闭。不会重新启动设备。</string>
+  <string name="hot_current">Vector 已加载当前版本。</string>
+  <string name="hot_initial">请先在 SystemUI 中加载一次支持热更新的版本。</string>
+  <string name="hot_unavailable">无法使用 Vector 热更新服务。</string>
+  <string name="hot_busy">Vector 正在更新 SystemUI 钩子。</string>
+  <string name="hot_accepted">Vector 已接受更新。请检查钩子状态。</string>
+  <string name="hot_rejected">Vector 拒绝了更新。请在 SystemUI 空闲时重试。</string>
   <string name="reload_done">已重新启动目标进程。</string>
   <string name="reload_failed">无法重新启动目标进程。请检查 root 权限。</string>
   <string name="status_no_colors">没有壁纸颜色信息。自动模式使用原始行为。</string>
@@ -138,4 +144,6 @@
     <string name="hide_circle_search_note">保留搜索功能，仅隐藏搜索专用任务。普通 Google 应用和 Google 智能镜头仍会显示。</string>
   <string name="diy_avoid_widgets">DIY Home 中禁止图标与小组件重叠</string>
   <string name="diy_avoid_widgets_note">打开 DIY 主屏幕页面时，已与小组件重叠的应用图标也会移到空白处。空间不足时，图标会保持原有大小并移到其他页面。</string>
+  <string name="home_unlock_motion">解锁动画</string>
+  <string name="home_unlock_motion_note">解锁后，图标、小组件和程序坞依次回到原位。返回之前的应用时会短暂淡入。</string>
 </resources>

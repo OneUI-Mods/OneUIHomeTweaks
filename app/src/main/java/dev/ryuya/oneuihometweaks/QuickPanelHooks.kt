@@ -27,12 +27,14 @@ class QuickPanelHooks {
     private var context: Context? = null
     private var adapter: QuickPanelHooks.Adapter? = null
     private var preview: QuickPanelNativePreview? = null
+    private var iconCache: QuickPanelIconCache? = null
+    private var routinesDetail: QuickPanelRoutinesDetail? = null
     @Volatile private var failed: Boolean = false
     @Volatile private var sizes: IntArray? = intArrayOf(100, 100, 100, 100)
     @Volatile private var enabled: Boolean = false
     @Volatile private var legacy: Boolean = false
     @Volatile private var legacyFailed: Boolean = false
-    private var touched: Boolean = false
+    private val refreshState = QuickPanelPolicy.RefreshState()
     private var lastReport: String = ""
 
     fun size(index: Int): Int {
@@ -43,9 +45,11 @@ class QuickPanelHooks {
         return enabled && legacy && !failed && !legacyFailed
     }
 
-    fun needsRefresh(): Boolean {
-        return touched
-    }
+    fun needsRefresh(): Boolean = refreshState.any()
+
+    fun needsSizeRefresh(index: Int): Boolean = refreshState.size(index)
+
+    fun needsLegacyRefresh(): Boolean = refreshState.legacyChanged
 
     fun add(handle: ModernHook.Handle?) {
         handles.add(handle)
@@ -70,27 +74,43 @@ class QuickPanelHooks {
             val thread = HandlerThread("OneUiQuickPanelConfig")
             thread.start()
             val worker = Handler(thread.getLooper())
-            context!!
-                .getContentResolver()
-                .registerContentObserver(
-                    ConfigProvider.URI!!,
-                    false,
-                    object : ContentObserver(worker) {
-                        override fun onChange(self: Boolean, uri: Uri?) {
-                            read()
-                        }
-                    },
-                )
-            context!!.registerReceiver(
-                object : BroadcastReceiver() {
-                    override fun onReceive(c: Context?, i: Intent?) {
-                        worker.post(Runnable { this@QuickPanelHooks.read() })
-                    }
-                },
-                IntentFilter(Intent.ACTION_USER_UNLOCKED),
-                Context.RECEIVER_NOT_EXPORTED,
-            )
-            worker.post(Runnable { this.read() })
+            if (Build.VERSION.SDK_INT == 37 && app != null) {
+                try {
+                    iconCache = QuickPanelIconCache(app, worker, loader)
+                } catch (error: Exception) {
+                    HookEntry.log("QUICK_PANEL_SOUND_ICONS_UNAVAILABLE ${error.javaClass.simpleName}")
+                }
+                try {
+                    routinesDetail = QuickPanelRoutinesDetail(app, worker, loader)
+                } catch (error: Exception) {
+                    HookEntry.log("QUICK_PANEL_ROUTINES_DETAIL_UNAVAILABLE ${error.javaClass.simpleName}")
+                }
+            }
+            val host = requireNotNull(context)
+            val observer = object : ContentObserver(worker) {
+                override fun onChange(self: Boolean, uri: Uri?) = read()
+            }
+            val unlocked = object : BroadcastReceiver() {
+                override fun onReceive(c: Context?, i: Intent?) {
+                    worker.post { read() }
+                }
+            }
+            ModernHook.onGenerationRetired {
+                failed = true
+                enabled = false
+                runCatching { host.contentResolver.unregisterContentObserver(observer) }
+                runCatching { host.unregisterReceiver(unlocked) }
+                worker.removeCallbacksAndMessages(null)
+                thread.quitSafely()
+                routinesDetail?.close()
+                preview?.dispose()
+                adapter?.close()
+            }
+            ModernHook.afterGenerationActivation {
+                host.contentResolver.registerContentObserver(ConfigProvider.URI!!, false, observer)
+                host.registerReceiver(unlocked, IntentFilter(Intent.ACTION_USER_UNLOCKED), Context.RECEIVER_NOT_EXPORTED)
+                worker.post { read() }
+            }
             HookEntry.log("QUICK_PANEL_READY platform=" + Build.VERSION.SDK_INT)
         } catch (error: Throwable) {
             fail(error)
@@ -105,10 +125,10 @@ class QuickPanelHooks {
                 .query(ConfigProvider.URI!!, null, null, null, null)
                 .use { c ->
                     check(!(c == null || !c.moveToFirst())) { "No configuration" }
-                    val on: Boolean =
+                    val systemUiEnabled =
                         c.getInt(c.getColumnIndexOrThrow("enabled")) != 0 &&
-                            c.getInt(c.getColumnIndexOrThrow("systemui_enabled")) != 0 &&
-                            c.getInt(c.getColumnIndexOrThrow("qs_enabled")) != 0
+                            c.getInt(c.getColumnIndexOrThrow("systemui_enabled")) != 0
+                    val on = systemUiEnabled && c.getInt(c.getColumnIndexOrThrow("qs_enabled")) != 0
                     val oldDesign: Boolean =
                         c.getInt(c.getColumnIndexOrThrow("qs_legacy_design")) != 0
                     val next = IntArray(4)
@@ -116,10 +136,12 @@ class QuickPanelHooks {
                         QuickPanelPolicy.percent(
                             c.getInt(c.getColumnIndexOrThrow(QuickPanelPolicy.KEYS!![i]))
                         )
+                    iconCache?.setEnabled(systemUiEnabled)
+                    routinesDetail?.setEnabled(systemUiEnabled)
                     main.post(
                         Runnable {
                             if (failed) return@Runnable
-                            touched = touched or on
+                            if (on) refreshState.record(next, oldDesign)
                             sizes = next
                             enabled = on
                             legacy = oldDesign
@@ -138,8 +160,11 @@ class QuickPanelHooks {
                     )
                 }
         } catch (error: Throwable) {
+            iconCache?.setEnabled(false)
+            routinesDetail?.setEnabled(false)
             main.post(
                 Runnable {
+                    if (failed) return@Runnable
                     enabled = false
                     try {
                         if (adapter != null) adapter!!.refresh()
@@ -173,6 +198,7 @@ class QuickPanelHooks {
         for (h in handles) try {
             h!!.unhook()
         } catch (ignored: Throwable) {}
+        runCatching { routinesDetail?.close() }
         main.post(
             Runnable {
                 try {

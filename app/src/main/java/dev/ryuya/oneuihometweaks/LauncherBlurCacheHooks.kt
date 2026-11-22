@@ -4,6 +4,7 @@ import android.app.Application
 import android.graphics.RenderEffect
 import android.os.Build
 import android.os.Looper
+import android.os.Trace
 import dev.ryuya.oneuihometweaks.compat.DexSymbols
 import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredField
 import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredMethod
@@ -78,6 +79,10 @@ internal object LauncherBlurCacheHooks {
                     if (batch.nativeBuilds < batch.requests && batch.requests != count) {
                         disabled = true
                         HookEntry.log("LAUNCHER_BLUR_CACHE_LOOP_CHANGED expected=$count calls=${batch.requests}")
+                    }
+                    if (BuildConfig.LAUNCHER_PERF_TRACE && Trace.isEnabled() && batch.requests > 0) {
+                        Trace.setCounter("OneUI home radius-only blur requests", batch.requests.toLong())
+                        Trace.setCounter("OneUI home radius-only blur builds", batch.nativeBuilds.toLong())
                     }
                     batch.finish()
                 }

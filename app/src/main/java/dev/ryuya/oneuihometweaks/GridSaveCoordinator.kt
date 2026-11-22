@@ -35,6 +35,13 @@ class GridSaveCoordinator(bridge: DiyGridBridge) {
         this.bridge = bridge
     }
 
+    internal fun idleForHotReload() = !busy
+
+    internal fun closeForReload() {
+        main.removeCallbacksAndMessages(null)
+        io?.shutdownNow()
+    }
+
     fun accept(context: Context, request: Bundle?) {
         if (request == null || request.isEmpty()) return
         val token = request.getString("token", "")

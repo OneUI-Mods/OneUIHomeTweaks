@@ -60,10 +60,16 @@
   <string name="scope_preview">배경화면 및 스타일</string>
   <string name="license_unavailable">라이선스 정보를 불러오지 못했습니다.</string>
   <string name="reload_targets">다른 대상 다시 시작</string>
-  <string name="reload_title">대상 프로세스 다시 시작</string>
-  <string name="reload_volume">System UI 다시 시작</string>
+  <string name="reload_title">대상 업데이트 또는 다시 시작</string>
+  <string name="reload_volume">SystemUI 후크 즉시 업데이트</string>
   <string name="reload_preview">배경화면 및 스타일 다시 시작</string>
   <string name="reload_warning">선택한 인터페이스가 잠시 닫힙니다. 기기는 재부팅하지 않습니다.</string>
+  <string name="hot_current">Vector에 최신 버전이 이미 로드되어 있습니다.</string>
+  <string name="hot_initial">먼저 즉시 업데이트를 지원하는 버전을 SystemUI에 로드하세요.</string>
+  <string name="hot_unavailable">Vector 즉시 업데이트 서비스를 사용할 수 없습니다.</string>
+  <string name="hot_busy">Vector가 SystemUI 후크를 업데이트 중입니다.</string>
+  <string name="hot_accepted">Vector가 업데이트를 수락했습니다. 후크 상태를 확인하세요.</string>
+  <string name="hot_rejected">Vector가 업데이트를 거절했습니다. SystemUI가 유휴 상태일 때 다시 시도하세요.</string>
   <string name="reload_done">대상 프로세스를 다시 시작했습니다.</string>
   <string name="reload_failed">다시 시작하지 못했습니다. root 권한을 확인하세요.</string>
   <string name="status_no_colors">배경화면 색상 정보가 없습니다. 자동 모드는 기본 동작을 사용합니다.</string>
@@ -138,4 +144,6 @@
     <string name="hide_circle_search_note">검색 기능은 유지하고 검색 전용 작업만 숨깁니다. 일반 Google 앱과 Google 렌즈는 계속 표시됩니다.</string>
   <string name="diy_avoid_widgets">DIY Home에서 아이콘을 위젯 위에 놓지 않기</string>
   <string name="diy_avoid_widgets_note">DIY 홈 페이지를 열면 위젯과 겹치는 기존 앱 아이콘을 빈 공간으로 옮깁니다. 공간이 부족하면 아이콘 크기를 유지한 채 다른 페이지로 옮깁니다.</string>
+  <string name="home_unlock_motion">잠금 해제 애니메이션</string>
+  <string name="home_unlock_motion_note">잠금 해제 후 아이콘, 위젯, 독이 순서대로 제자리를 잡습니다. 이전 앱으로 돌아갈 때는 짧게 페이드인됩니다.</string>
 </resources>

@@ -25,8 +25,8 @@ android {
         applicationId = "dev.ryuya.oneuihometweaks"
         minSdk = 31
         targetSdk = 37
-        versionCode = 116
-        versionName = "0.21.64"
+        versionCode = 135
+        versionName = "0.21.83"
         testInstrumentationRunner = "dev.ryuya.oneuihometweaks.MemoryInstrumentation"
         // Live-card diagnostics are opt-in for local investigation, never default release behavior.
         buildConfigField(
@@ -35,6 +35,60 @@ android {
             providers
                 .gradleProperty("recentsLiveTrace")
                 .map { (it == "true").toString() }
+                .getOrElse("false"),
+        )
+        buildConfigField(
+            "boolean",
+            "SHADE_PERF_TRACE",
+            providers.gradleProperty("shadePerfTrace").map { (it == "true").toString() }
+                .getOrElse("false"),
+        )
+        buildConfigField(
+            "boolean",
+            "SHADE_WORK_TILE_TRACE",
+            providers.gradleProperty("shadeWorkTileTrace").map { (it == "true").toString() }
+                .getOrElse("false"),
+        )
+        buildConfigField(
+            "boolean",
+            "SHADE_LAYER_ID_TRACE",
+            providers.gradleProperty("shadeLayerIdTrace").map { (it == "true").toString() }
+                .getOrElse("false"),
+        )
+        buildConfigField(
+            "boolean",
+            "SHADE_RECOMPOSE_TRACE",
+            providers.gradleProperty("shadeRecomposeTrace").map { (it == "true").toString() }
+                .getOrElse("false"),
+        )
+        buildConfigField(
+            "boolean",
+            "SHADE_FRAME_RATE_CACHE",
+            providers.gradleProperty("shadeFrameRateCache").map { (it == "true").toString() }
+                .getOrElse("false"),
+        )
+        buildConfigField(
+            "boolean",
+            "SHADE_TRIM_DEBOUNCE",
+            providers.gradleProperty("shadeTrimDebounce").map { (it == "true").toString() }
+                .getOrElse("false"),
+        )
+        buildConfigField(
+            "boolean",
+            "SHADE_TRIM_MERGE_VISIBILITY",
+            providers.gradleProperty("shadeTrimMergeVisibility").map { (it == "true").toString() }
+                .getOrElse("false"),
+        )
+        buildConfigField(
+            "boolean",
+            "LAUNCHER_PERF_TRACE",
+            providers.gradleProperty("launcherPerfTrace").map { (it == "true").toString() }
+                .getOrElse("false"),
+        )
+        buildConfigField(
+            "boolean",
+            "LAUNCHER_BLUR_CACHE",
+            providers.gradleProperty("launcherBlurCache").map { (it == "true").toString() }
                 .getOrElse("false"),
         )
     }

@@ -255,6 +255,17 @@ class DiyGridBridge {
         if (enabled && ready && !failed) queueRender()
     }
 
+    internal fun idleForHotReload() = !starting && !editing && !rendering && projectionDepth == 0
+
+    internal fun closeForReload() {
+        enabled = false
+        main.removeCallbacksAndMessages(null)
+        restoreNativeViews()
+        for (layout in layouts.keys.filterNotNull()) layout.removeOnLayoutChangeListener(pageLayoutChanges)
+        layouts.clear()
+        states.clear()
+    }
+
     fun setEnabled(on: Boolean) {
         if (failed || enabled == on) return
         enabled = on
@@ -811,7 +822,7 @@ class DiyGridBridge {
                             },
                         )
                     } catch (error: Throwable) {
-                        main.post(Runnable { disable(error) })
+                        main.post { starting = false; disable(error) }
                     }
                 },
                 "OneUiDiyGridEvidence",

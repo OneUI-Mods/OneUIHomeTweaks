@@ -1,11 +1,33 @@
 package dev.ryuya.oneuihometweaks.compat
 
 import android.content.Context
+import android.os.Bundle
+import java.util.concurrent.ConcurrentHashMap
 import org.luckypray.dexkit.DexKitBridge
 
 /** Persistent cache for feature-specific call graphs; no bridge on a hit, including failures. */
 object DexRuntimeCache {
     @Volatile private var hostContext: Context? = null
+    private val systemUiProofs = ConcurrentHashMap<Pair<String, String>, Map<String, String?>>()
+
+    fun exportProofs(): Array<Bundle> = systemUiProofs.map { (key, evidence) ->
+        Bundle().apply {
+            putString("apk", key.first)
+            putString("rule", key.second)
+            putByteArray("evidence", GenerationStore.encode(GenerationStore.Result("ready", evidence)))
+        }
+    }.toTypedArray()
+
+    fun importProofs(snapshot: Any?) {
+        for (entry in snapshot as? Array<*> ?: return) {
+            val bundle = entry as? Bundle ?: continue
+            val apk = bundle.getString("apk") ?: continue
+            val rule = bundle.getString("rule") ?: continue
+            val bytes = bundle.getByteArray("evidence") ?: continue
+            val result = GenerationStore.decode(bytes)
+            if (result.state == "ready") systemUiProofs[apk to rule] = result.bindings
+        }
+    }
 
     fun configure(context: Context) {
         hostContext = context
@@ -17,6 +39,8 @@ object DexRuntimeCache {
         block: (DexKitBridge) -> Map<String, String?>,
     ): Map<String, String?> {
         val context = checkNotNull(hostContext) { "Discovery cache not configured" }
+        val systemUi = context.packageName == "com.android.systemui"
+        if (systemUi) systemUiProofs[apk to rule]?.let { return it }
         val uri = android.net.Uri.parse("content://${DexKitConfig.MODULE_ID}.dexkit/ready")
         val request =
             android.os.Bundle().apply {
@@ -62,6 +86,7 @@ object DexRuntimeCache {
             "Discovery unavailable for this version: ${result.state}" +
                 (result.bindings["detail"]?.let { " ($it)" } ?: "")
         }
+        if (systemUi) systemUiProofs[apk to rule] = result.bindings
         return result.bindings
     }
 

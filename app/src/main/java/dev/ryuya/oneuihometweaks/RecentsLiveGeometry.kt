@@ -8,6 +8,12 @@ import kotlin.math.min
 
 /* Composes measured snapshot pixels and native card geometry without changing its aspect/style. */
 object RecentsLiveGeometry {
+    internal class Workspace {
+        val source = DoubleArray(9)
+        val local = DoubleArray(9)
+        val composed = DoubleArray(9)
+    }
+
     @JvmStatic
     fun compose(
         width: Int,
@@ -36,6 +42,7 @@ object RecentsLiveGeometry {
             height,
             shader,
             global,
+            Workspace(),
         )
     }
 
@@ -48,6 +55,18 @@ object RecentsLiveGeometry {
         scale: Double,
         shader: FloatArray,
         global: FloatArray,
+    ): RecentsAffine.Transform? =
+        compose(source, bitmapWidth, bitmapHeight, snapshotRotation, scale, shader, global, Workspace())
+
+    internal fun compose(
+        source: RecentsCardSpace.Space,
+        bitmapWidth: Int,
+        bitmapHeight: Int,
+        snapshotRotation: Int,
+        scale: Double,
+        shader: FloatArray,
+        global: FloatArray,
+        workspace: Workspace,
     ): RecentsAffine.Transform? {
         require(
             !(!java.lang.Double.isFinite(scale) ||
@@ -78,6 +97,7 @@ object RecentsLiveGeometry {
             source.height,
             shader,
             global,
+            workspace,
         )
     }
 
@@ -88,25 +108,22 @@ object RecentsLiveGeometry {
         height: Int,
         shader: FloatArray,
         global: FloatArray,
+        workspace: Workspace,
     ): RecentsAffine.Transform? {
-        val m =
-            RecentsLiveGeometry.multiply(
-                RecentsLiveGeometry.matrix(global),
-                RecentsLiveGeometry.multiply(
-                    RecentsLiveGeometry.matrix(shader),
-                    doubleArrayOf(
-                        source.a,
-                        source.c,
-                        source.tx,
-                        source.b,
-                        source.d,
-                        source.ty,
-                        (0).toDouble(),
-                        (0).toDouble(),
-                        (1).toDouble(),
-                    ),
-                ),
-            )
+        // Preserve the original multiplication order for the perspective check.
+        validateMatrix(global)
+        validateMatrix(shader)
+        val matrix = workspace.source
+        matrix[0] = source.a
+        matrix[1] = source.c
+        matrix[2] = source.tx
+        matrix[3] = source.b
+        matrix[4] = source.d
+        matrix[5] = source.ty
+        matrix[8] = 1.0
+        multiply(shader, matrix, workspace.local)
+        val m = workspace.composed
+        multiply(global, workspace.local, m)
         if (!java.lang.Double.isFinite(m[8]) || abs(m[8]) < 1e-12)
             throw RecentsLiveGeometry.PerspectiveCard()
         val divisor: Double = m[8]
@@ -114,13 +131,17 @@ object RecentsLiveGeometry {
             m[i] /= divisor
             require(java.lang.Double.isFinite(m[i])) { "Nonfinite composed matrix" }
         }
+        // With no projective terms the denominator is exactly one across the entire card.
+        if (m[6] == 0.0 && m[7] == 0.0) return RecentsAffine.Transform(m[0], m[3], m[1], m[4], m[2], m[5])
         // Home Up leaves tiny projective residuals even after a card settles. Bound the error over
         // the full source rectangle before dropping those terms. A real perspective stays a
         // snapshot.
         var minW: Double = Double.POSITIVE_INFINITY
         var maxW: Double = Double.NEGATIVE_INFINITY
         var maxNumerator: Double = 0.0
-        for (x in intArrayOf(0, width)) for (y in intArrayOf(0, height)) {
+        for (corner in 0..3) {
+            val x = if ((corner and 2) == 0) 0 else width
+            val y = if ((corner and 1) == 0) 0 else height
             val w: Double = m[6] * x + m[7] * y + 1
             minW = min(minW, w)
             maxW = max(maxW, w)
@@ -138,23 +159,20 @@ object RecentsLiveGeometry {
         return RecentsAffine.Transform(m[0], m[3], m[1], m[4], m[2], m[5])
     }
 
-    @JvmStatic
-    private fun matrix(m: FloatArray?): DoubleArray {
-        require(!(m == null || m.size != 9)) { "Unknown matrix" }
-        val result = DoubleArray(9)
-        for (i in 0..8) {
-            require(java.lang.Float.isFinite(m[i])) { "Nonfinite matrix" }
-            result[i] = m[i].toDouble()
-        }
-        return result
+    private fun validateMatrix(matrix: FloatArray) {
+        require(matrix.size == 9) { "Unknown matrix" }
+        for (value in matrix) require(value.isFinite()) { "Nonfinite matrix" }
     }
 
-    @JvmStatic
-    private fun multiply(a: DoubleArray, b: DoubleArray): DoubleArray {
-        val r = DoubleArray(9)
-        for (row in 0..2) for (col in 0..2) for (k in 0..2) r[row * 3 + col] +=
-            a[row * 3 + k] * b[k * 3 + col]
-        return r
+    private fun multiply(left: FloatArray, right: DoubleArray, output: DoubleArray) {
+        for (row in 0..2) {
+            val start = row * 3
+            for (column in 0..2) {
+                var value = 0.0
+                for (index in 0..2) value += left[start + index] * right[index * 3 + column]
+                output[start + column] = value
+            }
+        }
     }
 
     class PerspectiveCard : IllegalArgumentException("Perspective card")

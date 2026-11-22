@@ -29,6 +29,7 @@ import android.view.WindowManager.LayoutParams
 import androidx.annotation.RequiresApi
 import dev.ryuya.oneuihometweaks.compat.DexRuntimeCache
 import java.lang.Boolean as JavaBoolean
+import java.lang.ref.WeakReference
 import java.lang.reflect.Method
 import java.util.ArrayList
 import java.util.WeakHashMap
@@ -45,6 +46,11 @@ class PreviewHooks {
     private var main: Handler? = null
     private var worker: Handler? = null
     private var app: Application? = null
+    private var workerThread: HandlerThread? = null
+    private var observer: ContentObserver? = null
+    private var wallpaperReceiver: BroadcastReceiver? = null
+    private var activityCallbacks: ActivityLifecycleCallbacks? = null
+    @Volatile private var retired = false
     private var enabled: Boolean = false
     private var failed: Boolean = false
     private var previewClass: Class<*>? = null
@@ -52,8 +58,64 @@ class PreviewHooks {
     private var parentSurface: Method? = null
     private var windowService: Any? = null
 
+    fun readyForHotReload(): Boolean =
+        !failed && views.values.none { it?.pending == true || it?.mirror != null }
+
+    fun currentState(): Array<Any> =
+        arrayOf(enabled, views.keys.filterNotNull().map { WeakReference(it) }.toTypedArray())
+
+    fun reconnect(state: Array<*>) {
+        enabled = state.getOrNull(0) == true
+        for (entry in (state.getOrNull(1) as? Array<*>).orEmpty()) {
+            val view = (entry as? WeakReference<*>)?.get() as? SurfaceView ?: continue
+            watch(view)
+            safeStart(view)
+        }
+    }
+
+    fun close() {
+        retired = true
+        observer?.let { listener ->
+            runCatching { app?.contentResolver?.unregisterContentObserver(listener) }
+                .onFailure { HookEntry.log("PREVIEW_RETIRE $it") }
+        }
+        wallpaperReceiver?.let { receiver ->
+            runCatching { app?.unregisterReceiver(receiver) }
+                .onFailure { HookEntry.log("PREVIEW_RETIRE $it") }
+        }
+        activityCallbacks?.let { app?.unregisterActivityLifecycleCallbacks(it) }
+        worker?.removeCallbacksAndMessages(null)
+        workerThread?.quitSafely()
+        for ((view, session) in views.toList()) {
+            if (view == null) continue
+            stop(view)
+            val listener = session?.focusListener ?: continue
+            session.focusObserver?.get()?.takeIf { it.isAlive }?.removeOnWindowFocusChangeListener(listener)
+            view.viewTreeObserver.takeIf { it.isAlive }?.removeOnWindowFocusChangeListener(listener)
+        }
+        for (activity in originalFlags.keys.filterNotNull()) restoreFlag(activity)
+        views.clear()
+    }
+
+    private fun watch(view: SurfaceView): Session {
+        views[view]?.let { return it }
+        val tree = view.viewTreeObserver
+        val reference = WeakReference(view)
+        val listener = OnWindowFocusChangeListener { focus ->
+            if (focus && !retired) reference.get()?.let(::safeStart)
+        }
+        val session = Session()
+        views[view] = session
+        if (tree.isAlive) {
+            tree.addOnWindowFocusChangeListener(listener)
+            session.focusObserver = WeakReference(tree)
+            session.focusListener = listener
+        }
+        return session
+    }
+
     @Throws(Exception::class)
-    fun install(context: Application?, loader: ClassLoader?) {
+    fun install(context: Application, loader: ClassLoader?) {
         app = context
         main = Handler(Looper.getMainLooper())
         val result =
@@ -92,19 +154,7 @@ class PreviewHooks {
             previewClass!!,
             object : ModernHook.Callback() {
                 override fun afterHookedMethod(p: ModernHook.Param) {
-                    if (!p.hasThrowable()) {
-                        val view: SurfaceView? = p.thisObject as SurfaceView?
-                        if (!views.containsKey(view)) {
-                            views.put(view, PreviewHooks.Session())
-                            view!!
-                                .getViewTreeObserver()
-                                .addOnWindowFocusChangeListener(
-                                    OnWindowFocusChangeListener { focus: Boolean ->
-                                        if (focus) safeStart(view!!)
-                                    },
-                                )
-                        }
-                    }
+                    if (!p.hasThrowable()) watch(p.thisObject as SurfaceView)
                 }
             },
         )
@@ -153,58 +203,54 @@ class PreviewHooks {
         )
         val thread = HandlerThread("OneUiPreviewConfig")
         thread.start()
-        worker = Handler(thread.getLooper())
-        app!!
-            .getContentResolver()
-            .registerContentObserver(
-                ConfigProvider.URI!!,
-                false,
-                object : ContentObserver(worker) {
-                    override fun onChange(self: Boolean, uri: Uri?) {
-                        refresh()
-                    }
-                },
-            )
-        app!!.registerReceiver(
-            object : BroadcastReceiver() {
-                override fun onReceive(c: Context?, i: Intent?) {
-                    refresh()
-                }
-            },
-            IntentFilter(Intent.ACTION_WALLPAPER_CHANGED),
-            Context.RECEIVER_NOT_EXPORTED,
-        )
-        app!!.registerActivityLifecycleCallbacks(
-            object : ActivityLifecycleCallbacks {
-                override fun onActivityResumed(a: Activity) {
-                    refresh()
-                }
+        workerThread = thread
+        worker = Handler(thread.looper)
+        val configObserver = object : ContentObserver(worker) {
+            override fun onChange(self: Boolean, uri: Uri?) {
+                refresh()
+            }
+        }
+        context.contentResolver.registerContentObserver(ConfigProvider.URI!!, false, configObserver)
+        observer = configObserver
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                worker?.post(::refresh)
+            }
+        }
+        context.registerReceiver(receiver, IntentFilter(Intent.ACTION_WALLPAPER_CHANGED),
+            Context.RECEIVER_NOT_EXPORTED)
+        wallpaperReceiver = receiver
+        val callbacks = object : ActivityLifecycleCallbacks {
+            override fun onActivityResumed(a: Activity) {
+                worker?.post(::refresh)
+            }
 
-                override fun onActivityPaused(a: Activity) {}
+            override fun onActivityPaused(a: Activity) {}
 
-                override fun onActivityDestroyed(a: Activity) {
-                    for (v in ArrayList<SurfaceView?>(views.keys)) if (
-                        PreviewHooks.activity(v!!.getContext()) === a
-                    )
-                        stop(v!!)
-                    restoreFlag(a)
-                }
+            override fun onActivityDestroyed(a: Activity) {
+                for (v in ArrayList<SurfaceView?>(views.keys)) if (
+                    PreviewHooks.activity(v!!.getContext()) === a
+                )
+                    stop(v!!)
+                restoreFlag(a)
+            }
 
-                override fun onActivityCreated(a: Activity, b: Bundle?) {}
+            override fun onActivityCreated(a: Activity, b: Bundle?) {}
 
-                override fun onActivityStarted(a: Activity) {}
+            override fun onActivityStarted(a: Activity) {}
 
-                override fun onActivityStopped(a: Activity) {
-                    for (v in ArrayList<SurfaceView?>(views.keys)) if (
-                        PreviewHooks.activity(v!!.getContext()) === a
-                    )
-                        stop(v!!)
-                }
+            override fun onActivityStopped(a: Activity) {
+                for (v in ArrayList<SurfaceView?>(views.keys)) if (
+                    PreviewHooks.activity(v!!.getContext()) === a
+                )
+                    stop(v!!)
+            }
 
-                override fun onActivitySaveInstanceState(a: Activity, b: Bundle) {}
-            },
-        )
-        worker!!.post(Runnable { this.refresh() })
+            override fun onActivitySaveInstanceState(a: Activity, b: Bundle) {}
+        }
+        context.registerActivityLifecycleCallbacks(callbacks)
+        activityCallbacks = callbacks
+        worker?.post(::refresh)
         HookEntry.log(
             "PREVIEW_HOOK_READY view=" +
                 previewClass!!.getName() +
@@ -213,7 +259,7 @@ class PreviewHooks {
     }
 
     private fun refresh() {
-        if (failed) return
+        if (retired || failed) return
         try {
             app!!.getContentResolver().query(ConfigProvider.URI!!, null, null, null, null).use { c
                 ->
@@ -227,6 +273,7 @@ class PreviewHooks {
                 val next: Boolean = on
                 main!!.post(
                     Runnable {
+                        if (retired) return@Runnable
                         enabled = next
                         for (v in ArrayList<SurfaceView?>(views.keys)) if (next) safeStart(v!!)
                         else stop(v!!)
@@ -240,8 +287,8 @@ class PreviewHooks {
                     },
                 )
             }
-        } catch (t: Throwable) {
-            main!!.post(Runnable { disable(t) })
+        } catch (error: Exception) {
+            if (!retired) HookEntry.log("PREVIEW_CONFIG_UNAVAILABLE $error")
         }
     }
 
@@ -256,7 +303,7 @@ class PreviewHooks {
     @Throws(Exception::class)
     private fun start(view: SurfaceView) {
         if (
-            !enabled ||
+            retired || !enabled ||
                 failed ||
                 !view.isAttachedToWindow() ||
                 !view.isShown() ||
@@ -275,7 +322,7 @@ class PreviewHooks {
             return
         val a = PreviewHooks.activity(view.getContext())
         if (a == null || a.isFinishing() || a.isDestroyed() || !a.hasWindowFocus()) return
-        val s = views.computeIfAbsent(view) { k: SurfaceView? -> PreviewHooks.Session() }
+        val s = watch(view)
         if (s!!.mirror != null) {
             resize(view, s!!)
             return
@@ -306,7 +353,7 @@ class PreviewHooks {
                     main!!.post(
                         Runnable {
                             if (
-                                s.generation != generation ||
+                                retired || s.generation != generation ||
                                     !enabled ||
                                     failed ||
                                     !view.isAttachedToWindow()
@@ -344,7 +391,7 @@ class PreviewHooks {
                         },
                     )
                 } catch (t: Throwable) {
-                    main!!.post(Runnable { disable(t) })
+                    main!!.post { if (!retired) disable(t) }
                 }
             },
             (if (attempt == 0) 120 else 250).toLong(),
@@ -435,6 +482,8 @@ class PreviewHooks {
         @JvmField var pending: Boolean = false
         @JvmField var iconRaised: Boolean = false
         @JvmField var generation: Int = 0
+        var focusObserver: WeakReference<android.view.ViewTreeObserver>? = null
+        var focusListener: OnWindowFocusChangeListener? = null
     }
 
     companion object {

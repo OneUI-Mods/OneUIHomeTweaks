@@ -14,17 +14,24 @@ object RecentsFocusWire {
     const val BEGIN: Int = 3
     const val END: Int = 4
     const val STOP: Int = 5
+    const val TASK_MANAGER = "activity_task_transport"
+    const val OPERATION = "operation"
     const val DESCRIPTOR: String = "dev.ryuya.oneuihometweaks.recents.focus.v1"
 
     @JvmStatic
     @Throws(Exception::class)
-    fun call(endpoint: IBinder, code: Int, data: Bundle?): Bundle? {
+    fun call(endpoint: IBinder, code: Int, data: Bundle?, viaTaskManager: Boolean = false): Bundle? {
         val `in` = Parcel.obtain()
         val out = Parcel.obtain()
         try {
             `in`.writeInterfaceToken(RecentsFocusWire.DESCRIPTOR)
-            `in`.writeBundle(if (data == null) Bundle() else data)
-            check(endpoint.transact(code, `in`, out, 0)) { "Focus backend not loaded" }
+            val request = if (code == DISCOVER || viaTaskManager) Bundle(data ?: Bundle.EMPTY).apply {
+                putBoolean(TASK_MANAGER, true)
+                if (code != DISCOVER) putInt(OPERATION, code)
+            } else data ?: Bundle.EMPTY
+            `in`.writeBundle(request)
+            val transaction = if (viaTaskManager) DISCOVER else code
+            check(endpoint.transact(transaction, `in`, out, 0)) { "Focus backend not loaded" }
             out.readException()
             val reply = out.readBundle(RecentsFocusWire::class.java.getClassLoader())
             check(

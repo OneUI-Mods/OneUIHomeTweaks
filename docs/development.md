@@ -134,3 +134,23 @@ Android 16の従来のTaskリストと、SamsungのShellグループ取得を独
 初回反映はOne UIホームのプロセス再読み込みのみ。対象Googleアプリ、SystemUI、system_serverへの追加フックやスコープ変更はありません。ON/OFFは既存の設定通知で追従します。
 
 [Build environment / ビルド環境](build-environment.md)
+
+## 解除アニメーションの実装差し替え
+
+対応するGalaxyで、One UIホームとSystemUIが読み込む解除アニメーションの実装は `app/src/main/java/dev/ryuya/oneuihometweaks/unlocklogic/SignedUnlockLogic.kt` にあります。補助クラスを追加するときも同じ `unlocklogic` 名前空間に入れてください。
+
+1. 解除アニメーションの実装を編集し、`versionCode` を上げます。
+2. 既存の配布鍵で署名したrelease APKを上書きします。動いている対象プロセスがAPKの差し替え通知を受け、次回の解除からその実装を使います。
+3. `adb logcat -s OneUIHomeTweaks:I` でOne UIホームの `UNLOCK_CODE_RELOADED` とSystemUIの `ONEUI_MODS_HOT_RELOAD` を確認します。
+
+One UIホームでは最初にこの読み込み口を有効にするときと、`UnlockLogicV1` の契約やSamsungへ接続するフックを変えたときに、ホームの再読み込みが必要です。開始済みの演出の完了は実行中の処理が管理します。読み込むコードはPackageManagerが管理する同じ配布署名のAPKに限定しています。
+
+### SystemUI の実行中コードを更新
+
+0.21.81以降、SystemUI向けのフック更新はVectorのlibxposed API 102を使います。最初に対応版をSystemUIが読み込んだあと、同じ署名でversionCodeを上げたAPKを上書きすると、Vectorが動作中のSystemUIへ新しいコードを読み込みます。設定画面の「SystemUIのフックをホット更新」からも更新を再試行できます。
+
+`onHotReloading` は実行中のコールバックが退く段階で、監視・タイマー・描画資源を片付けます。先に参照していたSystemUIのオブジェクトは弱参照で、検証済みのDexKit証拠はシリアライズした形で引き継ぎます。対応版が見送った更新は、処理が落ち着いてから再要求できます。
+
+`onHotReloaded` では起動用イベントを再実行せず、実行中のSystemUIへ `SignedSystemUiHooks` から再接続します。実際にフックを再登録したときに `ONEUI_MODS_HOT_RELOAD` とパッケージ・versionCode・PIDが記録されます。0.21.80の実行中に旧ローダーが出す `SYSTEMUI_CODE_RELOADED` は、API 102の動作確認には使いません。
+
+0.21.83以降はOne UIホーム、壁紙のプレビュー、設定アプリ、履歴フォーカスを管理するsystem_serverにも対応しています。各プロセスが対応版を一度読み込んだあとにホット更新できます。ホーム操作中や履歴のフォーカスを処理している間は、処理が完了するまで更新を見送ります。

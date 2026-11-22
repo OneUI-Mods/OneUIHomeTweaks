@@ -340,6 +340,33 @@ class PageBridge {
         }
     }
 
+    internal fun stateForReload(): Array<WeakReference<ViewGroup?>> =
+        arrayOf(last, freeGrid?.last ?: WeakReference(null))
+
+    internal fun restoreObservations(saved: Any?) {
+        val state = saved as? Array<*> ?: return
+        fun view(index: Int) = (state.getOrNull(index) as? WeakReference<*>)?.get() as? ViewGroup
+        view(0)?.takeIf(ViewGroup::isAttachedToWindow)?.let(::request)
+        view(1)?.takeIf(ViewGroup::isAttachedToWindow)?.let { live ->
+            val bridge = freeGrid ?: PageBridge().also {
+                it.isFreeGrid = true
+                it.homeActivity = homeActivity
+                it.freeGridObserver = freeGridObserver
+                it.installFreeGrid(live.javaClass)
+                freeGrid = it
+            }
+            bridge.request(live)
+        }
+    }
+
+    internal fun closeForReload() {
+        enabled = false
+        pendingView?.get()?.removeCallbacks(sendWallpaperOffset)
+        pendingView = null
+        freeGrid?.closeForReload()
+        freeGridObserver = null
+    }
+
     fun setHomeWindow(activity: Activity) {
         if ("com.sec.android.app.launcher.Launcher" != activity.javaClass.compatibleName()) return
         homeActivity = WeakReference<Activity?>(activity)

@@ -6,10 +6,17 @@ import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredMethod
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModule
 import java.lang.reflect.Executable
+import java.util.concurrent.ConcurrentHashMap
 
 /** Project-local adapter for API 102's interceptor chain. */
 object ModernHook {
     @Volatile private var module: XposedModule? = null
+    @Volatile private var launcherScope: SystemUiHookScope? = null
+
+    internal fun trackLauncherHooks(scope: SystemUiHookScope) { launcherScope = scope }
+
+    private fun registrationScope() = SystemUiHookScopes.bound() ?: launcherScope
+    private val systemUiDeoptimized = ConcurrentHashMap.newKeySet<Executable>()
 
     @JvmStatic
     fun attach(value: XposedModule) {
@@ -48,18 +55,13 @@ object ModernHook {
 
     @JvmStatic
     fun hookMethod(executable: Executable, callback: Callback): Handle {
-        val handle =
-            requireModule()
-                .hook(executable)
-                .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
-                .intercept { chain ->
-                    val param = Param(chain)
-                    callback.before(param)
-                    param.proceed(chain)
-                    callback.after(param)
-                    param.resultOrThrow()
-                }
-        return Handle { handle.unhook() }
+        return aroundMethod(executable) { chain ->
+            val param = Param(chain)
+            callback.before(param)
+            param.proceed(chain)
+            callback.after(param)
+            param.resultOrThrow()
+        }
     }
 
     fun interface Around {
@@ -72,13 +74,26 @@ object ModernHook {
     }
 
     internal fun aroundMethod(executable: Executable, priority: Int, around: Around): Handle {
-        val handle =
-            requireModule()
-                .hook(executable)
-                .setPriority(priority)
-                .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
-                .intercept(around::run)
-        return Handle { handle.unhook() }
+        val scope = registrationScope()
+        val handle = requireModule()
+            .hook(executable)
+            .setPriority(priority)
+            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+            .intercept { chain ->
+                if (scope == null) around.run(chain)
+                else SystemUiHookScopes.dispatch(scope, { chain.proceed() }) { around.run(chain) }
+            }
+        val registered = Handle { handle.unhook() }
+        return scope?.track(registered) ?: registered
+    }
+
+    internal fun afterGenerationActivation(action: () -> Unit) {
+        val scope = registrationScope()
+        if (scope == null) action() else scope.afterActivation(action)
+    }
+
+    internal fun onGenerationRetired(action: () -> Unit) {
+        registrationScope()?.onRetire(action)
     }
 
     @JvmStatic
@@ -101,7 +116,13 @@ object ModernHook {
     }
 
     @JvmStatic
-    fun deoptimize(executable: Executable): Boolean = requireModule().deoptimize(executable)
+    fun deoptimize(executable: Executable): Boolean {
+        if (SystemUiHookScopes.bound() == null) return requireModule().deoptimize(executable)
+        if (executable in systemUiDeoptimized) return true
+        return requireModule().deoptimize(executable).also {
+            if (it) systemUiDeoptimized.add(executable)
+        }
+    }
 
     @JvmStatic
     fun log(message: String) {

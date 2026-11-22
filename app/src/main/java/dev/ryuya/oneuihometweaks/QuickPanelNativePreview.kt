@@ -52,6 +52,7 @@ class QuickPanelNativePreview(
     private var death: DeathRecipient? = null
     private var announcedReady: Boolean = false
     @Volatile private var failed: Boolean = false
+    @Volatile private var retired = false
 
     init {
         this.context = context
@@ -65,10 +66,11 @@ class QuickPanelNativePreview(
                     Runnable { this.fail() },
                 )
             else QuickPanelPreviewAndroid16(loader, Runnable { this.sourceChanged() })
-        register()
+        ModernHook.afterGenerationActivation { register() }
     }
 
     private fun register() {
+        if (retired) return
         val extras = Bundle()
         extras.putBinder("backend", this)
         try {
@@ -93,7 +95,14 @@ class QuickPanelNativePreview(
         register()
     }
 
+    fun dispose() {
+        retired = true
+        failed = true
+        close()
+    }
+
     fun refresh() {
+        if (retired) return
         register()
         if (root == null || failed) return
         try {
