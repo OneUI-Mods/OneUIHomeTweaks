@@ -70,7 +70,7 @@ class HomeLabelBridge {
     private var geometryBlocked: Boolean = false
     private var initialReveals: Int = 0
     private var initialFallbacks: Int = 0
-    private var generation: Long = 0
+    @Volatile private var generation: Long = 0
     private var state: String = "unavailable"
     private var lastLog: String = ""
     private var changed: Runnable? = null
@@ -184,21 +184,21 @@ class HomeLabelBridge {
                             Looper.myLooper() != Looper.getMainLooper()
                     )
                         return
-                    val view: TextView? = p.thisObject as TextView?
-                    val activity = home.get()
+                    val view = p.thisObject as? TextView ?: return
+                    if (saved.containsKey(view) || view.text.isEmpty()) return
+                    // This hook only prepares the label of a focused Home window. Capturing
+                    // wallpaper and applying its palette still require a fresh keyguard check.
+                    val root = visibleHomeRoot(home.get()) ?: return
                     if (
-                        !usable(activity) ||
-                            view!!.getRootView() !== activity!!.getWindow().getDecorView() ||
-                            view!!.getRootView().getHeight() <= view!!.getRootView().getWidth() ||
-                            !homeIcon(view) ||
-                            view!!.getText().length == 0 ||
-                            saved.containsKey(view)
+                        view.rootView !== root ||
+                            root.height <= root.width ||
+                            !homeIcon(view)
                     )
                         return
                     val visible = Rect()
-                    if (!view!!.getGlobalVisibleRect(visible)) return
+                    if (!view.getGlobalVisibleRect(visible)) return
                     try {
-                        val original = remember(view!!)
+                        val original = remember(view)
                         original!!.original = getColor!!.invoke(view) as Int?
                         original!!.pending = true
                         original!!.applied = Color.TRANSPARENT
@@ -380,7 +380,7 @@ class HomeLabelBridge {
         fade.start()
     }
 
-    private fun usable(activity: Activity?): Boolean {
+    private fun visibleHomeRoot(activity: Activity?): View? {
         if (
             !enabled ||
                 failed ||
@@ -390,15 +390,15 @@ class HomeLabelBridge {
                 activity.isInMultiWindowMode() ||
                 activity.isInPictureInPictureMode()
         )
-            return false
-        val root = activity.getWindow().getDecorView()
-        val keyguard = activity.getSystemService<KeyguardManager?>(KeyguardManager::class.java)
-        return root.isAttachedToWindow() &&
-            root.isShown() &&
-            root.getDisplay() != null &&
-            root.getDisplay().getDisplayId() == 0 &&
-            keyguard != null &&
-            !keyguard.isKeyguardLocked()
+            return null
+        return activity.window.decorView.takeIf { root ->
+            root.isAttachedToWindow && root.isShown && root.display?.displayId == 0
+        }
+    }
+
+    private fun usable(activity: Activity?): Boolean {
+        if (visibleHomeRoot(activity) == null) return false
+        return activity?.getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == false
     }
 
     private fun sample() {
@@ -641,8 +641,10 @@ class HomeLabelBridge {
         var failure: Throwable? = null
         var unavailable: String? = null
         try {
-            raw = screenshot!!.invoke(windowService) as Bitmap?
-            if (raw == null) unavailable = "waiting"
+            // A focus or geometry change may invalidate this request while the worker waits.
+            // The main-thread completion still clears busy so later valid requests can run.
+            if (epoch == generation) raw = screenshot!!.invoke(windowService) as Bitmap?
+            if (raw == null || epoch != generation) unavailable = "waiting"
             else if (raw.getWidth() != screen.width() || raw.getHeight() != screen.height())
                 unavailable =
                     "geometry-skipped" // Do not guess crop/offset coordinates of oversized

@@ -5,6 +5,8 @@ import android.app.WallpaperManager
 import android.content.Context
 import android.os.IBinder
 import android.os.Looper
+import android.view.Choreographer
+import android.view.ViewTreeObserver
 import android.provider.Settings.System
 import android.view.ViewGroup
 import dev.ryuya.oneuihometweaks.compat.DexSymbols
@@ -26,7 +28,9 @@ class PageBridge {
     @Volatile private var enabled: Boolean = false
     private var last: WeakReference<ViewGroup?> = WeakReference<ViewGroup?>(null)
     private var pendingView: WeakReference<ViewGroup?>? = null
-    private val sendWallpaperOffset = Runnable {
+    private var frameScheduled = false
+    private val sendWallpaperOffset = Choreographer.FrameCallback {
+        frameScheduled = false
         val view = pendingView?.get()
         pendingView = null
         if (view != null && enabled && !failed) send(view)
@@ -45,7 +49,12 @@ class PageBridge {
     private var discovering: Boolean = false
     private var discoveryFailed: Boolean = false
     private var homeActivity: WeakReference<Activity?> = WeakReference<Activity?>(null)
+    private var focusObserver = WeakReference<ViewTreeObserver>(null)
+    private val homeFocus = ViewTreeObserver.OnWindowFocusChangeListener { focused ->
+        if (focused) requestCurrentWorkspace()
+    }
     private var lastReport: String = ""
+    private var lastSkipped: String? = null
     private val ownWallpaperWrite = ThreadLocal.withInitial { false }
     private var correctedNativeWrites = 0L
     private var nativeWriterFailed = false
@@ -361,20 +370,44 @@ class PageBridge {
 
     internal fun closeForReload() {
         enabled = false
-        pendingView?.get()?.removeCallbacks(sendWallpaperOffset)
+        if (frameScheduled) {
+            Choreographer.getInstance().removeFrameCallback(sendWallpaperOffset)
+            frameScheduled = false
+        }
         pendingView = null
         freeGrid?.closeForReload()
         freeGridObserver = null
+        removeFocusListener()
     }
 
     fun setHomeWindow(activity: Activity) {
         if ("com.sec.android.app.launcher.Launcher" != activity.javaClass.compatibleName()) return
-        homeActivity = WeakReference<Activity?>(activity)
-        if (freeGrid != null) freeGrid!!.homeActivity = homeActivity
-        val view = last.get()
-        if (view != null) request(view)
-        if (freeGrid != null && freeGrid!!.last.get() != null)
-            freeGrid!!.request(freeGrid!!.last.get()!!)
+        val observer = activity.window.decorView.viewTreeObserver
+        if (focusObserver.get() !== observer && observer.isAlive) {
+            removeFocusListener()
+            observer.addOnWindowFocusChangeListener(homeFocus)
+            focusObserver = WeakReference(observer)
+        }
+        homeActivity = WeakReference(activity)
+        freeGrid?.homeActivity = homeActivity
+        requestCurrentWorkspace()
+    }
+
+    fun clearHomeWindow(activity: Activity) {
+        if (homeActivity.get() !== activity) return
+        homeActivity.clear()
+        removeFocusListener()
+    }
+
+    private fun removeFocusListener() {
+        focusObserver.get()?.takeIf(ViewTreeObserver::isAlive)
+            ?.removeOnWindowFocusChangeListener(homeFocus)
+        focusObserver.clear()
+    }
+
+    private fun requestCurrentWorkspace() {
+        last.get()?.let(::request)
+        freeGrid?.let { bridge -> bridge.last.get()?.let(bridge::request) }
     }
 
     private fun visible(): Boolean {
@@ -383,6 +416,7 @@ class PageBridge {
     }
 
     private fun request(view: ViewGroup) {
+        if (Looper.myLooper() !== Looper.getMainLooper()) return
         val owner = homeActivity.get()
         if (owner != null && !owner.isDestroyed()) {
             val expected = owner.getWindow().getDecorView().getWindowToken()
@@ -390,9 +424,22 @@ class PageBridge {
         }
         if (last.get() !== view) last = WeakReference(view)
         if (isFreeGrid) freeGridObserver?.accept(view)
-        if (!enabled || failed || pendingView != null) return
+        if (!enabled || failed) return
         pendingView = last
-        view.postOnAnimation(sendWallpaperOffset)
+        // A replaced workspace can lose its View callbacks before detaching. Keep the
+        // scheduled frame on the launcher looper and always use the newest workspace.
+        if (!frameScheduled) {
+            frameScheduled = true
+            Choreographer.getInstance().postFrameCallback(sendWallpaperOffset)
+        }
+    }
+
+    private fun skip(reason: String): Position? {
+        if (lastSkipped != reason) {
+            lastSkipped = reason
+            HookEntry.log("PAGE_POSITION_WAIT freeGrid=$isFreeGrid reason=$reason")
+        }
+        return null
     }
 
     private data class Position(
@@ -405,32 +452,28 @@ class PageBridge {
     private fun position(view: ViewGroup): Position? {
         val owner = homeActivity.get()
         // Remote launcher previews build their own workspace. Never send their offsets to home.
-        if (
-            owner == null ||
-                owner.isDestroyed() ||
-                !owner.hasWindowFocus() ||
-                view.getWindowToken() !== owner.getWindow().getDecorView().getWindowToken()
-        )
-            return null
-        if (!isFreeGrid && freeGrid != null && freeGrid!!.visible()) return null
+        if (owner == null || owner.isDestroyed()) return skip("no home activity")
+        if (!owner.hasWindowFocus()) return skip("home does not have focus")
+        if (view.windowToken !== owner.window.decorView.windowToken) return skip("different window")
+        if (!isFreeGrid && freeGrid?.visible() == true) return skip("DIY workspace is visible")
         if (
             !view.isAttachedToWindow() ||
                 !view.isShown() ||
                 view.getDisplay() == null ||
                 view.getDisplay().getDisplayId() != 0
         )
-            return null
+            return skip("workspace is hidden or on another display")
         val info = spaceInfo!!.invoke(view)
         if (
             info.javaClass.compatibleMethod("isDexSpace").invoke(info) as Boolean ||
                 visibleCount!!.invoke(view) as Int != 1
         )
-            return null
+            return skip("desktop or multiple visible pages")
         if (
             "com.honeyspace.sdk.HomeScreen\$Normal" !=
                 currentState!!.invoke(view).javaClass.compatibleName()
         )
-            return null
+            return skip("workspace is outside normal home mode")
         if (pagePositions.size < view.childCount) pagePositions = IntArray(view.childCount)
         var count = 0
         for (i in 0 until view.childCount) {
@@ -444,11 +487,12 @@ class PageBridge {
             )
                 pagePositions[count++] = scrollForPage!!.invoke(view, i) as Int
         }
-        if (count == 0 || (count > 1 && pagePositions[0] == pagePositions[count - 1])) return null
+        if (count == 0 || (count > 1 && pagePositions[0] == pagePositions[count - 1]))
+            return skip("no distinct page positions")
 
         val offset = PagePolicy.offset(view.scrollX, pagePositions, count)
         val step = if (count > 1) 1f / (count - 1) else 0f
-        val token = view.windowToken ?: return null
+        val token = view.windowToken ?: return skip("window token unavailable")
         return Position(token, offset, step, count)
     }
 

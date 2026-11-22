@@ -80,7 +80,7 @@ internal object LauncherBlurCacheHooks {
                         disabled = true
                         HookEntry.log("LAUNCHER_BLUR_CACHE_LOOP_CHANGED expected=$count calls=${batch.requests}")
                     }
-                    if (BuildConfig.LAUNCHER_PERF_TRACE && Trace.isEnabled() && batch.requests > 0) {
+                    if (batch.requests > 0 && Trace.isEnabled()) {
                         Trace.setCounter("OneUI home radius-only blur requests", batch.requests.toLong())
                         Trace.setCounter("OneUI home radius-only blur builds", batch.nativeBuilds.toLong())
                     }

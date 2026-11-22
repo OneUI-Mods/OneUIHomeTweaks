@@ -25,8 +25,8 @@ android {
         applicationId = "dev.ryuya.oneuihometweaks"
         minSdk = 31
         targetSdk = 37
-        versionCode = 135
-        versionName = "0.21.83"
+        versionCode = 141
+        versionName = "0.21.89"
         testInstrumentationRunner = "dev.ryuya.oneuihometweaks.MemoryInstrumentation"
         // Live-card diagnostics are opt-in for local investigation, never default release behavior.
         buildConfigField(
@@ -89,7 +89,7 @@ android {
             "boolean",
             "LAUNCHER_BLUR_CACHE",
             providers.gradleProperty("launcherBlurCache").map { (it == "true").toString() }
-                .getOrElse("false"),
+                .getOrElse("true"),
         )
     }
     signingConfigs {
