@@ -483,6 +483,7 @@ class HookEntry : XposedModule() {
             DexEvidence.verifyAndDeoptimize(p.appInfo.sourceDir, launcherLoader)
             LauncherEarlyWakeupHooks.install(app, p.classLoader)
             LauncherFocusedDisplayHooks.install(app, p.classLoader)
+            LauncherWidgetCornerResources.install(app, p.classLoader)
             unlockMotion.install(app, p.classLoader)
             if (Build.VERSION.SDK_INT == 37) {
                 StockSurfaceAnimationHooks.install(app, p.classLoader)
