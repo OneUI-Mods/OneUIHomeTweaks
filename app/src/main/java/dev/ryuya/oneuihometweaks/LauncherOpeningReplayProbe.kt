@@ -82,6 +82,8 @@ internal class LauncherOpeningReplayProbe private constructor(
     private var applyingStockFrame = false
     @Volatile private var retired = false
     private var nextId = 0L
+    // Stock objects that received a module proxy; restored to the stock callback on retirement.
+    private val stockSwaps = mutableListOf<StockReferenceSwap>()
 
     private fun installHooks() {
         val handles = mutableListOf<ModernHook.Handle>()
@@ -129,6 +131,13 @@ internal class LauncherOpeningReplayProbe private constructor(
                 }
                 try {
                     val result = if (callback == null) chain.proceed() else chain.proceed(arrayOf(callback.replacement))
+                    val stockPlayer = chain.thisObject
+                    val original = chain.args[0]
+                    if (callback != null && stockPlayer != null && original != null) {
+                        if (stockSwaps.size >= MAX_STOCK_SWAPS) stockSwaps.removeAt(0).restore()
+                        stockSwaps += StockReferenceSwap.find(stockPlayer, callback.replacement, original,
+                            stockPlayer.javaClass.classLoader)
+                    }
                     observe(launch.owner, reference, applicationContext, snapshot, callback)
                     result
                 } finally {
@@ -863,6 +872,8 @@ internal class LauncherOpeningReplayProbe private constructor(
         retired = true
         clearPrepared()
         active?.let(::finish)
+        stockSwaps.forEach(StockReferenceSwap::restore)
+        stockSwaps.clear()
         worker?.quitSafely()
         worker = null
         executor = null
@@ -947,6 +958,7 @@ internal class LauncherOpeningReplayProbe private constructor(
     }
 
     companion object {
+        private const val MAX_STOCK_SWAPS = 16
         fun install(app: Application, loader: ClassLoader) {
             val sdk = Build.VERSION.SDK_INT
             if (sdk != 37 || !HookCompatibility.matchesClockBuild(sdk, Build.DISPLAY)) return

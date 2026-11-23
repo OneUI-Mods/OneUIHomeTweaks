@@ -6,6 +6,7 @@ import android.content.Context
 import android.os.IBinder
 import android.os.Looper
 import android.view.Choreographer
+import android.view.View
 import android.view.ViewTreeObserver
 import android.provider.Settings.System
 import android.view.ViewGroup
@@ -50,6 +51,7 @@ class PageBridge {
     private var discoveryFailed: Boolean = false
     private var homeActivity: WeakReference<Activity?> = WeakReference<Activity?>(null)
     private var focusObserver = WeakReference<ViewTreeObserver>(null)
+    private var focusDecor = WeakReference<View>(null)
     private val homeFocus = ViewTreeObserver.OnWindowFocusChangeListener { focused ->
         if (focused) requestCurrentWorkspace()
     }
@@ -405,6 +407,7 @@ class PageBridge {
             removeFocusListener()
             observer.addOnWindowFocusChangeListener(homeFocus)
             focusObserver = WeakReference(observer)
+            focusDecor = WeakReference(activity.window.decorView)
         }
         homeActivity = WeakReference(activity)
         freeGrid?.homeActivity = homeActivity
@@ -420,7 +423,12 @@ class PageBridge {
     private fun removeFocusListener() {
         focusObserver.get()?.takeIf(ViewTreeObserver::isAlive)
             ?.removeOnWindowFocusChangeListener(homeFocus)
+        // Attaching merges a detached view's observer into the window's one. Remove it there as well,
+        // or the window keeps this generation's listener after a reload.
+        focusDecor.get()?.viewTreeObserver?.takeIf(ViewTreeObserver::isAlive)
+            ?.removeOnWindowFocusChangeListener(homeFocus)
         focusObserver.clear()
+        focusDecor.clear()
     }
 
     private fun requestCurrentWorkspace() {

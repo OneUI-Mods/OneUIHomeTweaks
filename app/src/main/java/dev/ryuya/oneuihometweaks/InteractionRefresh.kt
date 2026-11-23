@@ -108,15 +108,11 @@ internal class InteractionRefresh(private val app: Application, private val home
                 }
             }
         }
-        val thermal = PowerManager.OnThermalStatusChangedListener { status ->
-            if (!retired && status >= PowerManager.THERMAL_STATUS_MODERATE) stop()
-        }
         ModernHook.onGenerationRetired {
             retired = true
             allowed = false
             runCatching { resolver.unregisterContentObserver(settings) }
             runCatching { app.unregisterReceiver(screen) }
-            runCatching { power.removeThermalStatusListener(thermal) }
             main.removeCallbacksAndMessages(null)
             stop()
             worker.shutdown()
@@ -130,7 +126,6 @@ internal class InteractionRefresh(private val app: Application, private val home
                 addAction(Intent.ACTION_SCREEN_OFF)
                 addAction(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED)
             }, Context.RECEIVER_NOT_EXPORTED)
-            power.addThermalStatusListener(app.mainExecutor, thermal)
             refreshSettings()
         }
         HookEntry.log("INTERACTION_REFRESH_READY ${app.packageName}")
@@ -157,6 +152,8 @@ internal class InteractionRefresh(private val app: Application, private val home
     }
 
     private fun pulse(duration: Long) {
+        // The thermal state is read on the worker when the token is requested. A registered thermal
+        // listener stays referenced by its binder stub after removal and kept retired generations alive.
         if (!allowed) return
         val now = SystemClock.uptimeMillis()
         deadline = maxOf(deadline, now + duration)

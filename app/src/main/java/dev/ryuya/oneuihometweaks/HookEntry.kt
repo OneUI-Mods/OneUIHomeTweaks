@@ -124,6 +124,12 @@ class HookEntry : XposedModule() {
                 " process=" +
                 processName)
         )
+        if (!systemServer && !Arrays.asList<String?>(*ConfigProvider.HOSTS!!).contains(processName)) {
+            // No hook runs here, and onHotReloading would refuse. A detached entry lets the framework
+            // decline a hot reload before it loads another full generation into this process.
+            HookEntry.log("MODULE_DETACHED process=$processName")
+            detach()
+        }
     }
 
     override fun onHotReloading(param: HotReloadingParam): Boolean {
@@ -248,8 +254,29 @@ class HookEntry : XposedModule() {
             launcherRecovery = null
             log("ONEUI_MODS_HOT_RELOAD package=${BuildConfig.APPLICATION_ID} " +
                 "version=${BuildConfig.VERSION_CODE} pid=${Process.myPid()}")
+            if (BuildConfig.HEAP_DUMP_AFTER_RELOAD) dumpHeapAfterReload(app)
             true
         }) { "Launcher main thread was unavailable" }
+    }
+
+    /** Development builds only: records what still reaches retired generations once they are idle. */
+    private fun dumpHeapAfterReload(app: Application) {
+        val thread = Thread({
+            try {
+                Thread.sleep(8_000)
+                repeat(3) {
+                    Runtime.getRuntime().gc()
+                    Thread.sleep(500)
+                }
+                val file = java.io.File(app.cacheDir, "oneui-reload-${BuildConfig.VERSION_CODE}.hprof")
+                android.os.Debug.dumpHprofData(file.path)
+                log("ONEUI_HEAP_DUMP ${file.path}")
+            } catch (error: Throwable) {
+                log("ONEUI_HEAP_DUMP_FAILED ${error.javaClass.simpleName} ${error.message}")
+            }
+        }, "OneUiHeapDump")
+        thread.isDaemon = true
+        thread.start()
     }
 
     private fun scheduleHealthy(guard: CrashGuard, deadline: Long) {
