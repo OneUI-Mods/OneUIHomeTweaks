@@ -60,6 +60,7 @@ class PageBridge {
     private var nativeWriterFailed = false
     private var freeGridObserver: Consumer<ViewGroup?>? = null
     private var freeGridClassObserver: ((Class<*>) -> Unit)? = null
+    private var freeGridClass: Class<*>? = null
 
     fun setFreeGridObserver(observer: Consumer<ViewGroup?>?) {
         freeGridObserver = observer
@@ -67,6 +68,11 @@ class PageBridge {
 
     internal fun setFreeGridClassObserver(observer: (Class<*>) -> Unit) {
         freeGridClassObserver = observer
+        // Home Up may already have been discovered before the observer was registered.
+        freeGrid?.let { bridge ->
+            bridge.freeGridClassObserver = observer
+            bridge.freeGridClass?.let(observer)
+        }
     }
 
     @Throws(Exception::class)
@@ -273,6 +279,7 @@ class PageBridge {
 
     @Throws(Exception::class)
     private fun installFreeGrid(workspace: Class<*>) {
+        freeGridClass = workspace
         freeGridClassObserver?.invoke(workspace)
         scrollForPage = workspace.compatibleMethod("getScrollForPage", Int::class.javaPrimitiveType)
         spaceInfo = workspace.compatibleMethod("getHoneySpaceInfo")
@@ -387,6 +394,7 @@ class PageBridge {
         freeGrid?.closeForReload()
         freeGridObserver = null
         freeGridClassObserver = null
+        freeGridClass = null
         removeFocusListener()
     }
 

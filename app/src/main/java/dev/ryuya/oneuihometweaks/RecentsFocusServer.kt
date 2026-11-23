@@ -92,7 +92,7 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
     private val endpoint: Binder by lazy {
         object : Binder() {
             override fun onTransact(code: Int, input: Parcel, reply: Parcel?, flags: Int): Boolean {
-                if (code !in RecentsFocusWire.STATUS..RecentsFocusWire.STOP) return false
+                if (code !in RecentsFocusWire.STATUS..RecentsFocusWire.KEEP_LAUNCHER_SCREENS) return false
                 try {
                     requireRequest(context, reply, flags)
                     requireUid(context, Binder.getCallingUid(), false)
@@ -106,9 +106,9 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
     }
 
     private fun transact(code: Int, data: Bundle, output: Parcel) {
-        require(code in RecentsFocusWire.STATUS..RecentsFocusWire.STOP)
+        require(code in RecentsFocusWire.STATUS..RecentsFocusWire.KEEP_LAUNCHER_SCREENS)
         val app = requireUid(context, Binder.getCallingUid(),
-            code == RecentsFocusWire.ARM || code == RecentsFocusWire.STOP)
+            code == RecentsFocusWire.ARM || code == RecentsFocusWire.STOP || code == RecentsFocusWire.KEEP_LAUNCHER_SCREENS)
         if (app && (code == RecentsFocusWire.BEGIN || code == RecentsFocusWire.END)) {
             throw SecurityException("Launcher only")
         }
@@ -133,6 +133,15 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
                             armedMode = 0
                             restore("disabled")
                             if (!broken) state = "disarmed"
+                            false
+                        }
+                        RecentsFocusWire.KEEP_LAUNCHER_SCREENS -> {
+                            if (StockLauncherActivityRetention.available) {
+                                StockLauncherActivityRetention.policy = StockLauncherActivityRetention.Policy(
+                                    data.getBoolean(StockLauncherActivityRetention.HOME_KEY, false),
+                                    data.getBoolean(StockLauncherActivityRetention.RECENTS_KEY, false),
+                                )
+                            }
                             false
                         }
                         RecentsFocusWire.BEGIN -> begin(data)
@@ -171,7 +180,8 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
             if (BuildConfig.STOCK_WIDGET_BROADCAST_WORKER && StockWidgetBroadcastHooks.hasPending()) {
                 return@tryRetireIf false
             }
-            save(arrayOf(loader, atm, armedMode, broken, state))
+            val retention = StockLauncherActivityRetention.policy
+            save(arrayOf(loader, atm, armedMode, broken, state, retention.home, retention.recents))
             true
         }
     }
@@ -247,6 +257,11 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
         reply.putString("state", state)
         reply.putBoolean("accepted", accepted)
         reply.putInt("mode", armedMode)
+        if (StockLauncherActivityRetention.available) {
+            val retention = StockLauncherActivityRetention.policy
+            reply.putBoolean(StockLauncherActivityRetention.HOME_KEY, retention.home)
+            reply.putBoolean(StockLauncherActivityRetention.RECENTS_KEY, retention.recents)
+        }
         return reply
     }
 
@@ -612,6 +627,13 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
             val scope = SystemUiHookScope { HookEntry.log("RECENTS_FOCUS_SCOPE $it") }
             try {
                 SystemUiHookScopes.bind(scope) {
+                    StockLauncherActivityRetention.install(loader)
+                    if (StockLauncherActivityRetention.available) {
+                        StockLauncherActivityRetention.policy = StockLauncherActivityRetention.Policy(
+                            previous.getOrNull(5) == true,
+                            previous.getOrNull(6) == true,
+                        )
+                    }
                     val atm = previous.getOrNull(1)
                     if (atm != null) {
                         val backend = RecentsFocusServer(atm, loader)

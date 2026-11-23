@@ -14,6 +14,7 @@ object RecentsFocusWire {
     const val BEGIN: Int = 3
     const val END: Int = 4
     const val STOP: Int = 5
+    const val KEEP_LAUNCHER_SCREENS: Int = 6
     const val TASK_MANAGER = "activity_task_transport"
     const val OPERATION = "operation"
     const val DESCRIPTOR: String = "dev.ryuya.oneuihometweaks.recents.focus.v1"

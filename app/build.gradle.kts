@@ -36,8 +36,32 @@ android {
         applicationId = "dev.ryuya.oneuihometweaks"
         minSdk = 31
         targetSdk = 37
-        versionCode = 287
-        versionName = "0.21.235"
+        versionCode = 316
+        versionName = "0.21.257"
+        buildConfigField(
+            "boolean", "LAUNCHER_EARLY_CLOSING_DRIVE",
+            (providers.gradleProperty("launcherEarlyClosingDrive").orNull == "true").toString(),
+        )
+        buildConfigField(
+            "boolean", "LAUNCHER_SKIP_ICON_BLUR",
+            (providers.gradleProperty("launcherSkipIconBlur").orNull == "true").toString(),
+        )
+        buildConfigField(
+            "boolean", "LAUNCHER_PREUPLOAD_WIDGET_BITMAPS",
+            (providers.gradleProperty("launcherPreuploadWidgetBitmaps").orNull == "true").toString(),
+        )
+        buildConfigField(
+            "boolean", "LAUNCHER_BATCH_RECENTS_START",
+            (providers.gradleProperty("launcherBatchRecentsStart").orNull == "true").toString(),
+        )
+        buildConfigField(
+            "boolean", "LAUNCHER_ALIGN_LATE_CLOSING_CLOCK",
+            (providers.gradleProperty("launcherAlignLateClosingClock").orNull == "true").toString(),
+        )
+        buildConfigField(
+            "boolean", "LAUNCHER_EARLY_TRANSPARENT_CLOSING_FRAMES",
+            (providers.gradleProperty("launcherEarlyTransparentClosingFrames").orNull == "true").toString(),
+        )
         buildConfigField(
             "boolean", "LAUNCHER_CLAIM_QUEUED_CLOSING_PAIR",
             (providers.gradleProperty("launcherClaimQueuedClosingPair").orNull == "true").toString(),

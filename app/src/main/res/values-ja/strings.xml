@@ -146,4 +146,8 @@
   <string name="diy_avoid_widgets_note">DIYホームでページを開くと、すでに重なっているアプリアイコンも空きへ移します。収まらないアイコンは大きさを保って別ページに移ります。</string>
   <string name="home_unlock_motion">ロック解除アニメーション</string>
   <string name="home_unlock_motion_note">解除後、アイコン・ウィジェット・ドックが少しずつ時間差で定位置に収まります。開いていたアプリへは短いフェードで戻ります。</string>
+    <string name="home_retention">ホーム画面をメモリに保持</string>
+    <string name="recents_retention">アプリ履歴をメモリに保持</string>
+    <string name="home_retention_note">Androidが非表示の画面をメモリ回収するときも、選択した画面を保持します。メモリ使用量が増える場合があります。</string>
+    <string name="home_retention_backend_missing">Vectorのシステムフレームワーク側フックを待っています。</string>
 </resources>

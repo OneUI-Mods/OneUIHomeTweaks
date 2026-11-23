@@ -77,6 +77,18 @@ internal class LauncherIconProjectionTrace(player: Class<*>) {
         return predicted.takeIf { positionError <= 0.02f && scaleError <= 0.00001f && alphaError <= 0.000001f }
     }
 
+    /** The captured projection reproduces the stock view's own transform for the stock output of this frame. */
+    fun matches(owner: Any, model: LauncherIconPlaneProjection, actual: LauncherIconPlaneProjection.Position): Boolean {
+        val data = output.get(owner) ?: return false
+        val rect = bounds.get(data) as? RectF ?: return false
+        val predicted = model.project(LauncherIconPlaneProjection.Frame(rect, groupScale.getFloat(data),
+            foregroundScale.getFloat(data), backgroundWidth.getInt(data), backgroundHeight.getInt(data),
+            foregroundAlpha.getFloat(data))) ?: return false
+        return abs(actual.x - predicted.x) <= 0.02f && abs(actual.y - predicted.y) <= 0.02f &&
+            abs(actual.scaleX - predicted.scaleX) <= 0.00001f && abs(actual.scaleY - predicted.scaleY) <= 0.00001f &&
+            abs(actual.alpha - predicted.alpha) <= 0.000001f
+    }
+
     fun checkPair(owner: Any, icon: SurfaceControl, position: LauncherIconPlaneProjection.Position): Boolean {
         val appSurface = singleAppSurface(owner) ?: return false
         val window = windowGeometry.readStock(owner) ?: return false

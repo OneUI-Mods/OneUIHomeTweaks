@@ -17,6 +17,7 @@ import android.view.Gravity
 import android.view.SurfaceControl
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import androidx.annotation.RequiresApi
 import dev.ryuya.oneuihometweaks.LauncherHiddenIconViews.Transition.CLOSING
 import dev.ryuya.oneuihometweaks.compat.DexSymbols
@@ -72,6 +73,8 @@ internal class LauncherClosingIconSurface {
             try {
                 closingSpring = LauncherSpringReplayProbe.forClosingSurfaces(loader) { owner ->
                     if (session?.owner === owner) finish()
+                }.also { spring ->
+                    if (BuildConfig.LAUNCHER_EARLY_CLOSING_DRIVE) spring.earlyTarget = { player -> earlyTarget(player) }
                 }
             } catch (failure: Exception) {
                 HookEntry.log("LAUNCHER_DETACHED_CLOSING_UNAVAILABLE ${failure.javaClass.simpleName}")
@@ -126,7 +129,8 @@ internal class LauncherClosingIconSurface {
                 session?.takeIf { it.owner === owner }?.let(::acceptPreparedImage)
                 var observed = session
                 if (observed?.owner === owner && observed.handoff?.detached == true &&
-                    (!observed.front.isAttachedToWindow || observed.front.rootView.rootSurfaceControl !== observed.root ||
+                    (!observed.front.isAttachedToWindow ||
+                        (observed.root != null && observed.front.rootView.rootSurfaceControl !== observed.root) ||
                         playerOpening.invoke(owner) == true)
                 ) {
                     finish()
@@ -136,6 +140,9 @@ internal class LauncherClosingIconSurface {
                     ((!observed.attachedCommitted && !observed.transparentReady) ||
                         observed.lastSynchronizedFrame != observed.lastSynchronizedCommit)
                 ) mark("OneUI closing direct waits for icon commit")
+                val invisibleApp = if (BuildConfig.LAUNCHER_EARLY_TRANSPARENT_CLOSING_FRAMES &&
+                    observed?.owner === owner
+                ) readAppWhileIconInvisible(observed) else null
                 val scope = if (direct != null && observed?.owner === owner &&
                     observed.front.isAttachedToWindow && playerOpening.invoke(owner) != true
                 ) {
@@ -146,13 +153,17 @@ internal class LauncherClosingIconSurface {
                         (closingSpring != null && observed.attachedCommitted && observed.suppressed)
                     val ready = planeReady && observed.lastSynchronizedFrame == observed.lastSynchronizedCommit
                     val delayedVsync = if (Build.VERSION.SDK_INT >= 35) closingSpring?.delayedStockVsync(owner) ?: 0L else 0L
-                    direct.begin(observed.front.rootView, handoff, ready, delayedVsync, player = owner)
+                    direct.begin(observed.front.rootView, handoff, ready, delayedVsync, player = owner,
+                        invisibleClosingIcon = invisibleApp != null)
                 } else null
                 val result = try {
                     runStockFrame(owner, observed, scope) {
-                        if (observed == null && targetlessApply != null) {
-                            targetlessApply(owner) { chain.proceed() }
-                        } else chain.proceed()
+                        val frame = {
+                            if (observed == null && targetlessApply != null) {
+                                targetlessApply(owner) { chain.proceed() }
+                            } else chain.proceed()
+                        }
+                        if (direct == null) frame() else direct.duringPlayerFrame(frame)
                     }
                 } catch (error: Throwable) {
                     direct?.end(scope)?.restoreStock()
@@ -163,11 +174,18 @@ internal class LauncherClosingIconSurface {
                 try {
                     val active = session
                     if (active?.owner === owner) {
-                        render(active, pending)
+                        if (pending?.invisibleClosingBaseline == true) {
+                            if (active === observed && invisibleApp != null &&
+                                readAppWhileIconInvisible(active) === invisibleApp
+                            ) pending.commitInvisibleClosingBaseline()
+                            pending.restoreStock()
+                            render(active, null)
+                        } else render(active, pending)
                     } else if (active == null && lastAttempt.get() !== owner && playerOpening.invoke(owner) != true) {
                         prepare(owner, container.invoke(owner) as? ViewGroup)
                     }
                 } finally {
+                    pending?.discardIfEarly()
                     pending?.restoreStock()
                 }
                 result
@@ -204,6 +222,31 @@ internal class LauncherClosingIconSurface {
     }
 
     private fun onMain() = Looper.myLooper() === main.looper
+
+    private fun readAppWhileIconInvisible(target: Session): SurfaceControl? {
+        if (!invisibleFloatingIcon(target)) return null
+        return try {
+            projectionTrace?.singleAppSurface(target.owner)
+        } catch (_: ReflectiveOperationException) {
+            null
+        }
+    }
+
+    private fun invisibleFloatingIcon(target: Session): Boolean {
+        val group = target.group
+        val front = target.front
+        if (!front.isAttachedToWindow || group.display?.displayId != Display.DEFAULT_DISPLAY ||
+            group.childCount != 2 || group.getChildAt(1) !== front || front.alpha != 0f ||
+            front.transitionAlpha != 1f || front.background !== target.drawable ||
+            group.background != null || group.foreground != null || target.surface != null
+        ) return false
+        val back = group.getChildAt(0)
+        val background = back.background
+        val plainBackground = back.javaClass == View::class.java ||
+            back.javaClass == ImageView::class.java && (back as ImageView).drawable == null
+        return plainBackground && back.foreground == null &&
+            (background == null || background is ColorDrawable && background.alpha == 0)
+    }
 
     private fun runStockFrame(owner: Any, observed: Session?, scope: LauncherDirectClosingFrames.Scope?,
         stock: () -> Any?): Any? {
@@ -325,6 +368,10 @@ internal class LauncherClosingIconSurface {
             finish()
             return
         }
+        if (target.handoff?.early == true) {
+            renderEarly(target, window, root, upload)
+            return
+        }
         if (target.transparentAttachPending) return
         if (target.surface == null && front.alpha == 0f && front.transitionAlpha == 1f &&
             BuildConfig.LAUNCHER_DIRECT_CLOSING_SURFACES
@@ -398,6 +445,74 @@ internal class LauncherClosingIconSurface {
             HookEntry.log("LAUNCHER_CLOSING_ICON_RENDER_ERROR ${error.javaClass.simpleName}")
             finish()
         }
+    }
+
+    /** The worker has driven the app since release. Attach the plane hidden, then hand it over with a verified projection. */
+    private fun renderEarly(target: Session, window: View, root: AttachedSurfaceControl, upload: LauncherIconBuffer) {
+        val spring = closingSpring ?: return
+        val trace = projectionTrace ?: return
+        if (Build.VERSION.SDK_INT < 35 || !spring.isEarly(target.owner)) return
+        try {
+            if (target.surface == null) {
+                val plane = target.preparePlane()
+                SurfaceControl.Transaction().use { transaction ->
+                    if (!attachIcon(transaction, root, plane, upload)) {
+                        if (!target.reportedEarlyParent) {
+                            target.reportedEarlyParent = true
+                            mark("OneUI closing early plane waits for Home window")
+                        }
+                        return
+                    }
+                    target.ownPlane(plane, root)
+                    transaction.setAlpha(plane, 0f)
+                    transaction.apply()
+                }
+                // The stock view would draw on the delayed stock clock. The plane replaces it from this frame.
+                target.front.transitionAlpha = 0f
+                target.suppressed = true
+                mark("OneUI closing early plane attached")
+            }
+            val surface = checkNotNull(target.surface)
+            spring.earlyStockFrame(target.owner)
+            val front = target.front
+            // Only the transform is compared here. The stock pose on its delayed clock may still extend past the display.
+            if (!readGeometry(window, front, requireVisible = false)) return
+            val position = LauncherIconPlaneProjection.Position(matrix[Matrix.MTRANS_X], matrix[Matrix.MTRANS_Y],
+                matrix[Matrix.MSCALE_X] * front.width / upload.buffer.width,
+                matrix[Matrix.MSCALE_Y] * front.height / upload.buffer.height, front.alpha)
+            var model = target.projection
+            if (model == null || !trace.matches(target.owner, model, position)) {
+                if (model != null) mark("OneUI closing early projection differed")
+                model = trace.capture(target.owner, target.group, front, upload.buffer.width, upload.buffer.height)
+                    ?.takeIf { trace.matches(target.owner, it, position) }
+                target.projection = model
+                target.projectionAttempted = true
+                if (model == null) {
+                    mark("OneUI closing early projection unverified")
+                    return
+                }
+                mark("OneUI closing early projection verified")
+            }
+            if (target.publishedProjection !== model && spring.attachEarlyIcon(target.owner, surface, model, position)) {
+                target.publishedProjection = model
+            }
+        } catch (error: Exception) {
+            HookEntry.log("LAUNCHER_CLOSING_EARLY_ICON_ERROR ${error.javaClass.simpleName}")
+            finish()
+        }
+    }
+
+    /** Main thread, inside the stock spring start. No stock frame of this close has been scheduled yet. */
+    @RequiresApi(35)
+    private fun earlyTarget(player: Any): LauncherSpringReplayProbe.EarlyTarget? {
+        val active = session?.takeIf { it.owner === player } ?: return null
+        val direct = directFrames ?: return null
+        if (retired || !active.front.isAttachedToWindow || active.surface != null || active.handoff?.owner != null) return null
+        val app = projectionTrace?.singleAppSurface(player) ?: return null
+        val handoff = active.handoff ?: direct.Handoff {
+            if (session === active) finish()
+        }.also { active.handoff = it }
+        return LauncherSpringReplayProbe.EarlyTarget(handoff, app, active.front.rootView)
     }
 
     private fun compareProjection(target: Session, upload: LauncherIconBuffer, surface: SurfaceControl,
@@ -476,7 +591,7 @@ internal class LauncherClosingIconSurface {
         return true
     }
 
-    private fun readGeometry(window: View, front: View): Boolean {
+    private fun readGeometry(window: View, front: View, requireVisible: Boolean = true): Boolean {
         if (front.width <= 0 || front.height <= 0 || front.visibility != View.VISIBLE) return false
         geometry.reset()
         front.transformMatrixToGlobal(geometry)
@@ -487,8 +602,9 @@ internal class LauncherClosingIconSurface {
         val scaleX = matrix[Matrix.MSCALE_X]
         val scaleY = matrix[Matrix.MSCALE_Y]
         return geometry.isAffine && matrix.all { it.isFinite() } && scaleX > 0f && scaleY > 0f &&
-            matrix[Matrix.MSKEW_X] == 0f && matrix[Matrix.MSKEW_Y] == 0f && front.getGlobalVisibleRect(visible) &&
-            visible.width() + 1 >= scaleX * front.width && visible.height() + 1 >= scaleY * front.height
+            matrix[Matrix.MSKEW_X] == 0f && matrix[Matrix.MSKEW_Y] == 0f && (!requireVisible ||
+                front.getGlobalVisibleRect(visible) &&
+                visible.width() + 1 >= scaleX * front.width && visible.height() + 1 >= scaleY * front.height)
     }
 
     private fun finish() {
@@ -600,6 +716,8 @@ internal class LauncherClosingIconSurface {
         var backgroundNeedsRestore = false
         var reportedGeometryRejection = false
         var reportedGroupRejection = false
+        var reportedEarlyParent = false
+        var publishedProjection: LauncherIconPlaneProjection? = null
         val expire = Runnable { if (session === this) finish() }
     }
 

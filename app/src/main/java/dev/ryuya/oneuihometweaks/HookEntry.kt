@@ -490,6 +490,12 @@ class HookEntry : XposedModule() {
             LauncherFocusedDisplayHooks.install(app, p.classLoader)
             LauncherWidgetCornerResources.install(app, p.classLoader)
             LauncherLiveIconHooks.install(app, p.classLoader)
+            if (BuildConfig.LAUNCHER_PREUPLOAD_WIDGET_BITMAPS) {
+                LauncherWidgetBitmapPreupload.install(app)
+            }
+            if (BuildConfig.LAUNCHER_SKIP_ICON_BLUR) {
+                LauncherTransitionIconBlur.install(app, p.classLoader)
+            }
             unlockMotion.install(app, p.classLoader)
             if (Build.VERSION.SDK_INT == 37) {
                 StockSurfaceAnimationHooks.install(app, p.classLoader)
@@ -505,6 +511,9 @@ class HookEntry : XposedModule() {
             }
             if (BuildConfig.LAUNCHER_STOCK_TRANSACTION_TRACE) {
                 LauncherStockTransactionTrace.install(app, p.classLoader)
+            }
+            if (BuildConfig.LAUNCHER_BATCH_RECENTS_START && Build.VERSION.SDK_INT >= 37) {
+                LauncherRecentsStartBatch.install(app, p.classLoader)
             }
             if (BuildConfig.LAUNCHER_PREWARM_HOME_UP_PROVIDER) {
                 LauncherHomeUpProviderWarmup.install(app, p.classLoader)
@@ -693,6 +702,8 @@ class HookEntry : XposedModule() {
     }
 
     private fun prepareFreeGridPerformance(app: Application) {
+        // Home Up's plugin loader carries its own live icon cache; hook it once the plugin classes appear.
+        pages.setFreeGridClassObserver { workspace -> LauncherLiveIconHooks.installHomeUp(app, workspace) }
         if (!BuildConfig.LAUNCHER_FREE_GRID_SHUTDOWN_RECEIVER_WORKER &&
             !BuildConfig.LAUNCHER_FREE_GRID_INITIAL_PAGE_WORKER
         ) return
@@ -705,6 +716,7 @@ class HookEntry : XposedModule() {
             val homeUpVersion = app.packageManager.getPackageInfo("com.samsung.android.app.homestar", 0).longVersionCode
             if (homeUpVersion != 1800005036L) return
             pages.setFreeGridClassObserver { workspace ->
+                LauncherLiveIconHooks.installHomeUp(app, workspace)
                 if (BuildConfig.LAUNCHER_FREE_GRID_SHUTDOWN_RECEIVER_WORKER) freeGridShutdownReceivers.install(workspace)
                 if (BuildConfig.LAUNCHER_FREE_GRID_INITIAL_PAGE_WORKER) freeGridPageLoad.install(workspace)
             }

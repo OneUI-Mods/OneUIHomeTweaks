@@ -13,27 +13,73 @@ import android.view.View
 import dev.ryuya.oneuihometweaks.compat.DexSymbols
 import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredField
 import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredMethod
+import dev.ryuya.oneuihometweaks.compat.compatibleMethod
 import io.github.libxposed.api.XposedInterface.Chain
+import java.lang.ref.WeakReference
 import java.lang.reflect.Method
+import java.lang.reflect.Modifier
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 /** Runs the stock live icon's LauncherApps lookup outside the shared bitmap cache monitor. */
 internal object LauncherLiveIconHooks {
+    private const val HOME_UP = "com.samsung.android.app.homestar"
+    private const val HOME_UP_VERSION = 1800005036L
+    private const val MANAGER = "com.honeyspace.common.iconview.LiveIconManager"
+    private const val SUPPLIER = "com.honeyspace.ui.common.iconview.LiveIconSupplier"
+
+    // Home Up bundles its own LiveIconSupplier copy, while its loader may resolve LiveIconManager to the launcher's.
+    private val hookedSuppliers = java.util.Collections.newSetFromMap(java.util.WeakHashMap<Class<*>, Boolean>())
+    // One lookup lock and bitmap generation per stock cache, shared by every supplier copy using that cache.
+    private val managerStates = java.util.WeakHashMap<Class<*>, ManagerState>()
+
+    private class ManagerState(val bitmaps: StockBitmaps?) {
+        val clock = Any()
+        val calendar = Any()
+    }
+
     fun install(app: Application, loader: ClassLoader) {
-        if (Build.VERSION.SDK_INT != 37 || !HookCompatibility.matchesClockBuild(37, Build.DISPLAY)) return
+        if (!matchesLauncher(app)) return
         try {
-            @Suppress("DEPRECATION")
-            val version = app.packageManager.getPackageInfo(app.packageName, 0).longVersionCode
-            if (!HookCompatibility.matchesLauncherVersion(37, version)) return
-            install(loader)
+            install(loader, "LAUNCHER", folderObserver = true)
         } catch (error: Exception) {
             HookEntry.log("LAUNCHER_LIVE_ICON_LOOKUP_UNAVAILABLE ${error.javaClass.simpleName}: ${error.message}")
         }
     }
 
-    private fun install(loader: ClassLoader) {
-        val manager = DexSymbols.findClass("com.honeyspace.common.iconview.LiveIconManager", loader)
+    /** Called with a class loaded by the Home Up plugin loader once Home Up's workspace is discovered. */
+    fun installHomeUp(app: Application, pluginClass: Class<*>) {
+        val loader = pluginClass.classLoader ?: return
+        try {
+            if (!matchesLauncher(app)) return
+            @Suppress("DEPRECATION")
+            if (app.packageManager.getPackageInfo(HOME_UP, 0).longVersionCode != HOME_UP_VERSION) return
+            val supplier = DexSymbols.findClass(SUPPLIER, loader)
+            if (synchronized(hookedSuppliers) { supplier in hookedSuppliers }) {
+                HookEntry.log("LAUNCHER_LIVE_ICON_HOME_UP_SHARED")
+                return
+            }
+            install(loader, "HOME_UP", folderObserver = false)
+        } catch (error: Exception) {
+            HookEntry.log("LAUNCHER_LIVE_ICON_HOME_UP_UNAVAILABLE ${error.javaClass.simpleName}: ${error.message}")
+        }
+    }
+
+    private fun matchesLauncher(app: Application): Boolean {
+        if (Build.VERSION.SDK_INT != 37 || !HookCompatibility.matchesClockBuild(37, Build.DISPLAY)) return false
+        return try {
+            @Suppress("DEPRECATION")
+            val version = app.packageManager.getPackageInfo(app.packageName, 0).longVersionCode
+            HookCompatibility.matchesLauncherVersion(37, version)
+        } catch (error: Exception) {
+            HookEntry.log("LAUNCHER_LIVE_ICON_LOOKUP_UNAVAILABLE ${error.javaClass.simpleName}: ${error.message}")
+            false
+        }
+    }
+
+    private fun install(loader: ClassLoader, host: String, folderObserver: Boolean) {
+        val tag = if (host == "LAUNCHER") "" else " host=$host"
+        val manager = DexSymbols.findClass(MANAGER, loader)
         val type = DexSymbols.findClass("${manager.name}\$Type", loader)
         val key = DexSymbols.findClass("${manager.name}\$LiveIconKey", loader)
         val icon = DexSymbols.findClass("${manager.name}\$Icon", loader)
@@ -55,7 +101,7 @@ internal object LauncherLiveIconHooks {
         val getIcon = companion.compatibleDeclaredMethod(
             "getIcon", Context::class.java, component, Boolean::class.javaPrimitiveType,
         )
-        val supplier = DexSymbols.findClass("com.honeyspace.ui.common.iconview.LiveIconSupplier", loader)
+        val supplier = DexSymbols.findClass(SUPPLIER, loader)
         val updateView = supplier.compatibleDeclaredMethod("updateIcon", View::class.java)
         check(fetch.returnType == Drawable::class.java && update.returnType == Boolean::class.javaPrimitiveType)
         check(getIcon.returnType == Bitmap::class.java && createKey.returnType == key && getType.returnType == type)
@@ -64,34 +110,41 @@ internal object LauncherLiveIconHooks {
         val nativeManager = managerInstance.get(null)
         @Suppress("UNCHECKED_CAST")
         val cache = getIcons.invoke(nativeManager) as MutableMap<Any, Any>
-        val bitmaps = if (BuildConfig.LAUNCHER_PREPARE_LIVE_ICON_BITMAPS) {
-            try {
-                StockBitmaps(loader, manager, icon)
-            } catch (failure: ReflectiveOperationException) {
-                HookEntry.log("LAUNCHER_LIVE_ICON_BITMAP_PREPARATION_UNAVAILABLE ${failure.javaClass.simpleName}")
-                null
-            }
-        } else null
-        val main = Looper.getMainLooper()
-        val clock = Any()
-        val calendar = Any()
-        val currentLookup = ThreadLocal<Lookup>()
-        check(ModernHook.deoptimize(updateView) && ModernHook.deoptimize(update) && ModernHook.deoptimize(getIcon))
-        if (bitmaps != null && BuildConfig.LAUNCHER_DEOPTIMIZE_LIVE_ICON_CALLERS) {
-            deoptimizeSupplierCallers(loader, supplier)
+        synchronized(hookedSuppliers) {
+            check(hookedSuppliers.add(supplier)) { "supplier already hooked" }
         }
-
+        var sharedCache = true
+        val state = synchronized(managerStates) {
+            managerStates.getOrPut(manager) {
+                sharedCache = false
+                ManagerState(if (BuildConfig.LAUNCHER_PREPARE_LIVE_ICON_BITMAPS) {
+                    try {
+                        StockBitmaps(loader, manager, icon)
+                    } catch (failure: ReflectiveOperationException) {
+                        HookEntry.log("LAUNCHER_LIVE_ICON_BITMAP_PREPARATION_UNAVAILABLE ${failure.javaClass.simpleName}")
+                        null
+                    }
+                } else null)
+            }
+        }
+        if (sharedCache) HookEntry.log("LAUNCHER_LIVE_ICON_CACHE_SHARED$tag")
+        val bitmaps = state.bitmaps
+        val main = Looper.getMainLooper()
+        val clock = state.clock
+        val calendar = state.calendar
+        val currentLookup = ThreadLocal<Lookup>()
+        val traceBoundaries = BuildConfig.LAUNCHER_DEOPTIMIZE_LIVE_ICON_CALLERS
+        check(ModernHook.deoptimize(updateView) && ModernHook.deoptimize(update) && ModernHook.deoptimize(getIcon))
         fun canPrepare() = Looper.myLooper() !== main && !Thread.holdsLock(cache) && currentLookup.get() == null
 
         fun proceedWithLookup(
-            chain: Chain, context: Context, target: Any, kind: Enum<*>, nativeKey: Any,
-            proceed: () -> Any? = { chain.proceed() },
+            owner: Any, context: Context, target: Any, kind: Enum<*>, nativeKey: Any,
+            proceed: () -> Any?,
         ): Any? {
-            val owner = chain.thisObject ?: return chain.proceed()
             val lock = when (kind.name) {
                 "CLOCK" -> clock
                 "CALENDAR" -> calendar
-                else -> return chain.proceed()
+                else -> return proceed()
             }
             return synchronized(lock) {
                 val candidate = try {
@@ -102,6 +155,7 @@ internal object LauncherLiveIconHooks {
                         CacheEntry(current, current?.let { updatedAt.invoke(it) as String }, bitmaps?.generation ?: 0L)
                     }
                     if (entry.timestamp == now) {
+                        if (traceBoundaries) mark("One UI Home live icon current $kind")
                         null
                     } else {
                         val configuration = Configuration(context.resources.configuration)
@@ -134,6 +188,12 @@ internal object LauncherLiveIconHooks {
             }
         }
 
+        fun proceedWithLookup(chain: Chain, context: Context, target: Any, kind: Enum<*>, nativeKey: Any,
+            proceed: () -> Any? = { chain.proceed() }): Any? {
+            val owner = chain.thisObject ?: return chain.proceed()
+            return proceedWithLookup(owner, context, target, kind, nativeKey, proceed)
+        }
+
         val lookupHook = ModernHook.aroundMethod(fetch) { chain ->
             val candidate = currentLookup.get()
             if (candidate != null && chain.args[0] === candidate.context && chain.args[1] === candidate.component &&
@@ -152,7 +212,7 @@ internal object LauncherLiveIconHooks {
         var updateHook: ModernHook.Handle? = null
         var invalidateHook: ModernHook.Handle? = null
         try {
-            if (bitmaps != null) {
+            if (bitmaps != null && !sharedCache) {
                 invalidateHook = ModernHook.aroundMethod(bitmaps.clearIconMap) { chain ->
                     synchronized(cache) {
                         bitmaps.invalidate()
@@ -163,6 +223,7 @@ internal object LauncherLiveIconHooks {
             updateHook = ModernHook.aroundMethod(update) { chain ->
                 val context = chain.args[0] as? Context ?: return@aroundMethod chain.proceed()
                 val kind = chain.args[1] as? Enum<*> ?: return@aroundMethod chain.proceed()
+                if (traceBoundaries) mark("One UI Home live icon cache updater $kind")
                 val target = chain.args[3] ?: return@aroundMethod chain.proceed()
                 val lastUpdated = chain.args[2] as? String ?: return@aroundMethod chain.proceed()
                 val lookup = currentLookup.get()
@@ -193,20 +254,68 @@ internal object LauncherLiveIconHooks {
             lookupHook.unhook()
             throw error
         }
-        HookEntry.log("LAUNCHER_LIVE_ICON_LOOKUP_READY")
+        if (bitmaps != null && BuildConfig.LAUNCHER_DEOPTIMIZE_LIVE_ICON_CALLERS) {
+            try {
+                val appItem = DexSymbols.findClass("com.honeyspace.sdk.source.entity.AppItem", loader)
+                val componentField = supplier.compatibleDeclaredField("appItem").apply { isAccessible = true }
+                val readComponent = appItem.compatibleMethod("getComponent").apply { isAccessible = true }
+                val supplierType = supplier.compatibleDeclaredMethod("getType").apply { isAccessible = true }
+                val companionField = supplier.declaredFields.single {
+                    Modifier.isStatic(it.modifiers) && it.type == companion
+                }.apply { isAccessible = true }
+                val companionInstance = companionField.get(null)
+                check(WeakReference::class.java.isAssignableFrom(componentField.type))
+                check(readComponent.returnType == component && supplierType.returnType == type)
+                check(companion.isInstance(companionInstance))
+                deoptimizeSupplierCallers(loader, supplier, host, folderObserver)
+                ModernHook.aroundMethod(updateView) { chain ->
+                    if (!canPrepare()) {
+                        mark("One UI Home live icon supplier under prior scope$tag")
+                        return@aroundMethod chain.proceed()
+                    }
+                    val instance = chain.thisObject ?: return@aroundMethod chain.proceed()
+                    val view = chain.args[0] as? View ?: return@aroundMethod chain.proceed()
+                    val item = (componentField.get(instance) as? WeakReference<*>)?.get()
+                    if (!appItem.isInstance(item)) return@aroundMethod chain.proceed()
+                    val target = readComponent.invoke(item) ?: return@aroundMethod chain.proceed()
+                    val kind = supplierType.invoke(instance) as? Enum<*> ?: return@aroundMethod chain.proceed()
+                    mark("One UI Home live icon supplier $kind$tag")
+                    val nativeKey = makeKey.newInstance(kind, getUser.invoke(target))
+                    // Keep the stock supplier responsible for binding and notifying the View.
+                    // Preparing at this boundary also covers a compiled call to the cache updater.
+                    proceedWithLookup(companionInstance, view.context, target, kind, nativeKey) { chain.proceed() }
+                }
+                HookEntry.log("LAUNCHER_LIVE_ICON_SUPPLIER_BOUNDARY_READY$tag")
+            } catch (error: Exception) {
+                HookEntry.log("LAUNCHER_LIVE_ICON_SUPPLIER_BOUNDARY_UNAVAILABLE$tag ${error.javaClass.simpleName}: ${error.message}")
+            }
+        }
+        HookEntry.log("LAUNCHER_LIVE_ICON_LOOKUP_READY$tag")
     }
 
-    private fun deoptimizeSupplierCallers(loader: ClassLoader, supplier: Class<*>) {
+    private fun mark(name: String) {
+        if (!Trace.isEnabled()) return
+        Trace.beginSection(name)
+        Trace.endSection()
+    }
+
+    private fun deoptimizeSupplierCallers(loader: ClassLoader, supplier: Class<*>, host: String, folderObserver: Boolean) {
         try {
             // These two BZI9 coroutine methods call the synthetic accessor instead of calling updateIcon directly.
             val accessor = supplier.getDeclaredMethod("access\$updateIcon", supplier, View::class.java)
             val callers = listOf("\$get\$1\$1", "\$setUpdateJob\$1").map { suffix ->
                 DexSymbols.findClass(supplier.name + suffix, loader).getDeclaredMethod("invokeSuspend", Any::class.java)
             }
-            val deoptimized = (callers + accessor).count(ModernHook::deoptimize)
-            HookEntry.log("LAUNCHER_LIVE_ICON_CALLERS_DEOPTIMIZED count=$deoptimized expected=3")
+            // Only the launcher's own dex has the folder observer that calls the cache updater directly.
+            val observer = if (folderObserver) {
+                listOf(DexSymbols.findClass("jb.b", loader).getDeclaredMethod("invoke", Any::class.java))
+            } else emptyList()
+            val methods = callers + accessor + observer
+            val deoptimized = methods.count(ModernHook::deoptimize)
+            val tag = if (host == "LAUNCHER") "" else " host=$host"
+            HookEntry.log("LAUNCHER_LIVE_ICON_CALLERS_DEOPTIMIZED count=$deoptimized expected=${methods.size}$tag")
         } catch (failure: ReflectiveOperationException) {
-            HookEntry.log("LAUNCHER_LIVE_ICON_CALLERS_UNAVAILABLE ${failure.javaClass.simpleName}")
+            HookEntry.log("LAUNCHER_LIVE_ICON_CALLERS_UNAVAILABLE ${failure.javaClass.simpleName} host=$host")
         }
     }
 

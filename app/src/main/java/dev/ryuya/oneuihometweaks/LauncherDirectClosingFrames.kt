@@ -41,6 +41,8 @@ internal class LauncherDirectClosingFrames(loader: ClassLoader, private val main
     private var current: Scope? = null
     private var draining: Handoff? = null
     private var targetReplacement: Handoff? = null
+    private var earlyClaim = WeakReference<Handoff>(null)
+    private var playerFrames = 0
 
     fun install(handles: MutableList<ModernHook.Handle>) {
         handles += ModernHook.aroundMethod(schedule) { chain ->
@@ -56,6 +58,15 @@ internal class LauncherDirectClosingFrames(loader: ClassLoader, private val main
             val previous = outstandingDirect[owner]?.get()
             if (argument != null && previous != null && scope?.handoff !== previous && previous.blocksStock()) {
                 previous.fallBack { sendToStock(owner, argument) }
+                return@aroundMethod null
+            }
+            val early = earlyClaim.get()
+            if (argument != null && early != null && playerFrames > 0 && scope?.handoff !== early && early.owner !== owner &&
+                early.blocksStock() && targetsWindow(owner, early.earlyWindow.get())
+            ) {
+                // Another stock player over the same Home window, for example a catch gesture, waits for the last worker frame.
+                mark("OneUI closing early yields to another stock applier")
+                early.fallBack { sendToStock(owner, argument) }
                 return@aroundMethod null
             }
             if (scope == null) {
@@ -82,6 +93,7 @@ internal class LauncherDirectClosingFrames(loader: ClassLoader, private val main
             scope.pending = null
             return afterDirect(handoff, owner, argument, stock)
         }
+        if (handoff.early) return captureEarly(scope, handoff, owner, argument, stock)
         val targetView = viewRoot.get(owner)?.let { readView.invoke(it) } as? View
         val surface = barrier.get(owner) as? SurfaceControl
         if (targetView?.rootView !== scope.window || surface?.isValid != true) {
@@ -113,6 +125,17 @@ internal class LauncherDirectClosingFrames(loader: ClassLoader, private val main
         }
         // A newly constructed stock applier has never sent an update to the ViewRoot queue.
         val firstClosingFrame = !handoff.opening && handoff.lastSequence == null && previous == 0
+        if (!scope.ready && scope.invisibleClosingIcon &&
+            (firstClosingFrame || handoff.hasInvisibleBaseline && handoff.lastSequence == previous)
+        ) {
+            val vsync = if (scope.delayedVsync > 0) scope.delayedVsync else readVsync.invoke(Choreographer.getInstance()) as Long
+            if (vsync > 0) {
+                // PlayerImpl may make the icon visible after scheduleApply, so check again before submitting.
+                scope.pending = Pending(handoff, owner, argument, transaction, previous, vsync,
+                    invisibleClosingBaseline = true)
+                return null
+            }
+        }
         if (!scope.ready || (handoff.lastSequence != previous && !firstClosingFrame)) {
             if (handoff.waiting != null || handoff.directLease.hasPendingCommit()) {
                 return afterDirect(handoff, owner, argument, stock)
@@ -129,6 +152,40 @@ internal class LauncherDirectClosingFrames(loader: ClassLoader, private val main
         if (firstClosingFrame) mark("OneUI closing fresh applier has no stock frame to drain")
         val next = handoff.reserveSequence(owner, previous)
         scope.pending = Pending(handoff, owner, argument, transaction, next, vsync)
+        return null
+    }
+
+    /** Main thread. Marks a stock floating player's frame, which may target the leash owned since release. */
+    fun <T> duringPlayerFrame(frame: () -> T): T {
+        playerFrames++
+        try {
+            return frame()
+        } finally {
+            playerFrames--
+        }
+    }
+
+    private fun targetsWindow(applier: Any, window: View?): Boolean =
+        window != null && (viewRoot.get(applier)?.let { readView.invoke(it) } as? View)?.rootView === window
+
+    /** The worker already owns this close. Fence the applier's release once, then keep every stock pose off the leash. */
+    private fun captureEarly(scope: Scope, handoff: Handoff, owner: Any, argument: Any?, stock: () -> Any?): Any? {
+        if (!handoff.detached || handoff.disabled || argument == null) return afterDirect(handoff, owner, argument, stock)
+        val known = handoff.owner
+        if (known != null && known !== owner) {
+            mark("OneUI closing early applier changed")
+            return afterDirect(handoff, owner, argument, stock)
+        }
+        val transaction = readTransaction.get(readWrapper.invoke(argument)) as? SurfaceControl.Transaction
+            ?: return afterDirect(handoff, owner, argument, stock)
+        if (known == null) {
+            handoff.owner = owner
+            handoff.reserveSequence(owner, sequence.getInt(owner))
+            // Stock updates outside a player frame are deferred to the drain as well.
+            outstandingDirect[owner] = WeakReference(handoff)
+            mark("OneUI closing early applier fenced")
+        }
+        scope.pending = Pending(handoff, owner, argument, transaction, sequence.getInt(owner), 0L, detachedStock = true)
         return null
     }
 
@@ -154,10 +211,11 @@ internal class LauncherDirectClosingFrames(loader: ClassLoader, private val main
     fun begin(window: View, handoff: Handoff, ready: Boolean, delayedVsync: Long = 0L, player: Any? = null,
         stockApplier: Any? = null, mayOmitStockUpdate: Boolean = true, bindOnStockFrame: Boolean = false,
         openingWindow: LauncherStockWindowUpdater.Window? = null,
+        invisibleClosingIcon: Boolean = false,
         onStockSchedule: (() -> Unit)? = null): Scope? {
         if (current != null) return null
         return Scope(window, handoff, ready, delayedVsync, player, stockApplier, mayOmitStockUpdate,
-            bindOnStockFrame, openingWindow, onStockSchedule).also { current = it }
+            bindOnStockFrame, openingWindow, invisibleClosingIcon, onStockSchedule).also { current = it }
     }
 
     fun canOmitStockUpdate(player: Any, applier: Any, view: View): Boolean {
@@ -190,6 +248,7 @@ internal class LauncherDirectClosingFrames(loader: ClassLoader, private val main
     internal class Scope(val window: View, val handoff: Handoff, val ready: Boolean, val delayedVsync: Long,
         val player: Any?, val stockApplier: Any?, val mayOmitStockUpdate: Boolean, val bindOnStockFrame: Boolean,
         val openingWindow: LauncherStockWindowUpdater.Window?,
+        val invisibleClosingIcon: Boolean,
         val onStockSchedule: (() -> Unit)?) {
         var pending: Pending? = null
         var observedStockFrame = false
@@ -201,6 +260,7 @@ internal class LauncherDirectClosingFrames(loader: ClassLoader, private val main
         private var workerOffer: WorkerOffer? = null
         var owner: Any? = null
         var lastSequence: Int? = null
+        var hasInvisibleBaseline = false
         @Volatile var disabled = false
             private set
         @Volatile var detached = false
@@ -208,6 +268,11 @@ internal class LauncherDirectClosingFrames(loader: ClassLoader, private val main
         @Volatile var hasDetached = false
             private set
         @Volatile var hasSubmittedDetachedFrame = false
+        /** Claimed at release, before any stock frame entered this handoff. */
+        @Volatile var early = false
+            private set
+        var earlyWindow = WeakReference<View>(null)
+            private set
         @Volatile var waiting: Pending? = null
             private set
         @Volatile private var drainWorker: WorkerOffer? = null
@@ -252,6 +317,19 @@ internal class LauncherDirectClosingFrames(loader: ClassLoader, private val main
             hasDetached = true
             detached = true
             mark(if (opening) "OneUI opening detached claimed off main" else "OneUI closing detached claimed off main")
+            true
+        }
+
+        fun claimEarly(window: View): Boolean = synchronized(ownership) {
+            if (disabled || detached || hasDetached || workerOffer != null || owner != null || waiting != null ||
+                directLease.hasPendingCommit()
+            ) return@synchronized false
+            early = true
+            earlyWindow = WeakReference(window)
+            earlyClaim = WeakReference(this)
+            hasDetached = true
+            detached = true
+            mark("OneUI closing early claimed")
             true
         }
 
@@ -454,6 +532,7 @@ internal class LauncherDirectClosingFrames(loader: ClassLoader, private val main
         val detachedStock: Boolean = false,
         private val omitted: (() -> Unit)? = null,
         val stockDraw: Boolean = false,
+        val invisibleClosingBaseline: Boolean = false,
     ) {
         val stockVsync get() = vsync
         private var accepted = false
@@ -470,10 +549,21 @@ internal class LauncherDirectClosingFrames(loader: ClassLoader, private val main
         }
 
         fun commit(updateIcon: ((SurfaceControl.Transaction) -> Unit)? = null) {
-            check(!accepted && !finished && !detachedStock && !stockDraw)
+            check(!accepted && !finished && !detachedStock && !stockDraw && !invisibleClosingBaseline)
             this.updateIcon = updateIcon
             handoff.send(this)
             accepted = true
+        }
+
+        fun commitInvisibleClosingBaseline(): Boolean {
+            check(invisibleClosingBaseline && !accepted && !finished)
+            if (handoff.disabled || handoff.detached || !isNewestSequence()) return false
+            frameSequence = handoff.reserveSequence(owner, frameSequence)
+            handoff.send(this)
+            accepted = true
+            handoff.hasInvisibleBaseline = true
+            mark("OneUI closing window submitted before icon visible")
+            return true
         }
 
         /** Keep the native ViewRoot merge and its release sequence for the first icon frame. */
@@ -497,6 +587,14 @@ internal class LauncherDirectClosingFrames(loader: ClassLoader, private val main
         }
 
         val isOmitted get() = omitted != null
+
+        /** A stock pose computed on the delayed stock clock never reaches a leash owned since release. */
+        fun discardIfEarly(): Boolean {
+            if (finished || !detachedStock || !handoff.early || !handoff.detached || handoff.disabled) return false
+            finished = true
+            transaction?.close()
+            return true
+        }
 
         fun commitWhileDetached(setCurrentWindow: (SurfaceControl.Transaction) -> Boolean): Boolean {
             check(detachedStock && handoff.detached && !finished)
@@ -535,7 +633,14 @@ internal class LauncherDirectClosingFrames(loader: ClassLoader, private val main
             val offer = workerOffer
             val readyOnSubmission = offer?.queuedHasIcon == withIcon
             if (!readyOnSubmission) offer?.watch(transaction)
-            val submitted = handoff.directLease.submit(transaction) {
+            val submittedVsync = vsync
+            val nativeMarker: (() -> Unit)? = if (Trace.isEnabled()) {
+                {
+                    Trace.setCounter("OneUI direct native committed vsync", submittedVsync)
+                    mark("OneUI direct native committed")
+                }
+            } else null
+            val submitted = handoff.directLease.submit(transaction, onNativeCommit = nativeMarker) {
                 if (sequence.getInt(owner) == frameSequence) {
                     if (!handoff.holdsRelease(offer)) {
                         committedDirect[owner] = frameSequence
@@ -554,6 +659,7 @@ internal class LauncherDirectClosingFrames(loader: ClassLoader, private val main
                     withIcon -> "OneUI closing direct pair committed"
                     else -> "OneUI closing direct window committed"
                 })
+                if (Trace.isEnabled()) Trace.setCounter("OneUI direct owner committed vsync", submittedVsync)
             }
             check(submitted)
             finished = true
@@ -572,6 +678,14 @@ internal class LauncherDirectClosingFrames(loader: ClassLoader, private val main
 
         fun restoreStock() {
             if (accepted || finished) return
+            if (invisibleClosingBaseline && !handoff.hasInvisibleBaseline && !handoff.disabled &&
+                !handoff.directLease.hasPendingCommit() && isNewestSequence()
+            ) {
+                handoff.watchStock(checkNotNull(transaction), frameSequence + 1)
+                sendToStock()
+                mark("OneUI closing visible icon requires stock draw")
+                return
+            }
             if (stockDraw) sendToStock() else handoff.fallBack(::sendToStock)
         }
 

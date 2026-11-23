@@ -146,4 +146,8 @@
   <string name="diy_avoid_widgets_note">Existing overlaps are moved to open space when you visit a DIY Home page. If needed, app icons move to another page at their current size.</string>
   <string name="home_unlock_motion">Unlock animation</string>
   <string name="home_unlock_motion_note">After unlocking, icons, widgets, and the dock settle into place in sequence. Returning to the previous app uses a short fade.</string>
+    <string name="home_retention">Keep Home in memory</string>
+    <string name="recents_retention">Keep Recents in memory</string>
+    <string name="home_retention_note">Keeps the selected One UI screens ready when Android reclaims stopped screens. This can increase memory use.</string>
+    <string name="home_retention_backend_missing">Waiting for the System Framework hook in Vector.</string>
 </resources>

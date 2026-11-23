@@ -25,9 +25,10 @@ class RecentsFocusRegistry(context: Context) {
         val candidate: IBinder? = if (data == null) null else data.getBinder("backend")
         require(!(candidate == null || !candidate.isBinderAlive())) { "Live backend required" }
         val transport = data?.getBoolean(RecentsFocusWire.TASK_MANAGER) == true
-        RecentsFocusWire.call(candidate, RecentsFocusWire.STATUS, null, transport)
+        val status = RecentsFocusWire.call(candidate, RecentsFocusWire.STATUS, null, transport)
         backend = candidate
         viaTaskManager = transport
+        syncLauncherRetention(candidate, transport, status)
         val result = Bundle()
         result.putBinder("anchor", anchor)
         return result
@@ -61,15 +62,32 @@ class RecentsFocusRegistry(context: Context) {
         val data = Bundle()
         data.putInt("mode", mode)
         try {
-            return RecentsFocusWire.call(
+            val reply = RecentsFocusWire.call(
                 backend!!,
                 if (mode == 0) RecentsFocusWire.STOP else RecentsFocusWire.ARM,
                 data,
                 viaTaskManager,
             )
+            return syncLauncherRetention(backend!!, viaTaskManager, reply)
         } catch (ignored: Exception) {
             backend = null
             return status()
         }
+    }
+
+    private fun syncLauncherRetention(endpoint: IBinder, transport: Boolean, status: Bundle?): Bundle? {
+        val homeKey = StockLauncherActivityRetention.HOME_KEY
+        val recentsKey = StockLauncherActivityRetention.RECENTS_KEY
+        if (status?.containsKey(homeKey) != true || !status.containsKey(recentsKey)) return status
+        val p = context.getSharedPreferences(ConfigProvider.PREFS, Context.MODE_PRIVATE)
+        val homeEnabled = p.getBoolean("enabled", true) && p.getBoolean("home_enabled", true)
+        val home = homeEnabled && p.getBoolean(homeKey, false)
+        val recents = homeEnabled && p.getBoolean(recentsKey, false)
+        if (status.getBoolean(homeKey) == home && status.getBoolean(recentsKey) == recents) return status
+        val data = Bundle().apply {
+            putBoolean(homeKey, home)
+            putBoolean(recentsKey, recents)
+        }
+        return RecentsFocusWire.call(endpoint, RecentsFocusWire.KEEP_LAUNCHER_SCREENS, data, transport)
     }
 }

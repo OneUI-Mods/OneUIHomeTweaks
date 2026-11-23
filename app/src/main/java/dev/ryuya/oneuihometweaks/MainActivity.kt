@@ -199,6 +199,21 @@ class MainActivity : AppCompatActivity() {
         }
         requireViewById<View>(R.id.home_unlock_motion_card).visibility =
             if (HomeUnlockMotion.supportsDevice()) View.VISIBLE else View.GONE
+        if (StockLauncherActivityRetention.supportsDevice()) {
+            requireViewById<View>(R.id.home_retention_card).visibility = View.VISIBLE
+            for ((id, key) in listOf(
+                R.id.home_retention to StockLauncherActivityRetention.HOME_KEY,
+                R.id.recents_retention to StockLauncherActivityRetention.RECENTS_KEY,
+            )) {
+                requireViewById<MaterialSwitch>(id).apply {
+                    isChecked = prefs!!.getBoolean(key, false)
+                    setOnCheckedChangeListener { _, checked ->
+                        prefs!!.edit().putBoolean(key, checked).apply()
+                        notifyConfig()
+                    }
+                }
+            }
+        }
         requireViewById<View>(R.id.interaction_refresh).visibility =
             if (InteractionRefresh.supported()) View.VISIBLE else View.GONE
         requireViewById<View>(R.id.interaction_refresh_hint).visibility =
@@ -480,9 +495,18 @@ class MainActivity : AppCompatActivity() {
 
     private fun showFocusStatus() {
         val request: Long = ++focusStatusRequest
+        val homeEnabled = prefs!!.getBoolean("enabled", true) && prefs!!.getBoolean("home_enabled", true)
+        val retentionSupported = StockLauncherActivityRetention.supportsDevice() && homeEnabled
+        val homeKey = StockLauncherActivityRetention.HOME_KEY
+        val recentsKey = StockLauncherActivityRetention.RECENTS_KEY
+        val keepHome = retentionSupported && prefs!!.getBoolean(homeKey, false)
+        val keepRecents = retentionSupported && prefs!!.getBoolean(recentsKey, false)
+        val keepScreen = keepHome || keepRecents
+        val homeStatus = requireViewById<TextView>(R.id.home_retention_status)
+        homeStatus.visibility = if (keepScreen) View.VISIBLE else View.GONE
+        if (keepScreen) homeStatus.setText(R.string.status_unconfirmed)
         val on: Boolean =
-            prefs!!.getBoolean("enabled", true) &&
-                prefs!!.getBoolean("home_enabled", true) &&
+            homeEnabled &&
                 prefs!!.getBoolean("recents_live_tile", false) &&
                 RecentsFocusPolicy.mode(prefs!!.getInt("recents_focus_mode", 0)) != 0
         requireViewById<View>(R.id.focus_activate).setEnabled(on)
@@ -492,7 +516,7 @@ class MainActivity : AppCompatActivity() {
             on,
             if (on) getString(R.string.recents_focus_note) else "",
         )
-        if (!on) return
+        if (!on && !keepScreen) return
         commands!!.submit(
             Runnable {
                 var reply: Bundle? = null
@@ -505,6 +529,18 @@ class MainActivity : AppCompatActivity() {
                 runOnUiThread(
                     Runnable {
                         if (isDestroyed() || request != focusStatusRequest) return@Runnable
+                        if (keepScreen) {
+                            homeStatus.setText(
+                                when {
+                                    reply?.containsKey(homeKey) != true || !reply.containsKey(recentsKey) ->
+                                        R.string.home_retention_backend_missing
+                                    reply.getBoolean(homeKey) == keepHome && reply.getBoolean(recentsKey) == keepRecents ->
+                                        R.string.status_ready
+                                    else -> R.string.status_unconfirmed
+                                },
+                            )
+                        }
+                        if (!on) return@Runnable
                         val label: Int =
                             when (state) {
                                 "ready" -> R.string.status_ready

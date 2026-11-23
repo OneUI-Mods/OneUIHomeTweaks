@@ -146,4 +146,8 @@
   <string name="diy_avoid_widgets_note">DIY 홈 페이지를 열면 위젯과 겹치는 기존 앱 아이콘을 빈 공간으로 옮깁니다. 공간이 부족하면 아이콘 크기를 유지한 채 다른 페이지로 옮깁니다.</string>
   <string name="home_unlock_motion">잠금 해제 애니메이션</string>
   <string name="home_unlock_motion_note">잠금 해제 후 아이콘, 위젯, 독이 순서대로 제자리를 잡습니다. 이전 앱으로 돌아갈 때는 짧게 페이드인됩니다.</string>
+  <string name="home_retention">홈 화면을 메모리에 유지</string>
+  <string name="recents_retention">최근 앱 화면을 메모리에 유지</string>
+  <string name="home_retention_note">Android가 백그라운드 화면을 정리할 때 선택한 One UI 화면을 유지합니다. 메모리 사용량이 증가할 수 있습니다.</string>
+  <string name="home_retention_backend_missing">Vector의 시스템 프레임워크 후크를 기다리는 중입니다.</string>
 </resources>

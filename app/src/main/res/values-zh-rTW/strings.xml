@@ -146,4 +146,8 @@
   <string name="diy_avoid_widgets_note">開啟 DIY 主畫面頁面時，已與小工具重疊的應用程式圖示也會移至空白處。空間不足時，圖示會維持原有大小並移至其他頁面。</string>
   <string name="home_unlock_motion">解鎖動畫</string>
   <string name="home_unlock_motion_note">解鎖後，圖示、小工具和 Dock 依序回到原位。返回先前的應用程式時會短暫淡入。</string>
+  <string name="home_retention">在記憶體中保留主畫面</string>
+  <string name="recents_retention">在記憶體中保留最近使用的應用程式</string>
+  <string name="home_retention_note">Android 回收背景畫面時保留選取的 One UI 畫面。此設定可能增加記憶體用量。</string>
+  <string name="home_retention_backend_missing">正在等待 Vector 的系統框架掛鉤。</string>
 </resources>

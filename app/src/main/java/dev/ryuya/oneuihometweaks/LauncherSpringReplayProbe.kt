@@ -11,6 +11,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
 import android.os.Process
+import android.os.SystemClock
 import android.os.Trace
 import android.view.AttachedSurfaceControl
 import android.view.Choreographer
@@ -51,6 +52,8 @@ internal class LauncherSpringReplayProbe private constructor(
     private var token = 0L
     private var windowGeometry: LauncherWindowGeometry? = null
     private var readStockSeed: ((Any, Any) -> LauncherWindowGeometry.SpringSeed?)? = null
+    /** Supplies the icon session's handoff and app leash when the worker may own the close from release. */
+    var earlyTarget: ((Any) -> EarlyTarget?)? = null
 
     private fun installHooks(loader: ClassLoader) {
         val player = DexSymbols.findClass("com.honeyspace.transition.anim.floating.PlayerImpl", loader)
@@ -392,6 +395,9 @@ internal class LauncherSpringReplayProbe private constructor(
                 relayerReplay)
             trial.liveTracking = window?.tracking
             active = trial
+            val earlyStart = if (BuildConfig.LAUNCHER_EARLY_CLOSING_DRIVE && drivesSurfaces && relayer != null &&
+                window != null && closing.targetless == null
+            ) claimAtRelease(trial, closing.player, window) else null
             trial.observation = replay.observe(stock, { rectangle, progress ->
                 if (!trial.cancelled.get()) {
                     trial.stockUpdated = true
@@ -399,7 +405,7 @@ internal class LauncherSpringReplayProbe private constructor(
                 }
             }, {
                 if (!trial.cancelled.get()) mark("OneUI spring stock finished")
-                if (onMain() && (trial.reference != null || trial.targetless?.handoff != null)) finish(trial)
+                if (onMain() && (trial.early || trial.reference != null || trial.targetless?.handoff != null)) finish(trial)
             }, beforeStock = true)
             main.postDelayed(trial.expire, 3_500)
             handler.post {
@@ -426,6 +432,10 @@ internal class LauncherSpringReplayProbe private constructor(
                     trial.motion = animation
                     trial.playback = clock.start(animation, relay) { rectangle, progress -> calculate(trial, rectangle, progress) }
                     mark("OneUI spring detached started")
+                    if (earlyStart != null) {
+                        check(relay != null && trial.calculator != null)
+                        driveSurfaces(trial, checkNotNull(trial.rendering), alignToDisplay = false, startAt = earlyStart)
+                    }
                 } catch (failure: Exception) {
                     HookEntry.log("LAUNCHER_SPRING_REPLAY_FAILED ${failure.javaClass.simpleName}")
                     main.post { if (active === trial) finish(trial) }
@@ -435,6 +445,63 @@ internal class LauncherSpringReplayProbe private constructor(
         } catch (failure: Exception) {
             active?.let(::finish)
             HookEntry.log("LAUNCHER_SPRING_REPLAY_UNAVAILABLE ${failure.javaClass.simpleName}")
+        }
+    }
+
+    /** Main thread, inside the stock start. Afterwards every stock frame of this close is captured and discarded. */
+    private fun claimAtRelease(trial: Trial, owner: Any, window: LauncherWindowGeometry.Snapshot):
+        LauncherSpringFrameClock.StockTick? {
+        return try {
+            val target = earlyTarget?.invoke(owner) ?: return null
+            val frame = windowGeometry?.readStock(owner) ?: return null
+            if (!target.app.isValid) return null
+            val now = System.nanoTime()
+            val start = LauncherSpringFrameClock.StockTick(now, SystemClock.uptimeMillis())
+            val reference = Reference(now, now, 0L, target.handoff, target.app, null, frame, window.tracking,
+                null, null, null, null)
+            if (!target.handoff.claimEarly(target.window)) {
+                mark("OneUI closing early claim refused")
+                return null
+            }
+            trial.early = true
+            trial.rendering = reference
+            start
+        } catch (failure: Exception) {
+            HookEntry.log("LAUNCHER_EARLY_CLOSE_CLAIM_FAILED ${failure.javaClass.simpleName}")
+            null
+        }
+    }
+
+    /** Main thread. The icon joins the worker's frames once the Home window can parent it and its projection is verified. */
+    fun attachEarlyIcon(owner: Any, icon: SurfaceControl, projection: LauncherIconPlaneProjection,
+        position: LauncherIconPlaneProjection.Position): Boolean {
+        val trial = active?.takeIf { it.early && it.player.get() === owner && !it.cancelled.get() } ?: return false
+        trial.earlyIcon = IconFrame(icon, projection.copyForWorker(), position)
+        mark("OneUI closing early icon attached")
+        return true
+    }
+
+    fun isEarly(owner: Any): Boolean = active?.let { it.early && it.player.get() === owner && !it.cancelled.get() } == true
+
+    /** Main thread, on a discarded stock frame. Copies the stock calculator's lazily-built seed once. */
+    fun earlyStockFrame(owner: Any) {
+        val trial = active?.takeIf { it.early && it.player.get() === owner && !it.cancelled.get() } ?: return
+        if (trial.geometrySeed != null || trial.seedReadFailed) return
+        try {
+            val seed = trial.stock.get()?.let { stock -> readStockSeed?.invoke(owner, stock) } ?: return
+            trial.geometrySeed = seed
+            mark("OneUI spring stock geometry captured")
+            executor?.post {
+                val calculator = trial.calculator
+                if (!trial.cancelled.get() && calculator != null && !trial.seedApplied) {
+                    calculator.useStockSeed(seed)
+                    trial.seedApplied = true
+                    mark("OneUI spring stock geometry applied")
+                }
+            }
+        } catch (failure: Exception) {
+            trial.seedReadFailed = true
+            HookEntry.log("LAUNCHER_SPRING_GEOMETRY_SEED_FAILED ${failure.javaClass.simpleName}")
         }
     }
 
@@ -449,6 +516,7 @@ internal class LauncherSpringReplayProbe private constructor(
     private fun offer(trial: Trial, handoff: LauncherDirectClosingFrames.Handoff,
         pending: LauncherDirectClosingFrames.Pending?, app: SurfaceControl, icon: IconFrame?) {
         val time = stockFrameTime(trial) ?: return
+        val observedNanos = System.nanoTime()
         val owner = trial.player.get() ?: return
         val geometry = windowGeometry ?: return
         val window = geometry.readStock(owner) ?: return
@@ -504,7 +572,7 @@ internal class LauncherSpringReplayProbe private constructor(
                 tryClaim(trial, offer)
             }
         }
-        trial.reference = Reference(time, pending?.stockVsync ?: 0L, handoff, app, icon, window,
+        trial.reference = Reference(time, observedNanos, pending?.stockVsync ?: 0L, handoff, app, icon, window,
             tracking, trial.geometrySeed, relayerSeed, horizontalSeed, workerOffer)
     }
 
@@ -607,7 +675,7 @@ internal class LauncherSpringReplayProbe private constructor(
     fun owns(owner: Any, app: SurfaceControl?, icon: SurfaceControl, requireSubmitted: Boolean = false): Boolean {
         val trial = active?.takeIf { it.player.get() === owner && !it.cancelled.get() } ?: return false
         val rendering = trial.rendering ?: return false
-        return rendering.handoff.detached && rendering.app === app && rendering.icon?.surface === icon &&
+        return rendering.handoff.detached && rendering.app === app && (rendering.icon ?: trial.earlyIcon)?.surface === icon &&
             (!requireSubmitted || rendering.handoff.hasSubmittedDetachedFrame)
     }
 
@@ -727,19 +795,30 @@ internal class LauncherSpringReplayProbe private constructor(
         } ?: return
         try {
             if (!reference.app.isValid || reference.icon?.surface?.isValid == false) return
+            var alignToDisplay = false
             if (offer.claim {
-                if (trial.cancelled.get() || trial.reference !== reference ||
-                    System.nanoTime() - reference.frameNanos !in 0L..MAX_HANDOFF_AGE_NS
-                ) return@claim false
+                if (trial.cancelled.get() || trial.reference !== reference) return@claim false
+                val now = System.nanoTime()
+                val frameAge = now - reference.frameNanos
+                if (frameAge !in 0L..MAX_HANDOFF_AGE_NS) {
+                    // A delayed stock callback can deliver a newly-queued pose calculated against an old tick.
+                    // The app-only path can continue from that pose without skipping the elapsed part of the spring.
+                    alignToDisplay = BuildConfig.LAUNCHER_ALIGN_LATE_CLOSING_CLOCK && offer.queued &&
+                        trial.targetless != null && reference.icon == null && frameAge > MAX_HANDOFF_AGE_NS &&
+                        now - reference.observedNanos in 0L..MAX_HANDOFF_AGE_NS
+                    if (!alignToDisplay) return@claim false
+                    mark("OneUI closing late clock aligned")
+                }
                 trial.rendering = reference
                 true
-            }) driveSurfaces(trial, reference)
+            }) driveSurfaces(trial, reference, alignToDisplay)
         } catch (failure: Exception) {
             fail(trial, failure)
         }
     }
 
-    private fun driveSurfaces(trial: Trial, reference: Reference) {
+    private fun driveSurfaces(trial: Trial, reference: Reference, alignToDisplay: Boolean,
+        startAt: LauncherSpringFrameClock.StockTick? = null) {
         if (trial.cancelled.get()) return
         val playback = trial.playback ?: return
         val encoder = writer ?: return
@@ -767,7 +846,7 @@ internal class LauncherSpringReplayProbe private constructor(
                     if (trial.cancelled.get()) return@continueOnDisplay false
                     val window = trial.lastWindow ?: return@continueOnDisplay !trial.workerIsDone()
                     trial.lastWindow = null
-                    val icon = reference.icon
+                    val icon = reference.icon ?: trial.earlyIcon
                     if (icon == null) {
                         check(encoder.writeWindow(transaction, reference.app, window))
                     } else {
@@ -789,10 +868,16 @@ internal class LauncherSpringReplayProbe private constructor(
                     reference.handoff.hasSubmittedDetachedFrame = true
                     if (Trace.isEnabled()) {
                         Trace.setCounter("OneUI detached close vsync", vsync)
-                        mark(if (icon == null) "OneUI closing detached window submitted" else "OneUI closing detached pair submitted")
+                        mark(when {
+                            trial.early && icon == null -> "OneUI closing early window submitted"
+                            trial.early -> "OneUI closing early pair submitted"
+                            icon == null -> "OneUI closing detached window submitted"
+                            else -> "OneUI closing detached pair submitted"
+                        })
                     }
                     !trial.workerIsDone()
-                }, { failure -> fail(trial, failure) }, onStopped = release)
+                }, { failure -> fail(trial, failure) }, onStopped = release, alignToFirstDisplayTick = alignToDisplay,
+                    startAt = startAt)
             } finally {
                 if (!started) release()
             }
@@ -902,11 +987,14 @@ internal class LauncherSpringReplayProbe private constructor(
         var submittedVsync = 0L
     }
 
+    internal class EarlyTarget(val handoff: LauncherDirectClosingFrames.Handoff, val app: SurfaceControl, val window: View)
+
     private class IconFrame(val surface: SurfaceControl, val projection: LauncherIconPlaneProjection,
         val actual: LauncherIconPlaneProjection.Position)
 
     private class Reference(
         val frameNanos: Long,
+        val observedNanos: Long,
         val vsync: Long,
         val handoff: LauncherDirectClosingFrames.Handoff,
         val app: SurfaceControl,
@@ -956,6 +1044,9 @@ internal class LauncherSpringReplayProbe private constructor(
         var seedApplied = false
         var workerFinished = false
         var workerFrameTime = 0L
+        /** Owned by the worker since release. Stock frames only report tracking, seed and the icon plane. */
+        @Volatile var early = false
+        @Volatile var earlyIcon: IconFrame? = null
         fun workerIsDone() = workerFinished && relay?.isRunning() != true
         fun sameTarget(bounds: Rect) = target.left == bounds.left.toFloat() && target.top == bounds.top.toFloat() &&
             target.right == bounds.right.toFloat() && target.bottom == bounds.bottom.toFloat()

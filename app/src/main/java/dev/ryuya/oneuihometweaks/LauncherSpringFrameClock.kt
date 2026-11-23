@@ -86,22 +86,33 @@ internal class LauncherSpringFrameClock(loader: ClassLoader) {
             return true
         }
 
-        /** Continue at the next display tick while keeping the last stock clock offset. */
+        /** Continue on display, optionally holding the queued stock pose until the first display tick. */
         fun continueOnDisplay(
             onFrame: (vsyncId: Long) -> Boolean,
             onFailure: (Exception) -> Unit,
             onStopped: () -> Unit = {},
+            alignToFirstDisplayTick: Boolean = false,
+            startAt: StockTick? = null,
         ): Boolean {
             check(Looper.myLooper() === owner)
-            val anchor = previous ?: return false
+            // A close claimed at release has no stock tick yet. It starts from the release time on the display clock.
+            val anchor = (if (previous == null) startAt else previous) ?: return false
             if (closed || pulse != null) return false
             val display = Choreographer.getInstance()
             val callback = object : Choreographer.VsyncCallback {
+                private var displayAnchorNanos = if (alignToFirstDisplayTick) null else anchor.frameNanos
+
                 override fun onVsync(frame: Choreographer.FrameData) {
                     if (pulse !== this) return
                     try {
-                        val elapsed = frame.frameTimeNanos - anchor.frameNanos
-                        val tick = StockTick(frame.frameTimeNanos, anchor.uptimeMillis + elapsed / NANOS_PER_MILLI)
+                        val displayAnchor = displayAnchorNanos
+                        if (displayAnchor == null) {
+                            displayAnchorNanos = frame.frameTimeNanos
+                            display.postVsyncCallback(this)
+                            return
+                        }
+                        val elapsed = frame.frameTimeNanos - displayAnchor
+                        val tick = StockTick(anchor.frameNanos + elapsed, anchor.uptimeMillis + elapsed / NANOS_PER_MILLI)
                         val advanced = advance(tick)
                         if (pulse !== this) return
                         val keepDriving = !advanced || onFrame(frame.preferredFrameTimeline.vsyncId)

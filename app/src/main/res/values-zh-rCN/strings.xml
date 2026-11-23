@@ -146,4 +146,8 @@
   <string name="diy_avoid_widgets_note">打开 DIY 主屏幕页面时，已与小组件重叠的应用图标也会移到空白处。空间不足时，图标会保持原有大小并移到其他页面。</string>
   <string name="home_unlock_motion">解锁动画</string>
   <string name="home_unlock_motion_note">解锁后，图标、小组件和程序坞依次回到原位。返回之前的应用时会短暂淡入。</string>
+  <string name="home_retention">在内存中保留主屏幕</string>
+  <string name="recents_retention">在内存中保留最近任务</string>
+  <string name="home_retention_note">Android 回收后台界面时保留选中的 One UI 界面。此设置可能增加内存用量。</string>
+  <string name="home_retention_backend_missing">正在等待 Vector 的系统框架钩子。</string>
 </resources>

@@ -20,14 +20,18 @@ internal class LauncherSurfaceSubmitLease(private val completionExecutor: Execut
 
     fun hasPendingCommit(): Boolean = synchronized(commitLock) { committed < submitted || drainQueued }
 
-    fun submit(transaction: SurfaceControl.Transaction, onCommit: (() -> Unit)? = null): Boolean = synchronized(submissionLock) {
+    fun submit(transaction: SurfaceControl.Transaction, onNativeCommit: (() -> Unit)? = null,
+        onCommit: (() -> Unit)? = null): Boolean = synchronized(submissionLock) {
         val sequence = synchronized(commitLock) {
             if (!acceptsFrames) return false
             submitted + 1
         }
-        // Detached frames have no UI-side work to acknowledge. The compositor callback only takes commitLock.
-        val executor = if (onCommit == null) immediate else completionExecutor
-        transaction.addTransactionCommittedListener(executor) { acknowledge(sequence, onCommit) }
+        // Record native completion even while the owner's Looper is blocked.
+        // Only release and the caller's UI work are dispatched to the owner.
+        transaction.addTransactionCommittedListener(immediate) {
+            onNativeCommit?.invoke()
+            acknowledge(sequence, onCommit)
+        }
         synchronized(commitLock) { submitted = sequence }
         try {
             transaction.apply()
@@ -64,10 +68,12 @@ internal class LauncherSurfaceSubmitLease(private val completionExecutor: Execut
                 true
             }
         }
-        if (shouldDrain) {
-            if (onCommit == null) completionExecutor.execute(::drain) else drain()
+        if (shouldDrain || onCommit != null) {
+            completionExecutor.execute {
+                if (shouldDrain) drain()
+                onCommit?.invoke()
+            }
         }
-        onCommit?.invoke()
     }
 
     private fun drain() {
