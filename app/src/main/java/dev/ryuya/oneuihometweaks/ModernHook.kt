@@ -70,15 +70,20 @@ object ModernHook {
 
     @JvmStatic
     fun aroundMethod(executable: Executable, around: Around): Handle {
-        return aroundMethod(executable, XposedInterface.PRIORITY_DEFAULT, around)
+        return aroundMethod(executable, XposedInterface.PRIORITY_DEFAULT, around = around)
     }
 
-    internal fun aroundMethod(executable: Executable, priority: Int, around: Around): Handle {
+    internal fun aroundMethod(
+        executable: Executable,
+        priority: Int,
+        exceptionMode: XposedInterface.ExceptionMode = XposedInterface.ExceptionMode.PROTECTIVE,
+        around: Around,
+    ): Handle {
         val scope = registrationScope()
         val handle = requireModule()
             .hook(executable)
             .setPriority(priority)
-            .setExceptionMode(XposedInterface.ExceptionMode.PROTECTIVE)
+            .setExceptionMode(exceptionMode)
             .intercept { chain ->
                 if (scope == null) around.run(chain)
                 else SystemUiHookScopes.dispatch(scope, { chain.proceed() }) { around.run(chain) }

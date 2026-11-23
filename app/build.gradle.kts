@@ -2,6 +2,8 @@ import java.util.Properties
 
 plugins { id("com.android.application") }
 
+val launcherCpuIconUpload = providers.gradleProperty("launcherCpuIconUpload").orNull == "true"
+
 val distributionProperties =
     Properties().apply {
         providers.environmentVariable("ONEUI_SIGNING_PROPERTIES").orNull?.let { path ->
@@ -21,13 +23,71 @@ android {
     }
     buildToolsVersion = "37.0.0"
     buildFeatures { buildConfig = true }
+    if (launcherCpuIconUpload) {
+        ndkVersion = "29.0.13113456"
+        externalNativeBuild {
+            cmake {
+                path = file("src/main/cpp/CMakeLists.txt")
+                version = "3.22.1"
+            }
+        }
+    }
     defaultConfig {
         applicationId = "dev.ryuya.oneuihometweaks"
         minSdk = 31
         targetSdk = 37
-        versionCode = 143
-        versionName = "0.21.91"
+        versionCode = 287
+        versionName = "0.21.235"
+        buildConfigField(
+            "boolean", "LAUNCHER_CLAIM_QUEUED_CLOSING_PAIR",
+            (providers.gradleProperty("launcherClaimQueuedClosingPair").orNull == "true").toString(),
+        )
+        buildConfigField(
+            "boolean", "LAUNCHER_CLAIM_QUEUED_CLOSING_WINDOW",
+            (providers.gradleProperty("launcherClaimQueuedClosingWindow").orNull == "true").toString(),
+        )
+        buildConfigField(
+            "boolean", "LAUNCHER_FREE_GRID_INITIAL_PAGE_WORKER",
+            (providers.gradleProperty("launcherFreeGridInitialPageWorker").orNull == "true").toString(),
+        )
+        buildConfigField(
+            "boolean", "LAUNCHER_FREE_GRID_SHUTDOWN_RECEIVER_WORKER",
+            (providers.gradleProperty("launcherFreeGridShutdownReceiverWorker").orNull == "true").toString(),
+        )
+        buildConfigField(
+            "boolean", "LAUNCHER_PREWARM_HOME_UP_PROVIDER",
+            (providers.gradleProperty("launcherPrewarmHomeUpProvider").orNull == "true").toString(),
+        )
+        buildConfigField(
+            "boolean", "STOCK_BATTERY_PASS_THROUGH_LOCK",
+            (providers.gradleProperty("stockBatteryPassThroughLock").orNull == "true").toString(),
+        )
+        buildConfigField(
+            "boolean", "STOCK_WIDGET_SIZE_SAVE_BATCH",
+            (providers.gradleProperty("stockWidgetSizeSaveBatch").orNull == "true").toString(),
+        )
+        buildConfigField(
+            "boolean", "STOCK_WIDGET_BROADCAST_WORKER",
+            (providers.gradleProperty("stockWidgetBroadcastWorker").orNull == "true").toString(),
+        )
+        buildConfigField(
+            "boolean", "STOCK_SETTINGS_ACCOUNT_PROFILE_WORKER",
+            (providers.gradleProperty("stockSettingsAccountProfileWorker").orNull == "true").toString(),
+        )
+        buildConfigField(
+            "boolean", "STOCK_SETTINGS_CATEGORY_QUERIES",
+            (providers.gradleProperty("stockSettingsCategoryQueries").orNull == "true").toString(),
+        )
+        buildConfigField(
+            "boolean", "LAUNCHER_PREPARE_LIVE_ICON_BITMAPS",
+            providers.gradleProperty("launcherPrepareLiveIconBitmaps").orNull.equals("true", ignoreCase = true).toString(),
+        )
+        buildConfigField(
+            "boolean", "LAUNCHER_DEOPTIMIZE_LIVE_ICON_CALLERS",
+            providers.gradleProperty("launcherDeoptimizeLiveIconCallers").orNull.equals("true", ignoreCase = true).toString(),
+        )
         testInstrumentationRunner = "dev.ryuya.oneuihometweaks.MemoryInstrumentation"
+        buildConfigField("boolean", "LAUNCHER_CPU_ICON_UPLOAD", launcherCpuIconUpload.toString())
         // Live-card diagnostics are opt-in for local investigation, never default release behavior.
         buildConfigField(
             "boolean",
@@ -91,6 +151,115 @@ android {
             providers.gradleProperty("launcherBlurCache").map { (it == "true").toString() }
                 .getOrElse("true"),
         )
+        buildConfigField(
+            "boolean",
+            "LAUNCHER_TRANSITION_DISPLAY_LIST_REUSE",
+            providers.gradleProperty("launcherTransitionDisplayListReuse").map { (it == "true").toString() }
+                .getOrElse("false"),
+        )
+        buildConfigField(
+            "boolean", "LAUNCHER_RENDER_TRANSACTION_MERGE",
+            (providers.gradleProperty("launcherRenderTransactionMerge").orNull == "true").toString(),
+        )
+        buildConfigField(
+            "boolean", "LAUNCHER_STOCK_TRANSACTION_TRACE",
+            (providers.gradleProperty("launcherStockTransactionTrace").orNull == "true").toString(),
+        )
+        buildConfigField(
+            "boolean",
+            "LAUNCHER_REUSE_SEARCH_BACKGROUND_LAYOUT",
+            providers.gradleProperty("launcherReuseSearchBackgroundLayout").map { (it == "true").toString() }
+                .getOrElse("false"),
+        )
+        buildConfigField(
+            "boolean",
+            "LAUNCHER_OPTIMIZE_STACK_WIDGET_OPTIONS",
+            providers.gradleProperty("launcherOptimizeStackWidgetOptions").map { (it == "true").toString() }
+                .getOrElse("false"),
+        )
+        buildConfigField(
+            "boolean",
+            "LAUNCHER_PREPARE_STACK_WIDGET_OFF_MAIN",
+            (providers.gradleProperty("launcherPrepareStackWidgetOffMain").orNull == "true").toString(),
+        )
+        buildConfigField(
+            "boolean",
+            "LAUNCHER_ICON_BUFFER_TRACE",
+            providers.gradleProperty("launcherIconBufferTrace").map { (it == "true").toString() }
+                .getOrElse("false"),
+        )
+        buildConfigField(
+            "boolean",
+            "LAUNCHER_ICON_GEOMETRY_TRACE",
+            providers.gradleProperty("launcherIconGeometryTrace").map { (it == "true").toString() }
+                .getOrElse("false"),
+        )
+        buildConfigField(
+            "boolean",
+            "LAUNCHER_CLOSING_ICON_SURFACE",
+            providers.gradleProperty("launcherClosingIconSurface").map { (it == "true").toString() }
+                .getOrElse("false"),
+        )
+        buildConfigField(
+            "boolean",
+            "LAUNCHER_DIRECT_CLOSING_SURFACES",
+            providers.gradleProperty("launcherDirectClosingSurfaces").map { (it == "true").toString() }
+                .getOrElse("false"),
+        )
+        buildConfigField(
+            "boolean",
+            "LAUNCHER_DETACHED_CLOSING_SPRING",
+            providers.gradleProperty("launcherDetachedClosingSpring").map { (it == "true").toString() }
+                .getOrElse("false"),
+        )
+        buildConfigField(
+            "boolean",
+            "LAUNCHER_DETACHED_OPENING",
+            providers.gradleProperty("launcherDetachedOpening").map { (it == "true").toString() }
+                .getOrElse("false"),
+        )
+        buildConfigField(
+            "boolean",
+            "LAUNCHER_SKIP_HIDDEN_OPENING_VIEWS",
+            providers.gradleProperty("launcherSkipHiddenOpeningViews").map { (it == "true").toString() }
+                .getOrElse("false"),
+        )
+        buildConfigField(
+            "boolean",
+            "LAUNCHER_SKIP_TRANSPARENT_CLOSING_BACKGROUND",
+            providers.gradleProperty("launcherSkipTransparentClosingBackground").map { (it == "true").toString() }
+                .getOrElse("false"),
+        )
+        buildConfigField(
+            "boolean",
+            "LAUNCHER_SKIP_DETACHED_WINDOW_UPDATES",
+            providers.gradleProperty("launcherSkipDetachedWindowUpdates").map { (it == "true").toString() }
+                .getOrElse("false"),
+        )
+        buildConfigField(
+            "boolean",
+            "LAUNCHER_CLOSING_ICON_PROJECTION_TRACE",
+            providers.gradleProperty("launcherClosingIconProjectionTrace").map { (it == "true").toString() }
+                .getOrElse("false"),
+        )
+        buildConfigField(
+            "boolean",
+            "LAUNCHER_SPRING_ALPHA_CACHE",
+            providers.gradleProperty("launcherSpringAlphaCache").map { (it == "true").toString() }
+                .getOrElse("false"),
+        )
+        buildConfigField(
+            "boolean",
+            "LAUNCHER_SPRING_REPLAY_PROBE",
+            providers.gradleProperty("launcherSpringReplayProbe").map { (it == "true").toString() }
+                .getOrElse("false"),
+        )
+        buildConfigField(
+            "boolean",
+            "LAUNCHER_OPEN_REPLAY_PROBE",
+            providers.gradleProperty("launcherOpenReplayProbe").map { (it == "true").toString() }
+                .getOrElse("false"),
+        )
     }
     signingConfigs {
         if (!distributionProperties.isEmpty)
@@ -104,8 +273,8 @@ android {
     buildTypes {
         release {
             isDebuggable = false
-            // Reflection and external hook contracts must retain their names.
-            isMinifyEnabled = false
+            isMinifyEnabled = providers.gradleProperty("shrinkOneUiReleaseDex").orNull == "true"
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.findByName("distribution")
         }
     }

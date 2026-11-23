@@ -2,6 +2,7 @@
 .kotlin/
 local.properties
 **/build/
+**/.cxx/
 artifacts/device/
 artifacts/decompiled/
 artifacts/probe/

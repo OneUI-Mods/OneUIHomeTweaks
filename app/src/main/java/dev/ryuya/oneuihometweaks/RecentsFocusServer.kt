@@ -54,7 +54,7 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
     private val schedule: Method
     private val policy: RecentsFocusPolicy = RecentsFocusPolicy()
     private val hooks: MutableList<ModernHook.Handle?> = ArrayList<ModernHook.Handle?>()
-    private var active: RecentsFocusServer.Active? = null
+    @Volatile private var active: RecentsFocusServer.Active? = null
     private var armedMode: Int = 0
     private var installed: Boolean = false
     private var broken: Boolean = false
@@ -167,7 +167,13 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
 
     private fun handOff(save: (Array<*>) -> Unit): Boolean = synchronized(lock) {
         if (active != null || restorePending || state == "restore-error" || legacyEndpointExported) return false
-        SystemUiHookScopes.tryRetire { save(arrayOf(loader, atm, armedMode, broken, state)) }
+        SystemUiHookScopes.tryRetireIf {
+            if (BuildConfig.STOCK_WIDGET_BROADCAST_WORKER && StockWidgetBroadcastHooks.hasPending()) {
+                return@tryRetireIf false
+            }
+            save(arrayOf(loader, atm, armedMode, broken, state))
+            true
+        }
     }
 
     init {
@@ -327,10 +333,11 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
                     focus,
                     object : ModernHook.Callback() {
                         override fun afterHookedMethod(p: ModernHook.Param) {
+                            if (active == null) return
                             synchronized(lock) {
-                                if (active == null) return
+                                val owned = active ?: return
                                 try {
-                                    if (!validForeground(active!!)) restore("left owned recents")
+                                    if (!validForeground(owned)) restore("left owned recents")
                                 } catch (error: Throwable) {
                                     fail(error)
                                 }
@@ -349,10 +356,10 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
                     setState,
                     object : ModernHook.Callback() {
                         override fun afterHookedMethod(p: ModernHook.Param) {
+                            val observed = active ?: return
+                            if (p.thisObject !== observed.record || (p.args[0] as Enum<*>).name == "RESUMED") return
                             synchronized(lock) {
-                                if (active == null || p.thisObject !== active!!.record) return
-                                if ("RESUMED" != (p.args[0] as Enum<*>).name)
-                                    restore("source lifecycle changed")
+                                if (active === observed) restore("source lifecycle changed")
                             }
                         }
                     },
@@ -578,7 +585,9 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
             val loader = installedLoader
             if (loader != null) return SystemUiHookScopes.tryRetireIf {
                 // A first discovery may have initialized a session before the lock was acquired.
-                if (instance != null) false
+                if (instance != null ||
+                    (BuildConfig.STOCK_WIDGET_BROADCAST_WORKER && StockWidgetBroadcastHooks.hasPending())
+                ) false
                 else {
                     save(arrayOf(loader))
                     true
@@ -613,6 +622,9 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
                         instance = backend
                     }
                     installDispatch(loader)
+                    if (BuildConfig.STOCK_BATTERY_PASS_THROUGH_LOCK) StockBatteryLockHooks.install(loader)
+                    if (BuildConfig.STOCK_WIDGET_SIZE_SAVE_BATCH) StockWidgetSaveHooks.install(loader)
+                    if (BuildConfig.STOCK_WIDGET_BROADCAST_WORKER) StockWidgetBroadcastHooks.install(loader)
                 }
                 check(SystemUiHookScopes.trySwitch(scope) { it?.close() })
             } catch (error: Throwable) {

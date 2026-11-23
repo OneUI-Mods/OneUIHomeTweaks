@@ -16,6 +16,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.Process
 import android.os.SystemClock
+import android.os.Trace
 import android.view.DisplayCutout
 import android.view.MotionEvent
 import android.view.ViewConfiguration
@@ -37,6 +38,7 @@ import java.util.HashMap
 import java.util.HashSet
 import java.util.UUID
 import java.util.WeakHashMap
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.Volatile
 import kotlin.jvm.JvmField
 import kotlin.jvm.JvmStatic
@@ -72,6 +74,7 @@ class HomeLayoutGuard {
     private val previousItems: MutableMap<Int?, String?> = HashMap<Int?, String?>()
     private val observed = WorkspaceGeometry()
     private val repositoryTypes: MutableSet<Class<*>?> = HashSet<Class<*>?>()
+    private val getters = ConcurrentHashMap<Class<*>, ConcurrentHashMap<String, Method>>()
     private var sequence: Long = 0
     private var geometryChanged: Long = 0
     private var dropped: Long = 0
@@ -135,8 +138,8 @@ class HomeLayoutGuard {
             collectLayouts(workspace)
 
             for (layout in ArrayList<ViewGroup?>(layouts)) {
-                val vm = HomeLayoutGuard.call(layout!!, "getViewModel")
-                if (JavaBoolean.TRUE == HomeLayoutGuard.call(vm!!, "isPreview")) continue
+                val vm = call(layout!!, "getViewModel")
+                if (JavaBoolean.TRUE == call(vm!!, "isPreview")) continue
                 observeRepository(vm!!)
             }
         } catch (error: Throwable) {
@@ -277,7 +280,7 @@ class HomeLayoutGuard {
                     override fun beforeHookedMethod(p: ModernHook.Param) {
                         try {
                             val windowName =
-                                HomeLayoutGuard.call(p.thisObject!!, "getName").toString()
+                                call(p.thisObject!!, "getName").toString()
                             if ((app!!.getPackageName() + ".Launcher") != windowName) {
                                 record("other_window", "name", windowName)
                                 return
@@ -372,7 +375,7 @@ class HomeLayoutGuard {
                         try {
                             if (
                                 JavaBoolean.TRUE ==
-                                    HomeLayoutGuard.call(p.thisObject!!, "isPreview")
+                                    call(p.thisObject!!, "isPreview")
                             )
                                 return
                             observeRepository(p.thisObject!!)
@@ -400,25 +403,24 @@ class HomeLayoutGuard {
                     override fun beforeHookedMethod(p: ModernHook.Param) {
                         try {
                             val context: Context? = p.args[0] as Context?
-                            val valid: Boolean =
-                                !recentsResumed &&
-                                    metricsValid(context!!) &&
-                                    nativeGeometryValid(context!!) &&
-                                    (SystemClock.uptimeMillis() - geometryChanged >=
-                                        HomeLayoutPolicy.SETTLE_MS)
-                            record(
-                                "sanitize",
-                                "reason",
-                                p.args[4],
-                                "orientation",
-                                p.args[1],
-                                "size",
-                                p.args[2],
-                                "valid",
-                                valid,
-                                "caller",
-                                HomeLayoutGuard.stack(),
-                            )
+                            val valid =
+                                !recentsResumed && SystemClock.uptimeMillis() - geometryChanged >= HomeLayoutPolicy.SETTLE_MS &&
+                                    nativeGeometryValid(context!!) && metricsValid(context)
+                            if (logging) {
+                                record(
+                                    "sanitize",
+                                    "reason",
+                                    p.args[4],
+                                    "orientation",
+                                    p.args[1],
+                                    "size",
+                                    p.args[2],
+                                    "valid",
+                                    valid,
+                                    "caller",
+                                    HomeLayoutGuard.stack(),
+                                )
+                            }
                             if (enabled && !stopped && !valid) {
                                 p.setResult(PointF(1f, 1f))
                                 record("sanitize_blocked", "reason", p.args[4], "size", p.args[2])
@@ -453,15 +455,13 @@ class HomeLayoutGuard {
 
         @Throws(ReflectiveOperationException::class)
         fun request() {
+            val vm = owner.get() ?: return
+            val current = Point(call(vm, "getCellLayoutSize") as Point)
             if (started == 0L) {
                 started = SystemClock.uptimeMillis()
-                record(
-                    "layout_deferred",
-                    "size",
-                    HomeLayoutGuard.call(owner.get()!!, "getCellLayoutSize"),
-                )
+                record("layout_deferred", "size", current)
             }
-            candidate = Point(HomeLayoutGuard.call(owner.get()!!, "getCellLayoutSize") as Point)
+            candidate = current
             main.removeCallbacks(this)
             main.postDelayed(this, HomeLayoutPolicy.SETTLE_MS)
         }
@@ -481,24 +481,8 @@ class HomeLayoutGuard {
                     )
                     return
                 }
-                val context = HomeLayoutGuard.uiContext(vm)
-                val current = Point(HomeLayoutGuard.call(vm, "getCellLayoutSize") as Point)
-                var stable: Boolean =
-                    candidate == current &&
-                        SystemClock.uptimeMillis() - geometryChanged >=
-                            HomeLayoutPolicy.SETTLE_MS &&
-                        metricsValid(context!!) &&
-                        nativeGeometryValid(context!!) &&
-                        measuredGeometryValid(vm, current) &&
-                        !touchDown
-                stable =
-                    HomeLayoutPolicy.canApply(
-                        launcherResumed,
-                        recentsResumed,
-                        focusedHome(vm),
-                        stable,
-                    )
-                if (enabled && !stopped && !stable) {
+                val current = Point(call(vm, "getCellLayoutSize") as Point)
+                if (enabled && !stopped && !readyForReplay(vm, current)) {
                     if (SystemClock.uptimeMillis() - started >= HomeLayoutPolicy.MAX_WAIT_MS) {
                         record(
                             "layout_abandoned",
@@ -525,8 +509,7 @@ class HomeLayoutGuard {
                 pending.remove(vm)
                 replaying = true
                 try {
-                    updateAll!!.invoke(vm)
-
+                    traceLayout("OneUI DIY replay stock layout") { updateAll!!.invoke(vm) }
                     record("layout_applied", "size", current)
                 } finally {
                     replaying = false
@@ -534,6 +517,18 @@ class HomeLayoutGuard {
             } catch (error: Throwable) {
                 disableRepair(error)
             }
+        }
+
+        private fun readyForReplay(vm: Any, current: Point): Boolean {
+            if (touchDown || candidate != current ||
+                SystemClock.uptimeMillis() - geometryChanged < HomeLayoutPolicy.SETTLE_MS
+            ) return false
+            val localStable = traceLayout("OneUI DIY measure and focus") {
+                HomeLayoutPolicy.canApply(launcherResumed, recentsResumed, focusedHome(vm), measuredGeometryValid(vm, current))
+            }
+            if (!localStable) return false
+            val context = checkNotNull(HomeLayoutGuard.uiContext(vm))
+            return nativeGeometryValid(context) && metricsValid(context)
         }
     }
 
@@ -613,10 +608,10 @@ class HomeLayoutGuard {
         val field = vm.javaClass.compatibleDeclaredField("freeGridRepository")
         field.setAccessible(true)
         val repository = field.get(vm)
-        for (item in HomeLayoutGuard.call(vm, "getItems") as Iterable<*>) {
-            val id = HomeLayoutGuard.number(item!!, "getId")
+        for (item in call(vm, "getItems") as Iterable<*>) {
+            val id = number(item!!, "getId")
             if (!previousItems.containsKey(id)) {
-                val state = HomeLayoutGuard.snapshot(item)
+                val state = snapshot(item)
                 previousItems.put(id, state)
                 record("item_baseline", "item", state)
             }
@@ -631,44 +626,35 @@ class HomeLayoutGuard {
             )
                 continue
             handles.add(
-                ModernHook.hookMethod(
-                    update,
-                    object : ModernHook.Callback() {
-                        override fun beforeHookedMethod(p: ModernHook.Param) {
-                            if (!logging) return
-                            try {
-                                val id = HomeLayoutGuard.number(p.args[0]!!, "getId")
-                                val next = HomeLayoutGuard.snapshot(p.args[0]!!)
-                                val old = previousItems.put(id, next)
-                                record(
-                                    "item_write",
-                                    "before",
-                                    old,
-                                    "after",
-                                    next,
-                                    "caller",
-                                    HomeLayoutGuard.stack(),
-                                )
-                            } catch (error: Throwable) {
-                                record(
-                                    "item_write",
-                                    "item",
-                                    HomeLayoutGuard.snapshot(p.args[0]!!),
-                                    "caller",
-                                    HomeLayoutGuard.stack(),
-                                )
-                            }
-                        }
-
-                        override fun afterHookedMethod(p: ModernHook.Param) {
-                            if (p.hasThrowable())
-                                record("item_write_failed", "error", "native exception")
-                        }
-                    },
-                ),
+                ModernHook.aroundMethod(update) { chain ->
+                    val duringReplay = Looper.myLooper() === main.looper && replaying
+                    val item = chain.args[0]
+                    if (logging && item != null) {
+                        if (duringReplay) traceLayout("OneUI DIY journal item update") { recordItemWrite(item) }
+                        else recordItemWrite(item)
+                    }
+                    try {
+                        if (duringReplay) traceLayout("OneUI DIY repository update") { chain.proceed() }
+                        else chain.proceed()
+                    } catch (error: Throwable) {
+                        record("item_write_failed", "error", "native exception")
+                        throw error
+                    }
+                },
             )
         }
         record("repository_observed", "class", repository.javaClass.compatibleName())
+    }
+
+    private fun recordItemWrite(item: Any) {
+        try {
+            val id = number(item, "getId")
+            val next = snapshot(item)
+            val old = previousItems.put(id, next)
+            record("item_write", "before", old, "after", next, "caller", HomeLayoutGuard.stack())
+        } catch (_: Throwable) {
+            record("item_write", "item", snapshot(item), "caller", HomeLayoutGuard.stack())
+        }
     }
 
     private fun activity(activity: Activity, event: String?) {
@@ -789,7 +775,7 @@ class HomeLayoutGuard {
     }
 
     @Throws(ReflectiveOperationException::class)
-    private fun metricsValid(context: Context): Boolean {
+    private fun metricsValid(context: Context): Boolean = traceLayout("OneUI DIY window metrics") {
         val metrics =
             checkNotNull(
                     context.getSystemService<WindowManager?>(WindowManager::class.java),
@@ -798,8 +784,18 @@ class HomeLayoutGuard {
                 }
                 .getCurrentWindowMetrics()
         val bounds = configurationBounds(context)
-        return HomeLayoutGuard.same(bounds!!, metrics.getBounds()) &&
+        HomeLayoutGuard.same(bounds!!, metrics.getBounds()) &&
             HomeLayoutGuard.consistent(bounds!!, metrics.getWindowInsets())
+    }
+
+    private inline fun <T> traceLayout(name: String, action: () -> T): T {
+        if (!Trace.isEnabled()) return action()
+        Trace.beginSection(name)
+        try {
+            return action()
+        } finally {
+            Trace.endSection()
+        }
     }
 
     @Throws(ReflectiveOperationException::class)
@@ -808,8 +804,8 @@ class HomeLayoutGuard {
         if (bounds == null)
             return true // Before the first observed bounds update, check measured layout too.
 
-        val current: Rect? = HomeLayoutGuard.call(bounds, "getBounds") as Rect?
-        val safe: Rect? = HomeLayoutGuard.call(bounds, "getCutout") as Rect?
+        val current: Rect? = call(bounds, "getBounds") as Rect?
+        val safe: Rect? = call(bounds, "getCutout") as Rect?
         return HomeLayoutGuard.same(current!!, configurationBounds(context)!!) &&
             HomeLayoutPolicy.consistent(
                 current!!.width(),
@@ -825,7 +821,7 @@ class HomeLayoutGuard {
     private fun focusedHome(vm: Any?): Boolean {
         for (layout in ArrayList<ViewGroup?>(layouts)) if (
             layout!!.isAttachedToWindow() &&
-                HomeLayoutGuard.call(layout, "getViewModel") === vm &&
+                call(layout, "getViewModel") === vm &&
                 layout!!.hasWindowFocus()
         )
             return true
@@ -836,7 +832,7 @@ class HomeLayoutGuard {
     private fun measuredSizes(vm: Any?): String? {
         val result = StringBuilder()
         for (layout in ArrayList<ViewGroup?>(layouts)) if (
-            layout!!.isAttachedToWindow() && HomeLayoutGuard.call(layout, "getViewModel") === vm
+            layout!!.isAttachedToWindow() && call(layout, "getViewModel") === vm
         )
             result.append(layout!!.getWidth()).append('x').append(layout!!.getHeight()).append(';')
         return result.toString()
@@ -848,7 +844,7 @@ class HomeLayoutGuard {
         for (layout in ArrayList<ViewGroup?>(layouts)) {
             if (
                 !layout!!.isAttachedToWindow() ||
-                    HomeLayoutGuard.call(layout, "getViewModel") !== vm
+                    call(layout, "getViewModel") !== vm
             )
                 continue
             if (layout!!.getWidth() == 0 || layout!!.getHeight() == 0) continue
@@ -864,6 +860,34 @@ class HomeLayoutGuard {
             found = true
         }
         return found
+    }
+
+    private fun call(owner: Any, name: String): Any? {
+        val methods = getters.computeIfAbsent(owner.javaClass) { ConcurrentHashMap() }
+        val method = methods.computeIfAbsent(name) { findGetter(owner.javaClass, it) }
+        return method.invoke(owner)
+    }
+
+    private fun findGetter(owner: Class<*>, name: String): Method {
+        var type: Class<*>? = owner
+        while (type != null) {
+            try {
+                return type.compatibleDeclaredMethod(name).apply { isAccessible = true }
+            } catch (_: NoSuchMethodException) {
+                type = type.superclass
+            }
+        }
+        throw NoSuchMethodException(owner.compatibleName() + "." + name)
+    }
+
+    private fun number(item: Any, name: String): Int = (call(item, name) as Number).toInt()
+
+    private fun snapshot(item: Any): String = try {
+        "id=${number(item, "getId")},type=${item.javaClass.simpleName}," +
+            "page=${number(item, "getPageId")},x=${number(item, "getX")},y=${number(item, "getY")}," +
+            "span=${number(item, "getSpanX")}x${number(item, "getSpanY")},scale=${call(item, "getScale")}"
+    } catch (_: Throwable) {
+        item.javaClass.compatibleName() + ":snapshot unavailable"
     }
 
     companion object {
@@ -906,52 +930,6 @@ class HomeLayoutGuard {
             val field = vm.javaClass.compatibleDeclaredField("uiContext")
             field.setAccessible(true)
             return field.get(vm) as Context?
-        }
-
-        @JvmStatic
-        @Throws(ReflectiveOperationException::class)
-        private fun call(owner: Any, name: String?): Any? {
-            var type = owner.javaClass
-            while (type != null) {
-                try {
-                    val method = type.compatibleDeclaredMethod(name)
-                    method.setAccessible(true)
-                    return method.invoke(owner)
-                } catch (missing: NoSuchMethodException) {
-                    type = type.getSuperclass()
-                }
-            }
-            throw NoSuchMethodException(owner.javaClass.compatibleName() + "." + name)
-        }
-
-        @JvmStatic
-        @Throws(ReflectiveOperationException::class)
-        private fun number(item: Any, name: String?): Int {
-            return (HomeLayoutGuard.call(item, name) as Number).toInt()
-        }
-
-        @JvmStatic
-        private fun snapshot(item: Any): String? {
-            try {
-                return ("id=" +
-                    HomeLayoutGuard.number(item, "getId") +
-                    ",type=" +
-                    item.javaClass.getSimpleName() +
-                    ",page=" +
-                    HomeLayoutGuard.number(item, "getPageId") +
-                    ",x=" +
-                    HomeLayoutGuard.number(item, "getX") +
-                    ",y=" +
-                    HomeLayoutGuard.number(item, "getY") +
-                    ",span=" +
-                    HomeLayoutGuard.number(item, "getSpanX") +
-                    "x" +
-                    HomeLayoutGuard.number(item, "getSpanY") +
-                    ",scale=" +
-                    HomeLayoutGuard.call(item, "getScale"))
-            } catch (error: Throwable) {
-                return item.javaClass.compatibleName() + ":snapshot unavailable"
-            }
         }
 
         @JvmStatic

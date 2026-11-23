@@ -21,35 +21,32 @@ object DexKitNative {
     fun load() {
         if (loaded) return
         try {
-            val info = moduleInfo
-            if (info == null) {
-                // Normal module application/provider process, with an Android app class loader.
-                System.loadLibrary("dexkit")
-            } else {
-                val extracted = File(info.nativeLibraryDir, "libdexkit.so")
-                if (extracted.isFile) {
-                    System.load(extracted.absolutePath)
-                } else {
-                    // Android loads uncompressed, aligned ELF entries directly from the APK.
-                    val abis =
-                        if (Process.is64Bit()) Build.SUPPORTED_64_BIT_ABIS
-                        else Build.SUPPORTED_32_BIT_ABIS
-                    val entry =
-                        ZipFile(info.sourceDir).use { zip ->
-                            abis
-                                .map { "lib/$it/libdexkit.so" }
-                                .firstOrNull { name ->
-                                    zip.getEntry(name)?.let { it.method == ZipEntry.STORED } == true
-                                }
-                        } ?: throw UnsatisfiedLinkError("No compatible stored DexKit library")
-                    System.load("${info.sourceDir}!/$entry")
-                }
-            }
+            loadModuleLibrary("dexkit")
             loaded = true
         } catch (error: LinkageError) {
             // Fixed library only. Preserve the linker reason instead of losing it in a cache state.
             Log.e("OneUIHomeTweaks", "DEXKIT_NATIVE_LOAD_FAILED", error)
             throw error
         }
+    }
+
+    internal fun loadModuleLibrary(name: String) {
+        val info = moduleInfo
+        if (info == null) {
+            System.loadLibrary(name)
+            return
+        }
+        val fileName = "lib$name.so"
+        val extracted = File(info.nativeLibraryDir, fileName)
+        if (extracted.isFile) {
+            System.load(extracted.absolutePath)
+            return
+        }
+        val abis = if (Process.is64Bit()) Build.SUPPORTED_64_BIT_ABIS else Build.SUPPORTED_32_BIT_ABIS
+        val entry = ZipFile(info.sourceDir).use { zip ->
+            abis.asSequence().map { "lib/$it/$fileName" }
+                .firstOrNull { zip.getEntry(it)?.method == ZipEntry.STORED }
+        } ?: throw UnsatisfiedLinkError("No compatible stored library $name")
+        System.load("${info.sourceDir}!/$entry")
     }
 }

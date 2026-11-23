@@ -12,6 +12,8 @@ Starting with 0.21.52, [Galaxy Glass Tools](https://github.com/OneUI-Mods/Galaxy
 
 On Android 17 BZI9, the interaction setting briefly requests 120 Hz during Home and notification-panel interactions and after unlocking. The display setting, power-saving mode, and thermal limits still apply.
 
+Version 0.21.235 reduces stutter when opening apps from Home and returning with a gesture on BZI9. It reuses already-displayed content so the transition can continue while a new app frame is being prepared. See the [release notes](docs/releases/0.21.235.md) for compatibility and update instructions.
+
 ## DIY icon grid recovery
 
 On Android 17, icon alignment retries native home-context geometry when dimensions do not fit the measured page. The viewport check remains enforced, with no changes to saved positions or widgets.

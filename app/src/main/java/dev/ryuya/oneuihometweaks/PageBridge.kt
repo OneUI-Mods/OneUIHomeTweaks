@@ -59,9 +59,14 @@ class PageBridge {
     private var correctedNativeWrites = 0L
     private var nativeWriterFailed = false
     private var freeGridObserver: Consumer<ViewGroup?>? = null
+    private var freeGridClassObserver: ((Class<*>) -> Unit)? = null
 
     fun setFreeGridObserver(observer: Consumer<ViewGroup?>?) {
         freeGridObserver = observer
+    }
+
+    internal fun setFreeGridClassObserver(observer: (Class<*>) -> Unit) {
+        freeGridClassObserver = observer
     }
 
     @Throws(Exception::class)
@@ -203,6 +208,7 @@ class PageBridge {
                         val bridge = PageBridge()
                         bridge.isFreeGrid = true
                         bridge.freeGridObserver = freeGridObserver
+                        bridge.freeGridClassObserver = freeGridClassObserver
                         bridge.installFreeGrid(DexSymbols.findClass(name, false, pluginLoader))
                         freeGrid = bridge
                         bridge.homeActivity = homeActivity
@@ -239,6 +245,7 @@ class PageBridge {
                         val bridge = PageBridge()
                         bridge.isFreeGrid = true
                         bridge.freeGridObserver = freeGridObserver
+                        bridge.freeGridClassObserver = freeGridClassObserver
                         bridge.installFreeGrid(DexSymbols.findClass(name, false, pluginLoader))
                         freeGrid = bridge
                         bridge.homeActivity = homeActivity
@@ -266,6 +273,7 @@ class PageBridge {
 
     @Throws(Exception::class)
     private fun installFreeGrid(workspace: Class<*>) {
+        freeGridClassObserver?.invoke(workspace)
         scrollForPage = workspace.compatibleMethod("getScrollForPage", Int::class.javaPrimitiveType)
         spaceInfo = workspace.compatibleMethod("getHoneySpaceInfo")
         visibleCount = workspace.compatibleMethod("getVisibleCount")
@@ -361,6 +369,7 @@ class PageBridge {
                 it.isFreeGrid = true
                 it.homeActivity = homeActivity
                 it.freeGridObserver = freeGridObserver
+                it.freeGridClassObserver = freeGridClassObserver
                 it.installFreeGrid(live.javaClass)
                 freeGrid = it
             }
@@ -377,6 +386,7 @@ class PageBridge {
         pendingView = null
         freeGrid?.closeForReload()
         freeGridObserver = null
+        freeGridClassObserver = null
         removeFocusListener()
     }
 

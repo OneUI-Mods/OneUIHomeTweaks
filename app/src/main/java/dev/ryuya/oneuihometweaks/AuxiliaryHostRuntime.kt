@@ -40,12 +40,18 @@ internal object AuxiliaryHostRuntime {
         try {
             if (app.packageName == SETTINGS) {
                 val editor = DeveloperAnimationHooks()
+                val startup = StockSettingsStartupHooks()
                 scope.onRetire(editor::close)
-                check(SystemUiHookScopes.bind(scope) { editor.install(app, classLoader) })
+                scope.onRetire(startup::close)
+                check(SystemUiHookScopes.bind(scope) {
+                    val installed = editor.install(app, classLoader)
+                    if (installed) startup.install(app, classLoader)
+                    installed
+                })
                 check(SystemUiHookScopes.trySwitch(scope) { it?.close() })
                 editor.reattachControllers(previousState)
                 currentState = editor::liveControllers
-                readyToRetire = editor::readyForHotReload
+                readyToRetire = { editor.readyForHotReload() && startup.readyForHotReload() }
             } else {
                 check(app.packageName == PREVIEW)
                 if (Build.VERSION.SDK_INT < 36) error("Wallpaper preview requires Android 16")

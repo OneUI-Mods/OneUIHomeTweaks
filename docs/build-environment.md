@@ -10,6 +10,8 @@ Updated on 2026-11-18. Stable releases are pinned; preview dependencies and dyna
 | Kotlin compiler | 2.4.21 |
 | Compile SDK | Android 17, API 37.2 |
 | Build Tools | 37.0.0 |
+| Android NDK | 29.0.13113456 |
+| CMake | 3.22.1 |
 | Java / Kotlin bytecode | Java 17 |
 
 The build JDK does not change the minimum Android version or force Java 27 APIs into the APK. Existing minimum/target SDK contracts and saved user settings are preserved. Android 16/17 hook paths and the existing Xposed API generation remain separate where required. Library versions are pinned in this repository's Gradle files or version catalog.

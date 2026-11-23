@@ -19,6 +19,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.Process
+import android.os.Trace
 import android.provider.Settings.System
 import android.util.Log
 import android.view.ViewGroup
@@ -63,6 +64,8 @@ class HookEntry : XposedModule() {
     private var wm: WallpaperManager? = null
     private val pages: PageBridge = PageBridge()
     private val homeLayout: HomeLayoutGuard = HomeLayoutGuard()
+    private val freeGridShutdownReceivers = LauncherFreeGridShutdownReceivers()
+    private val freeGridPageLoad = LauncherFreeGridPageLoad()
     private val diyWidgets = DiyWidgetPlacementGuard()
     private val diyGrid: DiyGridBridge = DiyGridBridge().also { it.widgetPlacementGuard = diyWidgets }
     private val gridSave: GridSaveCoordinator = GridSaveCoordinator(diyGrid)
@@ -87,6 +90,7 @@ class HookEntry : XposedModule() {
     private var systemServer = false
     private val launcherMain = Handler(Looper.getMainLooper())
     private var launcherScope: SystemUiHookScope? = null
+    private var launcherTransitionsIdle: () -> Boolean = { true }
     private var launcherWorker: LauncherWorker? = null
     private var launcherPackage: TargetPackage? = null
     private var launcherActivity = WeakReference<Activity>(null)
@@ -177,7 +181,8 @@ class HookEntry : XposedModule() {
             }
             if (!homeLabels.idleForHotReload() || !liveRecents.idleForHotReload() ||
                 !unlockMotion.idleForHotReload() || !diyWidgets.idleForHotReload() ||
-                !diyGrid.idleForHotReload() || !gridSave.idleForHotReload()
+                !diyGrid.idleForHotReload() || !gridSave.idleForHotReload() || !launcherTransitionsIdle() ||
+                !freeGridShutdownReceivers.idleForHotReload()
             ) return@retire false
 
             SystemUiHookScopes.tryRetireIf {
@@ -484,12 +489,56 @@ class HookEntry : XposedModule() {
             LauncherEarlyWakeupHooks.install(app, p.classLoader)
             LauncherFocusedDisplayHooks.install(app, p.classLoader)
             LauncherWidgetCornerResources.install(app, p.classLoader)
+            LauncherLiveIconHooks.install(app, p.classLoader)
             unlockMotion.install(app, p.classLoader)
             if (Build.VERSION.SDK_INT == 37) {
                 StockSurfaceAnimationHooks.install(app, p.classLoader)
             }
             if (BuildConfig.LAUNCHER_BLUR_CACHE) {
                 LauncherBlurCacheHooks.install(app, p.classLoader)
+            }
+            if (BuildConfig.LAUNCHER_TRANSITION_DISPLAY_LIST_REUSE) {
+                LauncherTransitionDisplayListHooks.install(app, p.classLoader)
+            }
+            if (BuildConfig.LAUNCHER_RENDER_TRANSACTION_MERGE) {
+                LauncherRenderTransactionMerge.install(app, p.classLoader)
+            }
+            if (BuildConfig.LAUNCHER_STOCK_TRANSACTION_TRACE) {
+                LauncherStockTransactionTrace.install(app, p.classLoader)
+            }
+            if (BuildConfig.LAUNCHER_PREWARM_HOME_UP_PROVIDER) {
+                LauncherHomeUpProviderWarmup.install(app, p.classLoader)
+            }
+            prepareFreeGridPerformance(app)
+            if (BuildConfig.LAUNCHER_REUSE_SEARCH_BACKGROUND_LAYOUT) {
+                LauncherSearchBackgroundLayoutHooks.install(app, p.classLoader)
+            }
+            if (BuildConfig.LAUNCHER_OPTIMIZE_STACK_WIDGET_OPTIONS) {
+                LauncherStackedWidgetOptions.install(app, p.classLoader)
+            }
+            if (BuildConfig.LAUNCHER_PREPARE_STACK_WIDGET_OFF_MAIN) {
+                LauncherStackedWidgetPreparation.install(app, p.classLoader)
+            }
+            if ((BuildConfig.LAUNCHER_ICON_BUFFER_TRACE || BuildConfig.LAUNCHER_ICON_GEOMETRY_TRACE) &&
+                Build.VERSION.SDK_INT >= 34
+            ) {
+                LauncherIconBufferTrace.install(app, p.classLoader)
+            }
+            if (BuildConfig.LAUNCHER_CLOSING_ICON_SURFACE && Build.VERSION.SDK_INT >= 34) {
+                LauncherClosingIconSurface.install(app, p.classLoader)?.let { launcherTransitionsIdle = it }
+            }
+            if (BuildConfig.LAUNCHER_SPRING_ALPHA_CACHE) {
+                LauncherSpringAlphaCache.install(app, p.classLoader)
+            }
+            if (BuildConfig.LAUNCHER_SPRING_REPLAY_PROBE && !BuildConfig.LAUNCHER_DETACHED_CLOSING_SPRING &&
+                Build.VERSION.SDK_INT >= 35
+            ) {
+                LauncherSpringReplayProbe.install(app, p.classLoader)
+            }
+            if (BuildConfig.LAUNCHER_OPEN_REPLAY_PROBE && !BuildConfig.LAUNCHER_DETACHED_OPENING &&
+                Build.VERSION.SDK_INT >= 35
+            ) {
+                LauncherOpeningReplayProbe.install(app, p.classLoader)
             }
             val reads: ModernHook.Callback =
                 object : ModernHook.Callback() {
@@ -640,6 +689,30 @@ class HookEntry : XposedModule() {
                 } catch (ignored: Throwable) {}
             }
             fail("install; rolled back", t)
+        }
+    }
+
+    private fun prepareFreeGridPerformance(app: Application) {
+        if (!BuildConfig.LAUNCHER_FREE_GRID_SHUTDOWN_RECEIVER_WORKER &&
+            !BuildConfig.LAUNCHER_FREE_GRID_INITIAL_PAGE_WORKER
+        ) return
+        if (Build.VERSION.SDK_INT != 37 || !HookCompatibility.matchesClockBuild(37, Build.DISPLAY)) return
+        try {
+            @Suppress("DEPRECATION")
+            val launcherVersion = app.packageManager.getPackageInfo(app.packageName, 0).longVersionCode
+            if (!HookCompatibility.matchesLauncherVersion(37, launcherVersion)) return
+            @Suppress("DEPRECATION")
+            val homeUpVersion = app.packageManager.getPackageInfo("com.samsung.android.app.homestar", 0).longVersionCode
+            if (homeUpVersion != 1800005036L) return
+            pages.setFreeGridClassObserver { workspace ->
+                if (BuildConfig.LAUNCHER_FREE_GRID_SHUTDOWN_RECEIVER_WORKER) freeGridShutdownReceivers.install(workspace)
+                if (BuildConfig.LAUNCHER_FREE_GRID_INITIAL_PAGE_WORKER) freeGridPageLoad.install(workspace)
+            }
+            if (BuildConfig.LAUNCHER_FREE_GRID_SHUTDOWN_RECEIVER_WORKER) {
+                ModernHook.onGenerationRetired(freeGridShutdownReceivers::close)
+            }
+        } catch (error: Exception) {
+            HookEntry.log("FREEGRID_PERFORMANCE_UNAVAILABLE ${error.javaClass.simpleName}")
         }
     }
 
@@ -872,10 +945,7 @@ class HookEntry : XposedModule() {
                     diyWidgets.setEnabled(currentAvoidWidgets)
                     diyGrid.setEnabled(currentDiyGrid)
                     gridSave.accept(context!!, gridRequest)
-                    HostStatus.report(
-                        context,
-                        if (currentMaster) "ACTIVE" else "OFF",
-                        ("Launcher bridge; wallpaper=" +
+                    val detail = ("Launcher bridge; wallpaper=" +
                             (if (target) "live" else "static") +
                             "; hints=" +
                             hints +
@@ -893,8 +963,22 @@ class HookEntry : XposedModule() {
                             "; folders=" +
                             folders.diagnostic() +
                             "; iconOverlap=" +
-                            iconOverlap.diagnostic()),
-                    )
+                            iconOverlap.diagnostic())
+                    val state = if (currentMaster) "ACTIVE" else "OFF"
+                    val host = context
+                    // Snapshot view-owned diagnostics here. Provider storage and notification can
+                    // wait on system_server, so keep that IPC off the launcher frame thread.
+                    worker?.post {
+                        if (!failed && !launcherRetired) {
+                            val tracing = Trace.isEnabled()
+                            if (tracing) Trace.beginSection("OneUI launcher status report")
+                            try {
+                                HostStatus.report(host, state, detail)
+                            } finally {
+                                if (tracing) Trace.endSection()
+                            }
+                        }
+                    }
                 }
             )
             val next = HomeColorSnapshot.resolve(label, status, target, hints)

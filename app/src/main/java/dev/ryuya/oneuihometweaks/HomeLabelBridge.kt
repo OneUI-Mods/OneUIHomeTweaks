@@ -20,6 +20,8 @@ import android.graphics.Rect
 import android.graphics.RectF
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
+import android.os.Trace
 import android.view.View
 import android.view.View.OnAttachStateChangeListener
 import android.view.ViewGroup
@@ -31,6 +33,7 @@ import android.widget.TextView
 import androidx.core.graphics.ColorUtils
 import dev.ryuya.oneuihometweaks.compat.DexSymbols
 import dev.ryuya.oneuihometweaks.compat.compatibleDeclaredMethod
+import dev.ryuya.oneuihometweaks.compat.compatibleField
 import dev.ryuya.oneuihometweaks.compat.compatibleMethod
 import dev.ryuya.oneuihometweaks.compat.compatibleName
 import java.lang.ref.WeakReference
@@ -58,6 +61,8 @@ class HomeLabelBridge {
     private var setColor: Method? = null
     private var screenshot: Method? = null
     private var windowService: Any? = null
+    private var gestureInProgress: () -> Boolean = { false }
+    @Volatile private var launchOptionsAt = 0L
     private var enabled: Boolean = false
     private var failed: Boolean = false
     private var busy: Boolean = false
@@ -114,6 +119,7 @@ class HomeLabelBridge {
         iconClass = icon
         worker = background
         changed = report
+        installTransitionGuard(loader)
         try {
             finderClass =
                 DexSymbols.findClass(
@@ -216,6 +222,39 @@ class HomeLabelBridge {
         )
         state = "off"
         HookEntry.log("LOCAL_LABEL_READY wallpaper-only screenshot; native per-icon color API")
+    }
+
+    private fun installTransitionGuard(loader: ClassLoader?) {
+        try {
+            val shell = DexSymbols.findClass("com.honeyspace.transition.ShellTransitionManager", false, loader)
+            val companion = shell.compatibleField("Companion").get(null)
+            val running = companion.javaClass.compatibleMethod("getTransitionRunning").invoke(companion)
+            val flowType = DexSymbols.findClass("kotlinx.coroutines.flow.StateFlow", false, loader)
+            check(flowType.isInstance(running))
+            val getValue = flowType.compatibleMethod("getValue")
+            gestureInProgress = { getValue.invoke(running) == true }
+
+            val info = DexSymbols.findClass("com.honeyspace.sdk.transition.ShellTransition\$Info", false, loader)
+            val runner = DexSymbols.findClass("com.honeyspace.transition.ShellAnimationRunner", false, loader)
+            val launch = shell.compatibleDeclaredMethod("getActivityLaunchOptions", info, runner)
+            ModernHook.aroundMethod(launch) { chain ->
+                if (enabled) launchOptionsAt = SystemClock.uptimeMillis()
+                chain.proceed()
+            }
+            HookEntry.log("LOCAL_LABEL_TRANSITION_GUARD_READY")
+        } catch (error: Exception) {
+            HookEntry.log("LOCAL_LABEL_TRANSITION_GUARD_UNAVAILABLE ${error.javaClass.simpleName}")
+        }
+    }
+
+    private fun isTransitionActive(): Boolean {
+        // The options can be prepared before Shell or window focus reports the launch.
+        if (launchOptionsAt != 0L && SystemClock.uptimeMillis() - launchOptionsAt < 250L) return true
+        return try {
+            gestureInProgress()
+        } catch (_: ReflectiveOperationException) {
+            false
+        }
     }
 
     internal fun idleForHotReload() = !busy
@@ -403,6 +442,10 @@ class HomeLabelBridge {
 
     private fun sample() {
         val activity = home.get()
+        if (isTransitionActive()) {
+            if (Trace.isEnabled()) Trace.setCounter("OneUI Home wallpaper sample deferred", 1)
+            return
+        }
         if (!usable(activity)) return
         if (busy) {
             retryWhenIdle = true
@@ -643,7 +686,14 @@ class HomeLabelBridge {
         try {
             // A focus or geometry change may invalidate this request while the worker waits.
             // The main-thread completion still clears busy so later valid requests can run.
-            if (epoch == generation) raw = screenshot!!.invoke(windowService) as Bitmap?
+            if (epoch == generation && !isTransitionActive()) {
+                Trace.beginSection("OneUI Home label wallpaper capture")
+                try {
+                    raw = screenshot!!.invoke(windowService) as Bitmap?
+                } finally {
+                    Trace.endSection()
+                }
+            }
             if (raw == null || epoch != generation) unavailable = "waiting"
             else if (raw.getWidth() != screen.width() || raw.getHeight() != screen.height())
                 unavailable =
