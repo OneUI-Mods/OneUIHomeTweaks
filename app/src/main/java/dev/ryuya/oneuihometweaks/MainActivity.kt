@@ -201,6 +201,19 @@ class MainActivity : AppCompatActivity() {
             if (HomeUnlockMotion.supportsDevice()) View.VISIBLE else View.GONE
         if (StockLauncherActivityRetention.supportsDevice()) {
             requireViewById<View>(R.id.home_retention_card).visibility = View.VISIBLE
+            val keepLabel = requireViewById<TextView>(R.id.snapshot_keep_label)
+            requireViewById<com.google.android.material.slider.Slider>(R.id.snapshot_keep).apply {
+                value = prefs!!.getInt(StockSnapshotCacheTrim.KEY, StockSnapshotCacheTrim.AOSP)
+                    .coerceIn(StockSnapshotCacheTrim.MIN, StockSnapshotCacheTrim.MAX).toFloat()
+                keepLabel.text = getString(R.string.snapshot_keep, value.toInt())
+                addOnChangeListener { _, newValue, fromUser ->
+                    keepLabel.text = getString(R.string.snapshot_keep, newValue.toInt())
+                    if (fromUser) {
+                        prefs!!.edit().putInt(StockSnapshotCacheTrim.KEY, newValue.toInt()).apply()
+                        notifyConfig()
+                    }
+                }
+            }
             for ((id, key) in listOf(
                 R.id.home_retention to StockLauncherActivityRetention.HOME_KEY,
                 R.id.recents_retention to StockLauncherActivityRetention.RECENTS_KEY,

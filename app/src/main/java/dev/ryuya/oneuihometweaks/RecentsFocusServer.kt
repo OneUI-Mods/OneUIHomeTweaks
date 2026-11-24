@@ -136,6 +136,9 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
                             false
                         }
                         RecentsFocusWire.KEEP_LAUNCHER_SCREENS -> {
+                            if (data.containsKey(StockSnapshotCacheTrim.KEY)) {
+                                StockSnapshotCacheTrim.keep = data.getInt(StockSnapshotCacheTrim.KEY)
+                            }
                             if (StockLauncherActivityRetention.available) {
                                 StockLauncherActivityRetention.policy = StockLauncherActivityRetention.Policy(
                                     data.getBoolean(StockLauncherActivityRetention.HOME_KEY, false),
@@ -257,6 +260,7 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
         reply.putString("state", state)
         reply.putBoolean("accepted", accepted)
         reply.putInt("mode", armedMode)
+        reply.putInt(StockSnapshotCacheTrim.KEY, StockSnapshotCacheTrim.keep)
         if (StockLauncherActivityRetention.available) {
             val retention = StockLauncherActivityRetention.policy
             reply.putBoolean(StockLauncherActivityRetention.HOME_KEY, retention.home)
@@ -645,6 +649,7 @@ class RecentsFocusServer private constructor(atm: Any, loader: ClassLoader) {
                     }
                     installDispatch(loader)
                     if (BuildConfig.STOCK_BATTERY_PASS_THROUGH_LOCK) StockBatteryLockHooks.install(loader)
+                    if (BuildConfig.STOCK_SNAPSHOT_CACHE_TRIM) StockSnapshotCacheTrim.install(loader)
                     if (BuildConfig.STOCK_WIDGET_SIZE_SAVE_BATCH) StockWidgetSaveHooks.install(loader)
                     if (BuildConfig.STOCK_WIDGET_BROADCAST_WORKER) StockWidgetBroadcastHooks.install(loader)
                 }

@@ -83,10 +83,17 @@ class RecentsFocusRegistry(context: Context) {
         val homeEnabled = p.getBoolean("enabled", true) && p.getBoolean("home_enabled", true)
         val home = homeEnabled && p.getBoolean(homeKey, false)
         val recents = homeEnabled && p.getBoolean(recentsKey, false)
-        if (status.getBoolean(homeKey) == home && status.getBoolean(recentsKey) == recents) return status
+        val keep = p.getInt(StockSnapshotCacheTrim.KEY, StockSnapshotCacheTrim.AOSP)
+            .coerceIn(StockSnapshotCacheTrim.MIN, StockSnapshotCacheTrim.MAX)
+        val keepMatches = !status.containsKey(StockSnapshotCacheTrim.KEY) ||
+            status.getInt(StockSnapshotCacheTrim.KEY) == keep
+        if (status.getBoolean(homeKey) == home && status.getBoolean(recentsKey) == recents && keepMatches) {
+            return status
+        }
         val data = Bundle().apply {
             putBoolean(homeKey, home)
             putBoolean(recentsKey, recents)
+            putInt(StockSnapshotCacheTrim.KEY, keep)
         }
         return RecentsFocusWire.call(endpoint, RecentsFocusWire.KEEP_LAUNCHER_SCREENS, data, transport)
     }

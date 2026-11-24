@@ -150,4 +150,6 @@
     <string name="recents_retention">アプリ履歴をメモリに保持</string>
     <string name="home_retention_note">Androidが非表示の画面をメモリ回収するときも、選択した画面を保持します。メモリ使用量が増える場合があります。</string>
     <string name="home_retention_backend_missing">Vectorのシステムフレームワーク側フックを待っています。</string>
+  <string name="snapshot_keep">メモリに保持する最近のアプリ画面：%1$d 枚</string>
+  <string name="snapshot_keep_note">最近のアプリ画面1枚につき約18 MBのグラフィックスメモリを使います。古いものは保存先から読み込み直します。5がAndroid標準、20がSamsung標準です。</string>
 </resources>

@@ -150,4 +150,6 @@
   <string name="recents_retention">在内存中保留最近任务</string>
   <string name="home_retention_note">Android 回收后台界面时保留选中的 One UI 界面。此设置可能增加内存用量。</string>
   <string name="home_retention_backend_missing">正在等待 Vector 的系统框架钩子。</string>
+  <string name="snapshot_keep">内存中保留的最近应用画面：%1$d 张</string>
+  <string name="snapshot_keep_note">每张最近应用画面约占用 18 MB 图形内存。较早的画面会从存储空间重新读取。5 为 Android 默认值，20 为三星原厂值。</string>
 </resources>

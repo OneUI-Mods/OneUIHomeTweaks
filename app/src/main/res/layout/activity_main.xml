@@ -217,6 +217,26 @@
               android:text="@string/recents_retention"
               android:textAppearance="@style/TextAppearance.Material3.TitleMedium" />
             <TextView
+              android:id="@+id/snapshot_keep_label"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:layout_marginTop="8dp"
+              android:textAppearance="@style/TextAppearance.Material3.TitleMedium" />
+            <com.google.android.material.slider.Slider
+              android:id="@+id/snapshot_keep"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:valueFrom="2"
+              android:valueTo="20"
+              android:stepSize="1" />
+            <TextView
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:layout_marginBottom="8dp"
+              android:text="@string/snapshot_keep_note"
+              android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+              android:textColor="?attr/colorOnSurfaceVariant" />
+            <TextView
               android:layout_width="match_parent"
               android:layout_height="wrap_content"
               android:text="@string/home_retention_note"
