@@ -36,8 +36,8 @@ android {
         applicationId = "dev.ryuya.oneuihometweaks"
         minSdk = 31
         targetSdk = 37
-        versionCode = 326
-        versionName = "0.21.259"
+        versionCode = 327
+        versionName = "0.21.260"
         buildConfigField(
             "boolean", "HEAP_DUMP_AFTER_RELOAD",
             (providers.gradleProperty("heapDumpAfterReload").orNull == "true").toString(),
@@ -85,6 +85,10 @@ android {
         buildConfigField(
             "boolean", "LAUNCHER_PREWARM_HOME_UP_PROVIDER",
             (providers.gradleProperty("launcherPrewarmHomeUpProvider").orNull == "true").toString(),
+        )
+        buildConfigField(
+            "boolean", "PREVIEW_HOST_RELEASE",
+            (providers.gradleProperty("previewHostRelease").orNull == "true").toString(),
         )
         buildConfigField(
             "boolean", "STOCK_SNAPSHOT_CACHE_TRIM",

@@ -57,6 +57,11 @@ internal object AuxiliaryHostRuntime {
                 if (Build.VERSION.SDK_INT < 36) error("Wallpaper preview requires Android 16")
                 val preview = PreviewHooks()
                 scope.onRetire(preview::close)
+                if (BuildConfig.PREVIEW_HOST_RELEASE && app.packageName == Application.getProcessName()) {
+                    val release = PreviewHostRelease(app)
+                    scope.onRetire(release::close)
+                    release.install()
+                }
                 SystemUiHookScopes.bind(scope) { preview.install(app, classLoader) }
                 check(SystemUiHookScopes.trySwitch(scope) { it?.close() })
                 if (previousState.isNotEmpty()) preview.reconnect(previousState)

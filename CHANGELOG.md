@@ -1,3 +1,7 @@
+# 0.21.260
+
+- 閉じたSamsungの壁紙・テーマアプリ（Dressroom）がメモリを抱えたまま残らないようにしました。 [リリースノート / Release notes](docs/releases/0.21.260.md)
+
 # 0.21.259
 
 - 最近使ったアプリの画面をメモリに保持する枚数を設定できるようにしました。初期値はAndroid標準の5枚です。 [リリースノート / Release notes](docs/releases/0.21.259.md)
