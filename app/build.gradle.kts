@@ -34,10 +34,10 @@ android {
     }
     defaultConfig {
         applicationId = "dev.ryuya.oneuihometweaks"
-        minSdk = 31
+        minSdk = 37
         targetSdk = 37
-        versionCode = 327
-        versionName = "0.21.260"
+        versionCode = 328
+        versionName = "0.21.261"
         buildConfigField(
             "boolean", "HEAP_DUMP_AFTER_RELOAD",
             (providers.gradleProperty("heapDumpAfterReload").orNull == "true").toString(),

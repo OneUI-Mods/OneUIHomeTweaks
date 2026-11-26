@@ -1,12 +1,14 @@
 # One UI Home Tweaks
 
+Installation requires Android 17 (API 37) or later.
+
 [日本語](README.md) · English
 
 An Android app for customizing Samsung One UI Home. Adjust home-screen and app-drawer label colors, recent apps, live-wallpaper integration, volume-panel colors, and Quick Panel dimensions. It runs as a Vector / LSPosed module.
 
 For home-screen app names and the Finder area at the bottom, the module can inspect the background immediately around each label and choose readable black or white text. Different bright and dark areas on the same page can use different colors. It does not change status-bar colors.
 
-**Development and physical-device validation are ongoing.** The verified baseline is Galaxy S26 Ultra (SM-S948Q), Android 16, and Vector 2.2. Installing the APK alone on an ordinary unrooted phone is insufficient. Android 17 / One UI 9 support is experimental on SM-S948Q / BZI9. Separate compatibility paths are maintained for Android 16 and 17.
+**Development and physical-device validation are ongoing.** The verified baseline is Galaxy S26 Ultra (SM-S948Q) on Android 17 / One UI 9 (BZI9) with Vector 2.2. Root and a compatible framework are required.
 
 Starting with 0.21.52, [Galaxy Glass Tools](https://github.com/OneUI-Mods/GalaxyGlassTools) manages the glass appearance and imports existing glass preferences once.
 
@@ -48,9 +50,9 @@ If alignment dimensions do not match the current home screen, icons and folders 
 
 **Home → Layout protection and diagnostics** prevents DIY Home positions from being saved using temporary rotation dimensions. Stock layout correction proceeds only after the launcher returns to the foreground and dimensions stabilize. Widget sizing remains with the original drawing code. This protection targets Android 17 / One UI 9 BZI9, One UI Home 18.0.07.53, and Home Up 18.0.00.36. Protection and logging have separate switches. Previously saved incorrect positions are not guessed or automatically restored.
 
-Diagnostic logs save orientation, dimensions, before/after layout changes, home-operation types, and launched apps locally, up to approximately 4 MB. They contain no screenshots or typed text and are not automatically uploaded. After a problem, export them with **Share diagnostic log**. Reload only One UI Home after updating. Existing Android 16 features remain supported.
+Diagnostic logs save orientation, dimensions, before/after layout changes, home-operation types, and launched apps locally, up to approximately 4 MB. They contain no screenshots or typed text and are not automatically uploaded. After a problem, export them with **Share diagnostic log**. Reload only One UI Home after updating.
 
-Enable continuous rendering in the **Home** tab. It targets supported Android 16/17 gesture navigation in portrait and landscape, using One UI's stock orientations and transitions and displaying the last app live in the destination card. Cards undergoing perspective transforms temporarily use the stock snapshot, then return to live display. Protected screens and unsupported configurations retain stock behavior. App video-playback and audio policies are unchanged, so continued playback is not guaranteed for every video app.
+Enable continuous rendering in the **Home** tab. It targets supported Android 17 gesture navigation in portrait and landscape, using One UI's stock orientations and transitions and displaying the last app live in the destination card. Cards undergoing perspective transforms temporarily use the stock snapshot, then return to live display. Protected screens and unsupported configurations retain stock behavior. App video-playback and audio policies are unchanged, so continued playback is not guaranteed for every video app.
 
 Master and per-target switches control features. Color choices apply immediately; persistent layout saving uses a separate confirmation button. Material 3 bottom navigation divides the app into **Home**, **Display**, **Status**, and **Settings**. Icons and badges show application status, and targets can be reloaded from the app.
 
@@ -60,7 +62,7 @@ After boot, initialization of launcher, clock, volume, Quick Panel, Settings and
 
 ## Requirements
 
-- A supported Samsung One UI device. Physical validation covers SM-S948Q on Android 16 / One UI 8.5 (AZHL) and Android 17 / One UI 9 (BZI9).
+- A supported Samsung One UI device. Physical validation covers SM-S948Q on Android 17 / One UI 9 (BZI9).
 - An Xposed environment supporting modern libxposed API 102; Vector 2.2 was used for validation. Legacy API 82 environments cannot load the module.
 - Wallpaper features require a live wallpaper. Recents features also work with static wallpaper. There is no implementation specific to a particular wallpaper app.
 - An existing root environment is required to reload target processes or reset startup protection.
@@ -96,7 +98,7 @@ On Android 17 / One UI 9 BZI9, add Settings to Vector's scope and reopen Setting
 
 Enter 0.00–10.00 in 0.01 increments, or use the plus/minus buttons and slider. Lower values are faster; 0 disables animation. **Default** resets the input to 1.00, and **Save** applies it. Canceling or going back changes nothing. The three values are saved independently and the list shows the actual scales.
 
-Disabling this feature restores the stock selection dialog while preserving saved scales. Disabling Developer options itself follows the OS's normal reset behavior. Existing Android 16 features remain, but this input dialog does not yet support Android 16. No device or SystemUI restart is needed.
+Disabling this feature restores the stock selection dialog while preserving saved scales. Disabling Developer options itself follows the OS's normal reset behavior. No device or SystemUI restart is needed.
 
 ## Before use
 
