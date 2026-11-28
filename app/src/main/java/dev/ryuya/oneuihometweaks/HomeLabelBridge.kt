@@ -81,7 +81,32 @@ class HomeLabelBridge {
     private var changed: Runnable? = null
     private val sample: Runnable = Runnable { this.sample() }
     private val expirePending: Runnable = Runnable { this.expirePending() }
-    private val layout: OnGlobalLayoutListener = OnGlobalLayoutListener { this.invalidate() }
+    private var geometry: LabelGeometry? = null
+    private val checkLayout: Runnable = Runnable { sample(layoutOnly = true) }
+    private val layout: OnGlobalLayoutListener = OnGlobalLayoutListener {
+        if (enabled && !failed && !main.hasCallbacks(checkLayout)) {
+            main.postDelayed(checkLayout, 48)
+        }
+    }
+
+    private class LabelGeometry(
+        val screen: Rect,
+        val decorWidth: Int,
+        val decorHeight: Int,
+        val rotation: Int,
+        val labels: List<Target>,
+    ) {
+        fun matches(decor: View) = decor.width == decorWidth && decor.height == decorHeight &&
+            decor.display?.rotation == rotation
+
+        fun sameLabels(current: List<Target>): Boolean =
+            labels.size == current.size && labels.indices.all { index ->
+                val old = labels[index]
+                val next = current[index]
+                old.view.get() === next.view.get() && old.finder == next.finder &&
+                    old.regions == next.regions
+            }
+    }
     private val scroll: OnScrollChangedListener = OnScrollChangedListener { this.invalidate() }
     private val focus: OnWindowFocusChangeListener =
         OnWindowFocusChangeListener { focused: Boolean ->
@@ -263,6 +288,7 @@ class HomeLabelBridge {
         enabled = false
         home.get()?.let(::detach)
         home.clear()
+        geometry = null
         cancel()
         restore()
         main.removeCallbacksAndMessages(null)
@@ -274,6 +300,7 @@ class HomeLabelBridge {
         if (old !== activity) {
             if (old != null) detach(old)
             home = WeakReference<Activity?>(activity)
+            geometry = null
             val tree = activity.getWindow().getDecorView().getViewTreeObserver()
             tree.addOnGlobalLayoutListener(layout)
             tree.addOnScrollChangedListener(scroll)
@@ -290,6 +317,7 @@ class HomeLabelBridge {
         if (home.get() !== activity) return
         detach(activity)
         home.clear()
+        geometry = null
         cancel()
         restore()
     }
@@ -307,6 +335,7 @@ class HomeLabelBridge {
         value = value and (iconClass != null && !failed)
         if (value == enabled) return
         enabled = value
+        geometry = null
         cancel()
         if (value) {
             update("waiting")
@@ -339,6 +368,7 @@ class HomeLabelBridge {
         generation++
         retryWhenIdle = false
         main.removeCallbacks(sample)
+        main.removeCallbacks(checkLayout)
         main.removeCallbacks(expirePending)
     }
 
@@ -440,19 +470,21 @@ class HomeLabelBridge {
         return activity?.getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == false
     }
 
-    private fun sample() {
+    private fun sample(layoutOnly: Boolean = false) {
         val activity = home.get()
         if (isTransitionActive()) {
             if (Trace.isEnabled()) Trace.setCounter("OneUI Home wallpaper sample deferred", 1)
             return
         }
         if (!usable(activity)) return
-        if (busy) {
+        if (busy && !layoutOnly) {
             retryWhenIdle = true
             return
         }
         try {
-            val screen = activity!!.getWindowManager().getMaximumWindowMetrics().getBounds()
+            val decor = activity!!.window.decorView
+            val previous = geometry.takeIf { layoutOnly && it?.matches(decor) == true }
+            val screen = previous?.screen ?: activity.windowManager.maximumWindowMetrics.bounds
             if (
                 screen.left != 0 ||
                     screen.top != 0 ||
@@ -463,8 +495,24 @@ class HomeLabelBridge {
                 update("geometry-skipped")
                 return
             }
-            val targets = ArrayList<HomeLabelBridge.Target?>()
-            collect(activity!!.getWindow().getDecorView(), screen, targets)
+            val targets = ArrayList<Target?>()
+            collect(decor, screen, targets)
+            val labels = targets.filterNotNull()
+            val rotation = decor.display?.rotation ?: return
+            if (layoutOnly) {
+                if (previous?.sameLabels(labels) == true &&
+                    labels.none { it.finder || hasNativeColorChange(it) }
+                ) return
+                geometry = LabelGeometry(screen, decor.width, decor.height, rotation, labels)
+                invalidate()
+                return
+            }
+            geometry = LabelGeometry(screen, decor.width, decor.height, rotation, labels.map { target ->
+                Target(target.view.get(), target.regions, null).also { it.finder = target.finder }
+            })
+            for (target in labels) {
+                if (target.finder) finderBackground(target.view.get(), target)
+            }
             // Offscreen pages retain their last color. Restoring native white while sliding a page
             // out
             // produced a visible white flash when it came back. Restore only on reparenting or
@@ -483,6 +531,12 @@ class HomeLabelBridge {
         } catch (t: Throwable) {
             disable(t)
         }
+    }
+
+    private fun hasNativeColorChange(target: Target): Boolean {
+        val view = target.view.get() ?: return true
+        val applied = saved[view]?.applied ?: return false
+        return view.currentTextColor != applied
     }
 
     @Throws(Exception::class)
@@ -555,7 +609,6 @@ class HomeLabelBridge {
                         prior?.applied,
                     )
                 target.finder = finder
-                if (finder) finderBackground(text, target)
                 targets.add(target)
             }
         } else if (view is ViewGroup) {
@@ -742,6 +795,7 @@ class HomeLabelBridge {
                     return@Runnable
                 }
                 if (skip != null) {
+                    geometry = null
                     // A temporarily hidden wallpaper during a page transition is not a
                     // compatibility error.
                     if ("waiting" != skip) {
