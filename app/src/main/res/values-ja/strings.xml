@@ -152,4 +152,6 @@
     <string name="home_retention_backend_missing">Vectorのシステムフレームワーク側フックを待っています。</string>
   <string name="snapshot_keep">メモリに保持する最近のアプリ画面：%1$d 枚</string>
   <string name="snapshot_keep_note">最近のアプリ画面1枚につき約18 MBのグラフィックスメモリを使います。古いものは保存先から読み込み直します。5がAndroid標準、20がSamsung標準です。</string>
+  <string name="home_graphics_trim">ホームを離れたとき描画キャッシュを回収</string>
+  <string name="home_graphics_trim_note">ホームが12秒間非表示になると、未使用の描画キャッシュを回収します。初期設定はオフです。</string>
 </resources>

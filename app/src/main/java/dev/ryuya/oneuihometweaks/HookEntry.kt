@@ -22,6 +22,7 @@ import android.os.Process
 import android.os.Trace
 import android.provider.Settings.System
 import android.util.Log
+import android.view.View
 import android.view.ViewGroup
 import android.os.SystemClock
 import dev.ryuya.oneuihometweaks.compat.DexRuntimeCache
@@ -91,6 +92,7 @@ class HookEntry : XposedModule() {
     private val launcherMain = Handler(Looper.getMainLooper())
     private var launcherScope: SystemUiHookScope? = null
     private var launcherTransitionsIdle: () -> Boolean = { true }
+    private var launcherGraphicsTrim: LauncherGraphicsTrim? = null
     private var launcherWorker: LauncherWorker? = null
     private var launcherPackage: TargetPackage? = null
     private var launcherActivity = WeakReference<Activity>(null)
@@ -848,9 +850,17 @@ class HookEntry : XposedModule() {
             Context.RECEIVER_NOT_EXPORTED)
         ModernHook.onGenerationRetired { app.unregisterReceiver(wallpaper) }
 
+        val graphicsTrim = LauncherGraphicsTrim.create(launcherMain, launcherLoader) {
+            !failed && !launcherRetired && launcherTransitionsIdle()
+        }
+        launcherGraphicsTrim = graphicsTrim
         val lifecycle = object : ActivityLifecycleCallbacks {
             override fun onActivityResumed(a: Activity) {
-                if (a.javaClass.compatibleName() == "$LAUNCHER.Launcher") launcherActivity = WeakReference(a)
+                graphicsTrim?.started(a)
+                if (a.javaClass.compatibleName() == "$LAUNCHER.Launcher") {
+                    launcherActivity = WeakReference(a)
+                    graphicsTrim?.resumedHome(a)
+                }
                 pages.setHomeWindow(a)
                 homeLabels.setHome(a)
                 requestRefresh()
@@ -861,20 +871,33 @@ class HookEntry : XposedModule() {
                 if (launcherActivity.get() === a) launcherActivity.clear()
                 pages.clearHomeWindow(a)
                 homeLabels.destroyed(a)
+                graphicsTrim?.destroyed(a)
             }
 
             override fun onActivityCreated(a: Activity, b: Bundle?) = Unit
-            override fun onActivityStarted(a: Activity) = Unit
-            override fun onActivityStopped(a: Activity) = Unit
+            override fun onActivityStarted(a: Activity) {
+                graphicsTrim?.started(a)
+            }
+
+            override fun onActivityStopped(a: Activity) {
+                graphicsTrim?.stopped(a)
+            }
             override fun onActivitySaveInstanceState(a: Activity, b: Bundle) = Unit
         }
         app.registerActivityLifecycleCallbacks(lifecycle)
-        ModernHook.onGenerationRetired { app.unregisterActivityLifecycleCallbacks(lifecycle) }
+        ModernHook.onGenerationRetired {
+            app.unregisterActivityLifecycleCallbacks(lifecycle)
+            graphicsTrim?.close()
+            launcherGraphicsTrim = null
+        }
         initialized = true
         pendingHomeActivity.get()?.takeUnless { it.isDestroyed }?.let { activity ->
             launcherActivity = WeakReference(activity)
             pages.setHomeWindow(activity)
             homeLabels.setHome(activity)
+            if (activity.window.peekDecorView()?.windowVisibility == View.VISIBLE) {
+                graphicsTrim?.resumedHome(activity)
+            }
         }
         pendingHomeActivity.clear()
         requestRefresh()
@@ -898,6 +921,7 @@ class HookEntry : XposedModule() {
             var folderReturn: Boolean = true
             var animateUnlock = false
             var iconOverlapFix = true
+            var trimGraphics = false
             var master: Boolean = false
             var pageMode: Boolean = false
             var hideRecentsBar: Boolean = false
@@ -921,6 +945,8 @@ class HookEntry : XposedModule() {
                     animateUnlock = master && unlockColumn >= 0 && cursor.getInt(unlockColumn) != 0
                     val overlapColumn = cursor.getColumnIndex("icon_overlap_fix")
                     iconOverlapFix = overlapColumn < 0 || cursor.getInt(overlapColumn) != 0
+                    val trimColumn = cursor.getColumnIndex(LauncherGraphicsTrim.KEY)
+                    trimGraphics = master && trimColumn >= 0 && cursor.getInt(trimColumn) != 0
                     pageMode = cursor.getInt(cursor.getColumnIndexOrThrow("pages")) != 0
                     hideRecentsBar =
                         master &&
@@ -960,6 +986,7 @@ class HookEntry : XposedModule() {
             val currentFolderReturn: Boolean = folderReturn
             val currentUnlockMotion = animateUnlock
             val currentOverlapFix = master && iconOverlapFix
+            val currentTrimGraphics = trimGraphics
             val currentDiyGrid: Boolean = diyGridMode
             val currentAvoidWidgets = avoidWidgets
             val gridRequest =
@@ -981,6 +1008,7 @@ class HookEntry : XposedModule() {
                     folders.configure(currentMaster, currentFolderReturn)
                     unlockMotion.configure(currentUnlockMotion)
                     iconOverlap.setEnabled(currentOverlapFix)
+                    launcherGraphicsTrim?.setEnabled(currentTrimGraphics)
                     diyWidgets.setEnabled(currentAvoidWidgets)
                     diyGrid.setEnabled(currentDiyGrid)
                     gridSave.accept(context!!, gridRequest)
@@ -1048,6 +1076,7 @@ class HookEntry : XposedModule() {
                     diyGrid.setEnabled(false)
                     diyWidgets.setEnabled(false)
                     iconOverlap.setEnabled(false)
+                    launcherGraphicsTrim?.setEnabled(false)
                     unlockMotion.configure(false)
                 }
             )
@@ -1110,6 +1139,7 @@ class HookEntry : XposedModule() {
                     diyGrid.setEnabled(false)
                     diyWidgets.setEnabled(false)
                     iconOverlap.setEnabled(false)
+                    launcherGraphicsTrim?.setEnabled(false)
                 }
             )
         publish(HomeColorSnapshot(null, null))

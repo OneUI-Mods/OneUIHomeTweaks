@@ -78,6 +78,7 @@ class MainActivity : AppCompatActivity() {
             "folder_return",
             HomeUnlockMotion.KEY,
             "icon_overlap_fix",
+            LauncherGraphicsTrim.KEY,
             "settings_enabled",
         )
     private val switchIds: IntArray? =
@@ -98,6 +99,7 @@ class MainActivity : AppCompatActivity() {
             R.id.folder_return,
             R.id.home_unlock_motion,
             R.id.icon_overlap_fix,
+            R.id.home_graphics_trim,
             R.id.settings_enabled,
         )
     private val reports: ContentObserver =
@@ -187,6 +189,7 @@ class MainActivity : AppCompatActivity() {
                         (key != "clock_date_left") &&
                         (key != "diy_icon_grid") &&
                         (key != "diy_avoid_widgets") &&
+                        (key != LauncherGraphicsTrim.KEY) &&
                         (key != InteractionRefresh.KEY),
                 ),
             )

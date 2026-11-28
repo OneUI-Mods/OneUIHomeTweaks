@@ -80,6 +80,7 @@ class ConfigProvider : ContentProvider() {
                     "hide_circle_search",
                     InteractionRefresh.KEY,
                     HomeUnlockMotion.KEY,
+                    LauncherGraphicsTrim.KEY,
                 )
             )
         c.addRow(
@@ -114,6 +115,7 @@ class ConfigProvider : ContentProvider() {
                 if (p.getBoolean("hide_circle_search", true)) 1 else 0,
                 if (p.getBoolean(InteractionRefresh.KEY, false)) 1 else 0,
                 if (p.getBoolean(HomeUnlockMotion.KEY, HomeUnlockMotion.DEFAULT_ENABLED)) 1 else 0,
+                if (p.getBoolean(LauncherGraphicsTrim.KEY, false)) 1 else 0,
             )
         )
         return c

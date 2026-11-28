@@ -152,4 +152,6 @@
     <string name="home_retention_backend_missing">Waiting for the System Framework hook in Vector.</string>
   <string name="snapshot_keep">Recent-app screenshots kept in memory: %1$d</string>
   <string name="snapshot_keep_note">Each recent app screenshot uses about 18 MB of graphics memory. Older ones reload from storage. 5 is Android’s default and 20 is Samsung’s stock value.</string>
+  <string name="home_graphics_trim">Free drawing cache when Home is hidden</string>
+  <string name="home_graphics_trim_note">Frees unused drawing cache after Home has been hidden for 12 seconds. Off by default.</string>
 </resources>
