@@ -83,7 +83,7 @@ class HookEntry : XposedModule() {
     private var earlyPages: Boolean = false
     private var preparedGuard: CrashGuard? = null
     @Volatile private var failed: Boolean = false
-    private var failures: Int = 0
+    @Volatile private var failures: Int = 0
     private var listener: OnColorsChangedListener? = null
     private val liveRecents: RecentsLiveTileHooks = RecentsLiveTileHooks()
     private var lastReport: String = ""
@@ -99,7 +99,18 @@ class HookEntry : XposedModule() {
     private var healthyDeadline = 0L
     private var launcherRecovery: Array<*>? = null
     @Volatile private var launcherRetired = false
-    private val refresh: Runnable = Runnable { this.refresh() }
+    private val refresh: Runnable = Runnable {
+        val tracing = Trace.isEnabled()
+        if (tracing) Trace.beginSection("OneUI launcher config refresh")
+        try {
+            refresh()
+        } finally {
+            if (tracing) Trace.endSection()
+        }
+    }
+    private data class LauncherStatus(val active: Boolean, val liveWallpaper: Boolean, val colorHints: Int?)
+    private var launcherStatus: LauncherStatus? = null
+    private val reportLauncherStatus = Runnable { reportLauncherStatus() }
 
     override fun onModuleLoaded(param: ModuleLoadedParam) {
         ModernHook.attach(this)
@@ -111,9 +122,9 @@ class HookEntry : XposedModule() {
                 iconOverlap.observe(view)
             }
         )
-        diyGrid.setChanged(Runnable { this.requestRefresh() })
+        diyGrid.setChanged(Runnable { requestLauncherStatus() })
         diyWidgets.onChanged = diyGrid::widgetPlacementChanged
-        iconOverlap.setChanged(Runnable { this.requestRefresh() })
+        iconOverlap.setChanged(Runnable { requestLauncherStatus() })
         processName = param.getProcessName()
         systemServer = param.isSystemServer()
         HookEntry.log(
@@ -796,7 +807,7 @@ class HookEntry : XposedModule() {
             circleRecents.install(launcherLoader)
             requestRefresh()
         }
-        liveRecents.setStateListener(Runnable { this.requestRefresh() })
+        liveRecents.setStateListener(Runnable { requestLauncherStatus() })
         try {
             liveRecents.install(app, app.getApplicationInfo().sourceDir, launcherLoader)
         } catch (t: Throwable) {
@@ -821,7 +832,7 @@ class HookEntry : XposedModule() {
         worker = configWorker.handler
         wm = WallpaperManager.getInstance(app)
         try {
-            homeLabels.install(app, launcherLoader, worker, Runnable { this.requestRefresh() })
+            homeLabels.install(app, launcherLoader, worker, Runnable { requestLauncherStatus() })
         } catch (t: Throwable) {
             HookEntry.log("LOCAL_LABEL_UNSUPPORTED " + t)
         }
@@ -863,7 +874,7 @@ class HookEntry : XposedModule() {
                 }
                 pages.setHomeWindow(a)
                 homeLabels.setHome(a)
-                requestRefresh()
+                if (failures > 0) requestRefresh()
             }
 
             override fun onActivityPaused(a: Activity) = homeLabels.paused(a)
@@ -996,8 +1007,7 @@ class HookEntry : XposedModule() {
             val localLabels: Boolean = apply && label == ColorPolicy.LOCAL
             main!!.post(
                 Runnable {
-                    // A later refresh may disable the bridge before this task runs.
-                    if (failed) return@Runnable
+                    if (failed || launcherRetired) return@Runnable
                     pages.setEnabled(apply && currentPages)
                     drawer.setMode(currentDrawerMode, apply)
                     homeLabels.setEnabled(localLabels)
@@ -1012,40 +1022,9 @@ class HookEntry : XposedModule() {
                     diyWidgets.setEnabled(currentAvoidWidgets)
                     diyGrid.setEnabled(currentDiyGrid)
                     gridSave.accept(context!!, gridRequest)
-                    val detail = ("Launcher bridge; wallpaper=" +
-                            (if (target) "live" else "static") +
-                            "; hints=" +
-                            hints +
-                            "; localLabels=" +
-                            homeLabels.diagnostic() +
-                            "; recentsBar=" +
-                            recentsBar.diagnostic() +
-                            "; circleRecents=" + circleRecents.diagnostic() +
-                            "; liveRecents=" +
-                            liveRecents.diagnostic() +
-                            "; focusBridge=" +
-                            liveRecents.focusDiagnostic() +
-                            "; diyGrid=" +
-                            diyGrid.diagnostic() +
-                            "; folders=" +
-                            folders.diagnostic() +
-                            "; iconOverlap=" +
-                            iconOverlap.diagnostic())
-                    val state = if (currentMaster) "ACTIVE" else "OFF"
-                    val host = context
-                    // Snapshot view-owned diagnostics here. Provider storage and notification can
-                    // wait on system_server, so keep that IPC off the launcher frame thread.
-                    worker?.post {
-                        if (!failed && !launcherRetired) {
-                            val tracing = Trace.isEnabled()
-                            if (tracing) Trace.beginSection("OneUI launcher status report")
-                            try {
-                                HostStatus.report(host, state, detail)
-                            } finally {
-                                if (tracing) Trace.endSection()
-                            }
-                        }
-                    }
+                    launcherStatus = LauncherStatus(currentMaster, target, hints)
+                    launcherMain.removeCallbacks(reportLauncherStatus)
+                    reportLauncherStatus()
                 }
             )
             val next = HomeColorSnapshot.resolve(label, status, target, hints)
@@ -1072,6 +1051,8 @@ class HookEntry : XposedModule() {
             publish(HomeColorSnapshot(null, null))
             main!!.post(
                 Runnable {
+                    launcherStatus = null
+                    launcherMain.removeCallbacks(reportLauncherStatus)
                     homeLabels.setEnabled(false)
                     diyGrid.setEnabled(false)
                     diyWidgets.setEnabled(false)
@@ -1087,6 +1068,40 @@ class HookEntry : XposedModule() {
                     t.message)
             )
             if (++failures >= 3) fail("three consecutive refresh errors", t)
+        }
+    }
+
+    private fun requestLauncherStatus() {
+        if (failed || launcherRetired || worker == null) return
+        launcherMain.removeCallbacks(reportLauncherStatus)
+        launcherMain.postDelayed(reportLauncherStatus, 120)
+    }
+
+    private fun reportLauncherStatus() {
+        if (failed || launcherRetired) return
+        val status = launcherStatus ?: return
+        val detail = "Launcher bridge; wallpaper=" + (if (status.liveWallpaper) "live" else "static") +
+            "; hints=" + status.colorHints +
+            "; localLabels=" + homeLabels.diagnostic() +
+            "; recentsBar=" + recentsBar.diagnostic() +
+            "; circleRecents=" + circleRecents.diagnostic() +
+            "; liveRecents=" + liveRecents.diagnostic() +
+            "; focusBridge=" + liveRecents.focusDiagnostic() +
+            "; diyGrid=" + diyGrid.diagnostic() +
+            "; folders=" + folders.diagnostic() +
+            "; iconOverlap=" + iconOverlap.diagnostic()
+        val state = if (status.active) "ACTIVE" else "OFF"
+        val host = context
+        // Diagnostics read view state on main. The provider call runs on the existing worker.
+        worker?.post {
+            if (failed || launcherRetired) return@post
+            val tracing = Trace.isEnabled()
+            if (tracing) Trace.beginSection("OneUI launcher status report")
+            try {
+                HostStatus.report(host, state, detail)
+            } finally {
+                if (tracing) Trace.endSection()
+            }
         }
     }
 

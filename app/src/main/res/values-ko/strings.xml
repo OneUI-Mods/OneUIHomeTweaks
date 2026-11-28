@@ -153,5 +153,5 @@
   <string name="snapshot_keep">메모리에 보관하는 최근 앱 화면: %1$d개</string>
   <string name="snapshot_keep_note">최근 앱 화면 1개당 약 18 MB의 그래픽 메모리를 사용합니다. 오래된 화면은 저장소에서 다시 불러옵니다. 5는 Android 기본값, 20은 Samsung 기본값입니다.</string>
   <string name="home_graphics_trim">홈 화면이 숨겨지면 그리기 캐시 비우기</string>
-  <string name="home_graphics_trim_note">홈 화면이 12초 동안 숨겨지면 사용하지 않는 그리기 캐시를 비웁니다. 기본값은 꺼짐입니다.</string>
+  <string name="home_graphics_trim_note">홈 화면이 12초 동안 숨겨지면 사용하지 않는 그리기 캐시를 비웁니다. 홈 화면을 메모리에 유지하는 기능과 함께 쓸 수 있습니다. 기본값은 꺼짐입니다.</string>
 </resources>

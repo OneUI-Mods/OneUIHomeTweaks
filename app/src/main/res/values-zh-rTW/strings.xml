@@ -153,5 +153,5 @@
   <string name="snapshot_keep">記憶體中保留的最近應用程式畫面：%1$d 張</string>
   <string name="snapshot_keep_note">每張最近應用程式畫面約使用 18 MB 圖形記憶體。較早的畫面會從儲存空間重新讀取。5 為 Android 預設值，20 為三星原廠值。</string>
   <string name="home_graphics_trim">離開主畫面後清理繪圖快取</string>
-  <string name="home_graphics_trim_note">主畫面隱藏 12 秒後釋放未使用的繪圖快取。預設關閉。</string>
+  <string name="home_graphics_trim_note">主畫面隱藏 12 秒後釋放未使用的繪圖快取。可以與「在記憶體中保留主畫面」一起使用。預設關閉。</string>
 </resources>
